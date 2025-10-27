@@ -1,21 +1,13 @@
 import React from 'react';
 
-const BalanceSummary = ({ balances, isDarkMode }) => {
+const BalanceSummary = ({ balances }) => {
   return (
-    <div
-      className={`rounded-3xl shadow-xl p-6 transition-all duration-300 ${
-        isDarkMode ? 'glass-card-dark' : 'glass-card'
-      }`}
-    >
+    <div className="rounded-3xl shadow-xl p-6 glass-card-dark">
       <div className="flex justify-between items-center mb-6">
-        <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>
+        <h2 className="text-xl font-bold text-white">
           Who Owes What
         </h2>
-        <button
-          className={`text-sm font-semibold hover:opacity-80 transition-opacity px-4 py-2 rounded-full ${
-            isDarkMode ? 'bg-white bg-opacity-20' : 'bg-black bg-opacity-20'
-          } text-white`}
-        >
+        <button className="text-sm font-semibold hover:opacity-80 transition-opacity px-4 py-2 rounded-full bg-white bg-opacity-20 text-white">
           Settle Up
         </button>
       </div>
@@ -23,8 +15,8 @@ const BalanceSummary = ({ balances, isDarkMode }) => {
       {balances.length === 0 ? (
         <div className="text-center py-8">
           <div className="text-5xl mb-3">✨</div>
-          <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>All settled up!</p>
-          <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-300' : 'text-white opacity-80'}`}>
+          <p className="font-bold text-white">All settled up!</p>
+          <p className="text-sm mt-2 text-gray-300">
             No outstanding balances
           </p>
         </div>
@@ -36,11 +28,7 @@ const BalanceSummary = ({ balances, isDarkMode }) => {
             return (
               <div
                 key={index}
-                className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
-                  isDarkMode
-                    ? 'hover:bg-white hover:bg-opacity-10'
-                    : 'hover:bg-white hover:bg-opacity-30'
-                }`}
+                className="flex items-center justify-between p-4 rounded-2xl transition-all hover:bg-white hover:bg-opacity-10"
               >
                 <div className="flex items-center space-x-4">
                   {/* Avatar/Initial */}
@@ -52,7 +40,7 @@ const BalanceSummary = ({ balances, isDarkMode }) => {
 
                   {/* Text */}
                   <div>
-                    <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>
+                    <p className="text-sm font-bold text-white">
                       {isOwedToYou ? (
                         <>
                           <span className="font-bold">{balance.person}</span> owes you
@@ -63,7 +51,7 @@ const BalanceSummary = ({ balances, isDarkMode }) => {
                         </>
                       )}
                     </p>
-                    <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-white opacity-80'}`}>
+                    <p className="text-xs font-medium text-gray-300">
                       {isOwedToYou ? 'They paid for shared expenses' : 'For shared expenses'}
                     </p>
                   </div>
@@ -87,11 +75,9 @@ const BalanceSummary = ({ balances, isDarkMode }) => {
       {balances.length > 0 && (
         <div
           className="mt-4 p-4 rounded-2xl"
-          style={{
-            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.15)'
-          }}
+          style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
         >
-          <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-white'}`}>
+          <p className="text-xs font-medium text-gray-300">
             <span className="font-bold">💡 Tip:</span> Click "Settle Up" to mark debts as paid
           </p>
         </div>

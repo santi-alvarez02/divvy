@@ -1,6 +1,6 @@
 import React from 'react';
 
-const RecentExpenses = ({ expenses, roommates, isDarkMode }) => {
+const RecentExpenses = ({ expenses, roommates }) => {
   // Get roommate name by ID
   const getRoommateName = (id) => {
     const roommate = roommates.find(r => r.id === id);
@@ -37,20 +37,12 @@ const RecentExpenses = ({ expenses, roommates, isDarkMode }) => {
   };
 
   return (
-    <div
-      className={`rounded-3xl shadow-xl p-6 transition-all duration-300 ${
-        isDarkMode ? 'glass-card-dark' : 'glass-card'
-      }`}
-    >
+    <div className="rounded-3xl shadow-xl p-6 glass-card-dark">
       <div className="flex justify-between items-center mb-6">
-        <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>
+        <h2 className="text-xl font-bold text-white">
           Recent Expenses
         </h2>
-        <button
-          className={`text-sm font-semibold hover:opacity-80 transition-opacity px-4 py-2 rounded-full ${
-            isDarkMode ? 'bg-white bg-opacity-20' : 'bg-black bg-opacity-20'
-          } text-white`}
-        >
+        <button className="text-sm font-semibold hover:opacity-80 transition-opacity px-4 py-2 rounded-full bg-white bg-opacity-20 text-white">
           View All
         </button>
       </div>
@@ -59,43 +51,31 @@ const RecentExpenses = ({ expenses, roommates, isDarkMode }) => {
         {expenses.slice(0, 8).map((expense) => (
           <div
             key={expense.id}
-            className={`flex items-center justify-between p-4 rounded-2xl transition-all ${
-              isDarkMode
-                ? 'hover:bg-white hover:bg-opacity-10'
-                : 'hover:bg-white hover:bg-opacity-30'
-            }`}
+            className="flex items-center justify-between p-4 rounded-2xl transition-all hover:bg-white hover:bg-opacity-10"
           >
             {/* Left side - Icon and details */}
             <div className="flex items-center space-x-4 flex-1">
-              <div
-                className="flex-shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center text-2xl shadow-lg"
-                style={{
-                  backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)'
-                }}
-              >
-                {expense.icon}
-              </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center space-x-2">
-                  <p className={`text-sm font-bold truncate ${isDarkMode ? 'text-white' : 'text-white'}`}>
+                  <p className="text-sm font-bold truncate text-white">
                     {expense.description}
                   </p>
                   <span
                     className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold"
                     style={{
-                      backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.2)',
-                      color: isDarkMode ? '#e5e7eb' : '#ffffff'
+                      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                      color: '#e5e7eb'
                     }}
                   >
                     {expense.category}
                   </span>
                 </div>
                 <div className="flex items-center space-x-2 mt-1">
-                  <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-white opacity-80'}`}>
+                  <p className="text-xs font-medium text-gray-300">
                     {getRoommateName(expense.paidBy)} paid
                   </p>
-                  <span className={isDarkMode ? 'text-gray-500' : 'text-white opacity-50'}>•</span>
-                  <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-white opacity-80'}`}>
+                  <span className="text-gray-500">•</span>
+                  <p className="text-xs font-medium text-gray-300">
                     {getSplitInfo(expense)}
                   </p>
                 </div>
@@ -104,10 +84,10 @@ const RecentExpenses = ({ expenses, roommates, isDarkMode }) => {
 
             {/* Right side - Amount and date */}
             <div className="text-right ml-4">
-              <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>
+              <p className="text-base font-bold" style={{ color: '#ef711e' }}>
                 ${expense.amount.toFixed(2)}
               </p>
-              <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-white opacity-70'}`}>
+              <p className="text-xs font-medium text-gray-300">
                 {formatDate(expense.date)}
               </p>
             </div>

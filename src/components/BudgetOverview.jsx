@@ -1,6 +1,6 @@
 import React from 'react';
 
-const BudgetOverview = ({ budget, isDarkMode }) => {
+const BudgetOverview = ({ budget }) => {
   const { limit, spent, month, year } = budget;
   const percentage = Math.min((spent / limit) * 100, 100);
   const remaining = limit - spent;
@@ -16,20 +16,16 @@ const BudgetOverview = ({ budget, isDarkMode }) => {
   const getProgressColor = () => {
     if (percentage >= 90) return '#ef4444';
     if (percentage >= 70) return '#f59e0b';
-    return '#10b981';
+    return '#cd5b12';
   };
 
   return (
-    <div
-      className={`rounded-3xl shadow-xl p-6 transition-all duration-300 ${
-        isDarkMode ? 'glass-card-dark' : 'glass-card'
-      }`}
-    >
+    <div className="rounded-3xl shadow-xl p-6 glass-card-dark">
       <div className="flex justify-between items-center mb-6">
-        <h2 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>
+        <h2 className="text-xl font-bold text-white">
           Monthly Budget
         </h2>
-        <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-white opacity-80'}`}>
+        <span className="text-sm font-medium text-gray-300">
           {month} {year}
         </span>
       </div>
@@ -43,7 +39,7 @@ const BudgetOverview = ({ budget, isDarkMode }) => {
               cx={size / 2}
               cy={size / 2}
               r={radius}
-              stroke={isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'}
+              stroke="rgba(255, 255, 255, 0.1)"
               strokeWidth={strokeWidth}
               fill="none"
             />
@@ -63,10 +59,10 @@ const BudgetOverview = ({ budget, isDarkMode }) => {
           </svg>
           {/* Center text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>
+            <span className="text-3xl font-bold text-white">
               {percentage.toFixed(0)}%
             </span>
-            <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-white opacity-80'}`}>
+            <span className="text-sm text-gray-300">
               used
             </span>
           </div>
@@ -75,30 +71,30 @@ const BudgetOverview = ({ budget, isDarkMode }) => {
         {/* Budget info */}
         <div className="w-full space-y-3">
           <div className="flex justify-between items-center">
-            <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-white opacity-80'}`}>
+            <span className="text-sm font-medium text-gray-300">
               Spent
             </span>
-            <span className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>
+            <span className="text-lg font-bold text-white">
               ${spent.toFixed(2)}
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-white opacity-80'}`}>
+            <span className="text-sm font-medium text-gray-300">
               Remaining
             </span>
-            <span className={`text-lg font-bold`} style={{ color: getProgressColor() }}>
+            <span className="text-lg font-bold" style={{ color: getProgressColor() }}>
               ${remaining.toFixed(2)}
             </span>
           </div>
           <div
             className="h-px w-full"
-            style={{ backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)' }}
+            style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
           />
           <div className="flex justify-between items-center">
-            <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-white opacity-80'}`}>
+            <span className="text-sm font-medium text-gray-300">
               Budget
             </span>
-            <span className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>
+            <span className="text-lg font-bold text-white">
               ${limit.toFixed(2)}
             </span>
           </div>
