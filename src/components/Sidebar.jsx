@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const Sidebar = () => {
+const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
   const [activeItem, setActiveItem] = useState('overview');
 
   const menuItems = [
@@ -13,15 +13,22 @@ const Sidebar = () => {
   ];
 
   return (
-    <div className="w-64 h-screen fixed left-0 top-0 shadow-2xl flex flex-col glass-card-dark">
+    <div
+      className="w-64 h-screen fixed left-0 top-0 shadow-2xl flex flex-col"
+      style={{
+        background: isDarkMode
+          ? 'rgba(0, 0, 0, 0.3)'
+          : 'rgba(255, 255, 255, 0.4)',
+        backdropFilter: 'blur(12px)',
+        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)',
+        borderRight: !isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : 'none'
+      }}
+    >
       {/* Logo/App Name */}
       <div className="p-6">
-        <h1 className="text-3xl font-bold" style={{ color: '#cd5b12' }}>
+        <h1 className="text-3xl font-bold font-serif" style={{ color: '#FF5E00' }}>
           Divvy
         </h1>
-        <p className="text-sm mt-1 text-gray-300">
-          Expense Tracker
-        </p>
       </div>
 
       {/* Navigation Items */}
@@ -31,39 +38,69 @@ const Sidebar = () => {
             <li key={item.id}>
               <button
                 onClick={() => setActiveItem(item.id)}
-                className={`w-full flex items-center px-5 py-3.5 rounded-2xl transition-all ${
-                  activeItem === item.id
-                    ? 'bg-white bg-opacity-20 shadow-lg'
-                    : 'hover:bg-white hover:bg-opacity-10'
+                className={`w-full flex items-center px-5 py-3.5 transition-all relative group ${
+                  isDarkMode
+                    ? 'hover:bg-white hover:bg-opacity-10'
+                    : 'hover:bg-gray-50'
                 }`}
+                style={{
+                  borderRadius: '12px'
+                }}
               >
                 <span
-                  className={`font-semibold text-base ${
+                  className={`font-semibold text-base transition-colors ${
                     activeItem === item.id
-                      ? 'text-white'
-                      : 'text-gray-200'
+                      ? isDarkMode ? 'text-white' : 'text-gray-900'
+                      : isDarkMode ? 'text-gray-200' : 'text-gray-600'
                   }`}
                 >
                   {item.label}
                 </span>
+                {/* Underline animation */}
+                <div
+                  className="absolute bottom-2 left-5 right-5 h-0.5 transition-all duration-300"
+                  style={{
+                    backgroundColor: '#FF5E00',
+                    transform: activeItem === item.id ? 'scaleX(1)' : 'scaleX(0)',
+                    transformOrigin: 'left'
+                  }}
+                />
               </button>
             </li>
           ))}
         </ul>
 
+        {/* Dark Mode Toggle */}
+        <div className="mt-6 px-5 py-3 flex items-center justify-between">
+          <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            Dark Mode
+          </span>
+          <button
+            onClick={() => setIsDarkMode(!isDarkMode)}
+            className={`relative w-12 h-6 rounded-full transition-colors ${
+              isDarkMode ? 'bg-orange-500' : 'bg-gray-300'
+            }`}
+          >
+            <div
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                isDarkMode ? 'translate-x-6' : 'translate-x-0'
+              }`}
+            />
+          </button>
+        </div>
       </nav>
 
       {/* User Profile Section */}
       <div className="p-6 mt-auto">
         <div className="flex items-center space-x-3 px-2 py-2">
-          <div className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg bg-gradient-to-br from-purple-400 to-pink-400 shadow-lg">
+          <div className="w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg bg-gradient-to-br from-purple-400 to-pink-400 shadow-lg" style={{ color: 'white' }}>
             Y
           </div>
           <div>
-            <p className="text-base font-semibold text-white">
+            <p className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               You
             </p>
-            <p className="text-sm text-gray-300">
+            <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               View profile
             </p>
           </div>

@@ -1,13 +1,28 @@
 import React from 'react';
 
-const BalanceSummary = ({ balances }) => {
+const BalanceSummary = ({ balances, isDarkMode }) => {
   return (
-    <div className="rounded-3xl shadow-xl p-6 glass-card-dark">
+    <div
+      className="rounded-3xl shadow-xl p-6"
+      style={{
+        background: isDarkMode
+          ? 'rgba(0, 0, 0, 0.3)'
+          : 'rgba(255, 255, 255, 0.4)',
+        backdropFilter: 'blur(12px)',
+        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+      }}
+    >
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-bold text-white">
+        <h2 className={`text-2xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           Who Owes What
         </h2>
-        <button className="text-sm font-semibold hover:opacity-80 transition-opacity px-4 py-2 rounded-full bg-white bg-opacity-20 text-white">
+        <button
+          className="text-sm font-semibold hover:opacity-80 transition-opacity px-4 py-2 rounded-full"
+          style={{
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.05)',
+            color: isDarkMode ? 'white' : '#374151'
+          }}
+        >
           Settle Up
         </button>
       </div>
@@ -15,8 +30,8 @@ const BalanceSummary = ({ balances }) => {
       {balances.length === 0 ? (
         <div className="text-center py-8">
           <div className="text-5xl mb-3">✨</div>
-          <p className="font-bold text-white">All settled up!</p>
-          <p className="text-sm mt-2 text-gray-300">
+          <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>All settled up!</p>
+          <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             No outstanding balances
           </p>
         </div>
@@ -28,7 +43,16 @@ const BalanceSummary = ({ balances }) => {
             return (
               <div
                 key={index}
-                className="flex items-center justify-between p-4 rounded-2xl transition-all hover:bg-white hover:bg-opacity-10"
+                className="flex items-center justify-between p-4 rounded-2xl transition-all"
+                style={{
+                  backgroundColor: 'transparent'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.03)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
               >
                 <div className="flex items-center space-x-4">
                   {/* Avatar/Initial */}
@@ -40,7 +64,7 @@ const BalanceSummary = ({ balances }) => {
 
                   {/* Text */}
                   <div>
-                    <p className="text-sm font-bold text-white">
+                    <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                       {isOwedToYou ? (
                         <>
                           <span className="font-bold">{balance.person}</span> owes you
@@ -51,7 +75,7 @@ const BalanceSummary = ({ balances }) => {
                         </>
                       )}
                     </p>
-                    <p className="text-xs font-medium text-gray-300">
+                    <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       {isOwedToYou ? 'They paid for shared expenses' : 'For shared expenses'}
                     </p>
                   </div>
@@ -75,9 +99,11 @@ const BalanceSummary = ({ balances }) => {
       {balances.length > 0 && (
         <div
           className="mt-4 p-4 rounded-2xl"
-          style={{ backgroundColor: 'rgba(255, 255, 255, 0.1)' }}
+          style={{
+            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
+          }}
         >
-          <p className="text-xs font-medium text-gray-300">
+          <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             <span className="font-bold">💡 Tip:</span> Click "Settle Up" to mark debts as paid
           </p>
         </div>
