@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
+import React from 'react';
 import Sidebar from './Sidebar';
 import BudgetOverview from './BudgetOverview';
 import RecentExpenses from './RecentExpenses';
 import BalanceSummary from './BalanceSummary';
 
-const Dashboard = ({ budget, expenses, balances, roommates }) => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-
+const Dashboard = ({ budget, expenses, balances, roommates, isDarkMode, setIsDarkMode }) => {
   const handleAddExpense = () => {
     // Placeholder for add expense functionality
     alert('Add expense functionality coming soon!');

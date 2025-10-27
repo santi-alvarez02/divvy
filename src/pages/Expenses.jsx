@@ -1,0 +1,604 @@
+import React, { useState } from 'react';
+import Sidebar from '../components/Sidebar';
+import AddExpenseModal from '../components/AddExpenseModal';
+
+const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  // Get roommate name by ID
+  const getRoommateName = (id) => {
+    const roommate = roommates.find(r => r.id === id);
+    return roommate ? roommate.name : 'Unknown';
+  };
+
+  // Calculate summary stats
+  const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const yourShare = expenses.reduce((sum, expense) => {
+    const splitAmount = expense.amount / expense.splitBetween.length;
+    return sum + splitAmount;
+  }, 0);
+
+  // Format date
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  // Get split info
+  const getSplitInfo = (expense) => {
+    const numPeople = expense.splitBetween.length;
+    if (numPeople === roommates.length) {
+      return 'Split evenly';
+    } else if (numPeople === 2) {
+      const other = expense.splitBetween.find(id => id !== expense.paidBy);
+      return `Split with ${getRoommateName(other)}`;
+    } else {
+      return `Split ${numPeople} ways`;
+    }
+  };
+
+  // Calculate top categories
+  const categoryTotals = expenses.reduce((acc, expense) => {
+    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+    return acc;
+  }, {});
+
+  const topCategories = Object.entries(categoryTotals)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([category, amount]) => ({ category, amount }));
+
+  const maxCategoryAmount = Math.max(...topCategories.map(c => c.amount));
+
+  // Calculate who paid what
+  const paidByTotals = expenses.reduce((acc, expense) => {
+    const name = getRoommateName(expense.paidBy);
+    acc[name] = (acc[name] || 0) + expense.amount;
+    return acc;
+  }, {});
+
+  const paidByData = Object.entries(paidByTotals).map(([name, amount]) => ({ name, amount }));
+  const maxPaidAmount = Math.max(...paidByData.map(p => p.amount));
+  return (
+    <div
+      className="min-h-screen relative overflow-hidden"
+      style={{
+        background: isDarkMode
+          ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+          : '#f5f5f5'
+      }}
+    >
+      {/* Orange Gradient Bubble Backgrounds */}
+      {!isDarkMode ? (
+        <>
+          {/* Light mode bubbles */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: '10%',
+              right: '20%',
+              width: '700px',
+              height: '700px',
+              background: 'radial-gradient(circle, rgba(255, 154, 86, 0.5) 0%, rgba(255, 184, 77, 0.35) 35%, rgba(255, 198, 112, 0.2) 60%, transparent 100%)',
+              filter: 'blur(80px)',
+              borderRadius: '50%',
+              zIndex: 0
+            }}
+          />
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              bottom: '10%',
+              left: '15%',
+              width: '500px',
+              height: '500px',
+              background: 'radial-gradient(circle, rgba(255, 198, 112, 0.4) 0%, rgba(255, 184, 77, 0.25) 40%, transparent 100%)',
+              filter: 'blur(70px)',
+              borderRadius: '50%',
+              zIndex: 0
+            }}
+          />
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: '25%',
+              left: '0%',
+              width: '400px',
+              height: '600px',
+              background: 'radial-gradient(circle, rgba(255, 154, 86, 0.35) 0%, rgba(255, 184, 77, 0.2) 50%, transparent 100%)',
+              filter: 'blur(75px)',
+              borderRadius: '50%',
+              zIndex: 0
+            }}
+          />
+        </>
+      ) : (
+        <>
+          {/* Dark mode bubbles */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: '10%',
+              right: '20%',
+              width: '700px',
+              height: '700px',
+              background: 'radial-gradient(circle, rgba(255, 94, 0, 0.25) 0%, rgba(255, 94, 0, 0.15) 35%, rgba(255, 94, 0, 0.08) 60%, transparent 100%)',
+              filter: 'blur(80px)',
+              borderRadius: '50%',
+              zIndex: 0
+            }}
+          />
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              bottom: '10%',
+              left: '15%',
+              width: '500px',
+              height: '500px',
+              background: 'radial-gradient(circle, rgba(255, 94, 0, 0.2) 0%, rgba(255, 94, 0, 0.1) 40%, transparent 100%)',
+              filter: 'blur(70px)',
+              borderRadius: '50%',
+              zIndex: 0
+            }}
+          />
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: '25%',
+              left: '0%',
+              width: '400px',
+              height: '600px',
+              background: 'radial-gradient(circle, rgba(255, 94, 0, 0.18) 0%, rgba(255, 94, 0, 0.1) 50%, transparent 100%)',
+              filter: 'blur(75px)',
+              borderRadius: '50%',
+              zIndex: 0
+            }}
+          />
+        </>
+      )}
+
+      {/* Sidebar */}
+      <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+
+      {/* Main Content - with left margin for sidebar */}
+      <main className="ml-64 px-8 py-8 relative z-10">
+        {/* Header with Add Expense Button */}
+        <div className="mb-8 flex justify-between items-center">
+          <h1
+            className="text-5xl font-bold font-serif"
+            style={{ color: isDarkMode ? '#FF5E00' : '#1f2937' }}
+          >
+            Expenses
+          </h1>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="px-6 py-3 rounded-2xl font-semibold text-white transition-all hover:opacity-90 shadow-lg"
+            style={{ backgroundColor: '#FF5E00' }}
+          >
+            + Add Expense
+          </button>
+        </div>
+
+        {/* Summary Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {/* Total Spent */}
+          <div
+            className="rounded-3xl shadow-xl p-6"
+            style={{
+              background: isDarkMode
+                ? 'rgba(0, 0, 0, 0.3)'
+                : 'rgba(255, 255, 255, 0.4)',
+              backdropFilter: 'blur(12px)',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+            }}
+          >
+            <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Total Spent
+            </p>
+            <p className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              ${totalSpent.toFixed(2)}
+            </p>
+          </div>
+
+          {/* Your Share */}
+          <div
+            className="rounded-3xl shadow-xl p-6"
+            style={{
+              background: isDarkMode
+                ? 'rgba(0, 0, 0, 0.3)'
+                : 'rgba(255, 255, 255, 0.4)',
+              backdropFilter: 'blur(12px)',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+            }}
+          >
+            <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Your Share
+            </p>
+            <p className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              ${yourShare.toFixed(2)}
+            </p>
+          </div>
+
+          {/* Number of Expenses */}
+          <div
+            className="rounded-3xl shadow-xl p-6"
+            style={{
+              background: isDarkMode
+                ? 'rgba(0, 0, 0, 0.3)'
+                : 'rgba(255, 255, 255, 0.4)',
+              backdropFilter: 'blur(12px)',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+            }}
+          >
+            <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Total Expenses
+            </p>
+            <p className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {expenses.length}
+            </p>
+          </div>
+        </div>
+
+        {/* Search and Filters */}
+        <div
+          className="rounded-3xl shadow-xl p-6 mb-8"
+          style={{
+            background: isDarkMode
+              ? 'rgba(0, 0, 0, 0.3)'
+              : 'rgba(255, 255, 255, 0.4)',
+            backdropFilter: 'blur(12px)',
+            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+          }}
+        >
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search Bar */}
+            <div className="flex-1">
+              <input
+                type="text"
+                placeholder="Search expenses..."
+                className="w-full px-4 py-3 rounded-xl font-medium transition-all"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                  color: isDarkMode ? 'white' : '#1f2937'
+                }}
+              />
+            </div>
+
+            {/* Filter Buttons */}
+            <div className="flex gap-3">
+              <button
+                className="px-4 py-3 rounded-xl font-semibold transition-all"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                  color: isDarkMode ? 'white' : '#1f2937'
+                }}
+              >
+                Category
+              </button>
+              <button
+                className="px-4 py-3 rounded-xl font-semibold transition-all"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                  color: isDarkMode ? 'white' : '#1f2937'
+                }}
+              >
+                Date
+              </button>
+              <button
+                className="px-4 py-3 rounded-xl font-semibold transition-all"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                  color: isDarkMode ? 'white' : '#1f2937'
+                }}
+              >
+                Sort
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Expense List */}
+        <div
+          className="rounded-3xl shadow-xl p-6 mb-8"
+          style={{
+            background: isDarkMode
+              ? 'rgba(0, 0, 0, 0.3)'
+              : 'rgba(255, 255, 255, 0.4)',
+            backdropFilter: 'blur(12px)',
+            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+          }}
+        >
+          <div className="space-y-3 overflow-y-auto" style={{ maxHeight: '600px' }}>
+            {expenses.map((expense) => (
+              <div
+                key={expense.id}
+                className="flex items-center justify-between p-4 rounded-2xl transition-all"
+                style={{
+                  backgroundColor: 'transparent'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.03)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                {/* Left side - Details */}
+                <div className="flex items-center space-x-4 flex-1">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <p className={`text-sm font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {expense.description}
+                      </p>
+                      <span
+                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold"
+                        style={{
+                          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
+                          color: isDarkMode ? '#e5e7eb' : '#6b7280'
+                        }}
+                      >
+                        {expense.category}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2 mt-1">
+                      <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {getRoommateName(expense.paidBy)} paid
+                      </p>
+                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>•</span>
+                      <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {getSplitInfo(expense)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right side - Amount, Date, and Actions */}
+                <div className="flex items-center space-x-6 ml-4">
+                  {/* Amount and Date */}
+                  <div className="text-right">
+                    <p className="text-base font-bold" style={{ color: '#FF5E00' }}>
+                      ${expense.amount.toFixed(2)}
+                    </p>
+                    <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      {formatDate(expense.date)}
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                      style={{
+                        background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                        color: isDarkMode ? 'white' : '#1f2937'
+                      }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                      style={{
+                        background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                        color: isDarkMode ? 'white' : '#1f2937'
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          {/* Top Categories Chart */}
+          <div
+            className="rounded-3xl shadow-xl p-6"
+            style={{
+              background: isDarkMode
+                ? 'rgba(0, 0, 0, 0.3)'
+                : 'rgba(255, 255, 255, 0.4)',
+              backdropFilter: 'blur(12px)',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+            }}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className={`text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Top Categories
+              </h3>
+              <button
+                className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                  color: isDarkMode ? 'white' : '#1f2937'
+                }}
+              >
+                October ▾
+              </button>
+            </div>
+            <div className="space-y-4">
+              {topCategories.map((item, index) => (
+                <div key={index}>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {item.category}
+                    </span>
+                    <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      ${item.amount.toFixed(2)}
+                    </span>
+                  </div>
+                  <div
+                    className="h-8 rounded-lg relative overflow-hidden"
+                    style={{
+                      background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
+                    }}
+                  >
+                    <div
+                      className="h-full rounded-lg transition-all duration-500"
+                      style={{
+                        width: `${(item.amount / maxCategoryAmount) * 100}%`,
+                        background: `linear-gradient(90deg, #FF5E00 0%, #FF8534 100%)`
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Spending Over Time Chart */}
+          <div
+            className="rounded-3xl shadow-xl p-6"
+            style={{
+              background: isDarkMode
+                ? 'rgba(0, 0, 0, 0.3)'
+                : 'rgba(255, 255, 255, 0.4)',
+              backdropFilter: 'blur(12px)',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+            }}
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h3 className={`text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Spending Over Time
+              </h3>
+              <button
+                className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                  color: isDarkMode ? 'white' : '#1f2937'
+                }}
+              >
+                October ▾
+              </button>
+            </div>
+            <div className="relative h-48 flex">
+              {/* Y-axis labels */}
+              <div className="flex flex-col justify-between pr-3 text-xs" style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }}>
+                <span>$200</span>
+                <span>$150</span>
+                <span>$100</span>
+                <span>$50</span>
+                <span>$0</span>
+              </div>
+
+              {/* Chart */}
+              <div className="flex-1">
+                <svg width="100%" height="100%" viewBox="0 0 400 150" preserveAspectRatio="none">
+                  {/* Grid lines */}
+                  <line x1="0" y1="0" x2="400" y2="0" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
+                  <line x1="0" y1="37.5" x2="400" y2="37.5" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
+                  <line x1="0" y1="75" x2="400" y2="75" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
+                  <line x1="0" y1="112.5" x2="400" y2="112.5" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
+                  <line x1="0" y1="150" x2="400" y2="150" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
+
+                  {/* Area fill */}
+                  <path
+                    d="M 0,100 L 50,80 L 100,60 L 150,90 L 200,50 L 250,70 L 300,40 L 350,60 L 400,80 L 400,150 L 0,150 Z"
+                    fill="url(#gradient)"
+                    opacity="0.3"
+                  />
+
+                  {/* Line */}
+                  <path
+                    d="M 0,100 L 50,80 L 100,60 L 150,90 L 200,50 L 250,70 L 300,40 L 350,60 L 400,80"
+                    fill="none"
+                    stroke="#FF5E00"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {/* Gradient definition */}
+                  <defs>
+                    <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#FF5E00" stopOpacity="0.4" />
+                      <stop offset="100%" stopColor="#FF5E00" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+
+                {/* X-axis labels */}
+                <div className="flex justify-between mt-2">
+                  {['Oct 17', 'Oct 18', 'Oct 20', 'Oct 22', 'Oct 23', 'Oct 24'].map((date, i) => (
+                    <span key={i} className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {i % 2 === 0 ? date : ''}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Who Paid What Chart */}
+        <div
+          className="rounded-3xl shadow-xl p-6"
+          style={{
+            background: isDarkMode
+              ? 'rgba(0, 0, 0, 0.3)'
+              : 'rgba(255, 255, 255, 0.4)',
+            backdropFilter: 'blur(12px)',
+            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+          }}
+        >
+          <div className="flex justify-between items-center mb-6">
+            <h3 className={`text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Who Paid What
+            </h3>
+            <button
+              className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                color: isDarkMode ? 'white' : '#1f2937'
+              }}
+            >
+              October ▾
+            </button>
+          </div>
+          <div className="space-y-4">
+            {paidByData.map((person, index) => {
+              return (
+                <div key={index}>
+                  <div className="flex justify-between items-center mb-2">
+                    <span className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      {person.name}
+                    </span>
+                    <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      ${person.amount.toFixed(2)}
+                    </span>
+                  </div>
+                  <div
+                    className="h-8 rounded-lg relative overflow-hidden"
+                    style={{
+                      background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
+                    }}
+                  >
+                    <div
+                      className="h-full rounded-lg transition-all duration-500"
+                      style={{
+                        width: `${(person.amount / maxPaidAmount) * 100}%`,
+                        background: `linear-gradient(90deg, #FF5E00 0%, #FF8534 100%)`
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </main>
+
+      {/* Add Expense Modal */}
+      <AddExpenseModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        roommates={roommates}
+        isDarkMode={isDarkMode}
+      />
+    </div>
+  );
+};
+
+export default Expenses;

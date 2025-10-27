@@ -1,16 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
-  const [activeItem, setActiveItem] = useState('overview');
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const menuItems = [
-    { id: 'overview', label: 'Overview' },
-    { id: 'expenses', label: 'Expenses' },
-    { id: 'budgets', label: 'Budgets' },
-    { id: 'balances', label: 'Balances' },
-    { id: 'groups', label: 'Groups' },
-    { id: 'settings', label: 'Settings' },
+    { id: 'overview', label: 'Overview', path: '/' },
+    { id: 'expenses', label: 'Expenses', path: '/expenses' },
+    { id: 'budgets', label: 'Budgets', path: '/budgets' },
+    { id: 'balances', label: 'Balances', path: '/balances' },
+    { id: 'groups', label: 'Groups', path: '/groups' },
+    { id: 'settings', label: 'Settings', path: '/settings' },
   ];
+
+  const isActive = (path) => location.pathname === path;
 
   return (
     <div
@@ -37,7 +41,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
           {menuItems.map((item) => (
             <li key={item.id}>
               <button
-                onClick={() => setActiveItem(item.id)}
+                onClick={() => navigate(item.path)}
                 className={`w-full flex items-center px-5 py-3.5 transition-all relative group ${
                   isDarkMode
                     ? 'hover:bg-white hover:bg-opacity-10'
@@ -49,7 +53,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
               >
                 <span
                   className={`font-semibold text-base transition-colors ${
-                    activeItem === item.id
+                    isActive(item.path)
                       ? isDarkMode ? 'text-white' : 'text-gray-900'
                       : isDarkMode ? 'text-gray-200' : 'text-gray-600'
                   }`}
@@ -61,7 +65,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
                   className="absolute bottom-2 left-5 right-5 h-0.5 transition-all duration-300"
                   style={{
                     backgroundColor: '#FF5E00',
-                    transform: activeItem === item.id ? 'scaleX(1)' : 'scaleX(0)',
+                    transform: isActive(item.path) ? 'scaleX(1)' : 'scaleX(0)',
                     transformOrigin: 'left'
                   }}
                 />
