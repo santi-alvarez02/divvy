@@ -22,8 +22,9 @@ const Dashboard = ({ budget, expenses, balances, roommates }) => {
       }}
     >
       {/* Orange Gradient Bubble Backgrounds */}
-      {!isDarkMode && (
+      {!isDarkMode ? (
         <>
+          {/* Light mode bubbles */}
           {/* Main bubble - top right */}
           <div
             className="absolute pointer-events-none"
@@ -67,6 +68,52 @@ const Dashboard = ({ budget, expenses, balances, roommates }) => {
             }}
           />
         </>
+      ) : (
+        <>
+          {/* Dark mode bubbles */}
+          {/* Main bubble - top right */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: '10%',
+              right: '20%',
+              width: '700px',
+              height: '700px',
+              background: 'radial-gradient(circle, rgba(255, 94, 0, 0.25) 0%, rgba(255, 94, 0, 0.15) 35%, rgba(255, 94, 0, 0.08) 60%, transparent 100%)',
+              filter: 'blur(80px)',
+              borderRadius: '50%',
+              zIndex: 0
+            }}
+          />
+          {/* Bottom left bubble */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              bottom: '10%',
+              left: '15%',
+              width: '500px',
+              height: '500px',
+              background: 'radial-gradient(circle, rgba(255, 94, 0, 0.2) 0%, rgba(255, 94, 0, 0.1) 40%, transparent 100%)',
+              filter: 'blur(70px)',
+              borderRadius: '50%',
+              zIndex: 0
+            }}
+          />
+          {/* Sidebar area bubble - for glassy effect on sidebar */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              top: '25%',
+              left: '0%',
+              width: '400px',
+              height: '600px',
+              background: 'radial-gradient(circle, rgba(255, 94, 0, 0.18) 0%, rgba(255, 94, 0, 0.1) 50%, transparent 100%)',
+              filter: 'blur(75px)',
+              borderRadius: '50%',
+              zIndex: 0
+            }}
+          />
+        </>
       )}
 
       {/* Sidebar */}
@@ -76,7 +123,10 @@ const Dashboard = ({ budget, expenses, balances, roommates }) => {
       <main className="ml-64 px-8 py-8 relative z-10">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-5xl font-bold font-serif text-gray-900">
+          <h1
+            className="text-5xl font-bold font-serif"
+            style={{ color: isDarkMode ? '#FF5E00' : '#1f2937' }}
+          >
             Overview
           </h1>
         </div>
