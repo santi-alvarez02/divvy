@@ -365,26 +365,27 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
       <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
       {/* Main Content - with left margin for sidebar */}
-      <main className="ml-64 px-8 py-8 relative z-10">
+      <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
         {/* Header with Add Expense Button */}
-        <div className="mb-8 flex justify-between items-center">
+        <div className="mb-6 sm:mb-8 flex justify-between items-center">
           <h1
-            className="text-5xl font-bold font-serif"
+            className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif"
             style={{ color: isDarkMode ? '#FF5E00' : '#1f2937' }}
           >
             Expenses
           </h1>
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-6 py-3 rounded-2xl font-semibold text-white transition-all hover:opacity-90 shadow-lg"
+            className="px-4 sm:px-6 py-2 sm:py-3 rounded-2xl font-semibold text-white transition-all hover:opacity-90 shadow-lg text-sm sm:text-base"
             style={{ backgroundColor: '#FF5E00' }}
           >
-            + Add Expense
+            <span className="hidden sm:inline">+ Add Expense</span>
+            <span className="sm:hidden">+</span>
           </button>
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Total Spent */}
           <div
             className="rounded-3xl shadow-xl p-6"
@@ -445,7 +446,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
 
         {/* Search and Filters */}
         <div
-          className="rounded-3xl shadow-xl p-6 mb-8"
+          className="rounded-3xl shadow-xl p-4 sm:p-6 mb-6 sm:mb-8"
           style={{
             background: isDarkMode
               ? 'rgba(0, 0, 0, 0.3)'
@@ -456,7 +457,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             zIndex: 20
           }}
         >
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             {/* Search Bar */}
             <div className="flex-1">
               <input
@@ -475,9 +476,9 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             </div>
 
             {/* Filter Buttons */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 w-full sm:w-auto">
               {/* Category Filter */}
-              <div className="relative" style={{ width: '160px' }}>
+              <div className="relative flex-1 sm:flex-initial" style={{ minWidth: '0', maxWidth: '100%' }}>
                 <button
                   type="button"
                   onClick={() => setShowCategoryPicker(!showCategoryPicker)}
@@ -506,7 +507,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                       style={{
                         top: '45px',
                         left: '0',
-                        width: '160px',
+                        right: '0',
                         height: '120px',
                         background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
                         backdropFilter: 'blur(16px)',
@@ -563,7 +564,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               </div>
 
               {/* Date Filter */}
-              <div className="relative" style={{ width: '130px' }}>
+              <div className="relative flex-1 sm:flex-initial" style={{ minWidth: '0', maxWidth: '100%' }}>
                 <button
                   type="button"
                   onClick={() => setShowDatePicker(!showDatePicker)}
@@ -592,7 +593,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                       style={{
                         top: '45px',
                         left: '0',
-                        width: '130px',
+                        right: '0',
                         height: '120px',
                         background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
                         backdropFilter: 'blur(16px)',
@@ -653,7 +654,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
 
         {/* Expense List */}
         <div
-          className="rounded-3xl shadow-xl p-6 mb-8"
+          className="rounded-3xl shadow-xl p-4 sm:p-6 mb-6 sm:mb-8"
           style={{
             background: isDarkMode
               ? 'rgba(0, 0, 0, 0.3)'
@@ -662,10 +663,10 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
           }}
         >
-          <h3 className={`text-xl font-bold font-serif mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          <h3 className={`text-lg sm:text-xl font-bold font-serif mb-3 sm:mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             {getDisplayTitle()}
           </h3>
-          <div className="space-y-3 overflow-y-auto" style={{ maxHeight: '600px' }}>
+          <div className="space-y-2 sm:space-y-3 overflow-y-auto" style={{ maxHeight: '600px' }}>
             {filteredExpenses.length === 0 ? (
               <div className="text-center py-12">
                 <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -676,7 +677,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               filteredExpenses.map((expense) => (
               <div
                 key={expense.id}
-                className="flex items-center justify-between p-4 rounded-2xl transition-all"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-2xl transition-all"
                 style={{
                   backgroundColor: 'transparent'
                 }}
@@ -687,15 +688,15 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
                 }}
               >
-                {/* Left side - Details */}
-                <div className="flex items-center space-x-4 flex-1">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center space-x-2">
+                {/* Top section - Details and Amount */}
+                <div className="flex items-start justify-between mb-2 sm:mb-0 flex-1">
+                  <div className="flex-1 min-w-0 mr-3">
+                    <div className="flex items-center space-x-2 flex-wrap">
                       <p className={`text-sm font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                         {expense.description}
                       </p>
                       <span
-                        className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold"
+                        className="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold whitespace-nowrap"
                         style={{
                           backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
                           color: isDarkMode ? '#e5e7eb' : '#6b7280'
@@ -714,12 +715,9 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                       </p>
                     </div>
                   </div>
-                </div>
 
-                {/* Right side - Amount, Date, and Actions */}
-                <div className="flex items-center space-x-6 ml-4">
-                  {/* Amount and Date */}
-                  <div className="text-right">
+                  {/* Amount and Date - Mobile right side */}
+                  <div className="text-right shrink-0">
                     <p className="text-base font-bold" style={{ color: '#FF5E00' }}>
                       ${expense.amount.toFixed(2)}
                     </p>
@@ -727,28 +725,28 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                       {formatDate(expense.date)}
                     </p>
                   </div>
+                </div>
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-                      style={{
-                        background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                        color: isDarkMode ? 'white' : '#1f2937'
-                      }}
-                    >
-                      Edit
-                    </button>
-                    <button
-                      className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-                      style={{
-                        background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                        color: isDarkMode ? 'white' : '#1f2937'
-                      }}
-                    >
-                      Delete
-                    </button>
-                  </div>
+                {/* Action Buttons - Full width on mobile */}
+                <div className="flex gap-2 sm:ml-4 sm:shrink-0">
+                  <button
+                    className="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all"
+                    style={{
+                      background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                      color: isDarkMode ? 'white' : '#1f2937'
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all"
+                    style={{
+                      background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                      color: isDarkMode ? 'white' : '#1f2937'
+                    }}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
               ))
@@ -757,10 +755,10 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Top Categories Chart */}
           <div
-            className="rounded-3xl shadow-xl p-6"
+            className="rounded-3xl shadow-xl p-4 sm:p-6"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -769,12 +767,12 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <div className="flex justify-between items-center mb-6">
-              <h3 className={`text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
+              <h3 className={`text-lg sm:text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Top Categories
               </h3>
               <div
-                className="px-4 py-2 rounded-xl text-sm font-semibold"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
                   color: isDarkMode ? 'white' : '#1f2937'
@@ -826,7 +824,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
 
           {/* Spending Over Time Chart */}
           <div
-            className="rounded-3xl shadow-xl px-6 pt-6 pb-3"
+            className="rounded-3xl shadow-xl px-4 sm:px-6 pt-4 sm:pt-6 pb-3"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -836,11 +834,11 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             }}
           >
             <div className="flex justify-between items-center mb-4">
-              <h3 className={`text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-lg sm:text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Spending Over Time
               </h3>
               <div
-                className="px-4 py-2 rounded-xl text-sm font-semibold"
+                className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
                   color: isDarkMode ? 'white' : '#1f2937'
@@ -856,19 +854,21 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                 </p>
               </div>
             ) : (
-              <div className="relative h-56 flex">
-                {/* Y-axis labels */}
-                <div className="flex flex-col justify-between pr-3 text-xs" style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }}>
-                  <span>$200</span>
-                  <span>$150</span>
-                  <span>$100</span>
-                  <span>$50</span>
-                  <span>$0</span>
-                </div>
+              <div className="relative h-48 sm:h-64 flex flex-col">
+                {/* Chart container */}
+                <div className="flex-1 flex">
+                  {/* Y-axis labels */}
+                  <div className="flex flex-col justify-between pr-2 sm:pr-3 text-xs" style={{ color: isDarkMode ? '#9ca3af' : '#6b7280', minWidth: '35px' }}>
+                    <span>$200</span>
+                    <span>$150</span>
+                    <span>$100</span>
+                    <span>$50</span>
+                    <span>$0</span>
+                  </div>
 
-                {/* Chart */}
-                <div className="flex-1">
-                  <svg width="100%" height="100%" viewBox="0 0 400 150" preserveAspectRatio="none">
+                  {/* Chart */}
+                  <div className="flex-1" style={{ minWidth: 0 }}>
+                    <svg width="100%" height="100%" viewBox="0 0 400 150" preserveAspectRatio="none">
                     {/* Grid lines */}
                     <line x1="0" y1="0" x2="400" y2="0" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
                     <line x1="0" y1="37.5" x2="400" y2="37.5" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
@@ -901,15 +901,16 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                       </linearGradient>
                     </defs>
                   </svg>
-
-                  {/* X-axis labels */}
-                  <div className="flex justify-between mt-1">
-                    {['Oct 17', 'Oct 18', 'Oct 20', 'Oct 22', 'Oct 23', 'Oct 24'].map((date, i) => (
-                      <span key={i} className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        {i % 2 === 0 ? date : ''}
-                      </span>
-                    ))}
                   </div>
+                </div>
+
+                {/* X-axis labels */}
+                <div className="flex justify-between mt-2 ml-[35px]">
+                  {['Oct 17', 'Oct 18', 'Oct 20', 'Oct 22', 'Oct 23', 'Oct 24'].map((date, i) => (
+                    <span key={i} className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {i % 2 === 0 ? date : ''}
+                    </span>
+                  ))}
                 </div>
               </div>
             )}
@@ -918,7 +919,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
 
         {/* Who Paid What Chart */}
         <div
-          className="rounded-3xl shadow-xl p-6"
+          className="rounded-3xl shadow-xl p-4 sm:p-6"
           style={{
             background: isDarkMode
               ? 'rgba(0, 0, 0, 0.3)'
@@ -927,12 +928,12 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
           }}
         >
-          <div className="flex justify-between items-center mb-6">
-            <h3 className={`text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className="flex justify-between items-center mb-4 sm:mb-6">
+            <h3 className={`text-lg sm:text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Who Paid What
             </h3>
             <div
-              className="px-4 py-2 rounded-xl text-sm font-semibold"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold"
               style={{
                 background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
                 color: isDarkMode ? 'white' : '#1f2937'
