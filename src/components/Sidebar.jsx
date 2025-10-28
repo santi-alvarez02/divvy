@@ -157,19 +157,32 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
                 >
                   {item.label}
                 </span>
-                {/* Active indicator - dot on mobile collapsed, underline when expanded/desktop */}
-                {isActive(item.path) && (
-                  <>
-                    <div
-                      className={`${isMobileExpanded ? 'hidden' : 'block'} lg:hidden absolute -left-1 w-1 h-6 rounded-r`}
-                      style={{ backgroundColor: '#FF5E00' }}
-                    />
-                    <div
-                      className={`${isMobileExpanded ? 'block' : 'hidden'} lg:block absolute bottom-2 left-5 right-5 h-0.5`}
-                      style={{ backgroundColor: '#FF5E00' }}
-                    />
-                  </>
-                )}
+                {/* Active indicator - dot on mobile collapsed */}
+                <div
+                  className="lg:hidden absolute -left-1 w-1 h-6 rounded-r transition-opacity duration-300"
+                  style={{
+                    backgroundColor: '#FF5E00',
+                    opacity: (isActive(item.path) && !isMobileExpanded) ? 1 : 0
+                  }}
+                />
+                {/* Underline animation - desktop */}
+                <div
+                  className="hidden lg:block absolute bottom-2 left-5 right-5 h-0.5 transition-transform duration-300 ease-out"
+                  style={{
+                    backgroundColor: '#FF5E00',
+                    transform: isActive(item.path) ? 'scaleX(1)' : 'scaleX(0)',
+                    transformOrigin: 'left'
+                  }}
+                />
+                {/* Underline for expanded mobile */}
+                <div
+                  className="lg:hidden absolute bottom-2 left-5 right-5 h-0.5 transition-transform duration-300 ease-out"
+                  style={{
+                    backgroundColor: '#FF5E00',
+                    transform: (isActive(item.path) && isMobileExpanded) ? 'scaleX(1)' : 'scaleX(0)',
+                    transformOrigin: 'left'
+                  }}
+                />
               </button>
             </li>
           ))}
