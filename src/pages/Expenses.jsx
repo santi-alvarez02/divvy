@@ -6,7 +6,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedDateRange, setSelectedDateRange] = useState('All');
+  const [selectedDateRange, setSelectedDateRange] = useState('This Month');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const categoryScrollRef = React.useRef(null);
@@ -17,13 +17,6 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
     const roommate = roommates.find(r => r.id === id);
     return roommate ? roommate.name : 'Unknown';
   };
-
-  // Calculate summary stats
-  const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const yourShare = expenses.reduce((sum, expense) => {
-    const splitAmount = expense.amount / expense.splitBetween.length;
-    return sum + splitAmount;
-  }, 0);
 
   // Format date
   const formatDate = (dateString) => {
@@ -44,34 +37,36 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
     }
   };
 
-  // Calculate top categories
-  const categoryTotals = expenses.reduce((acc, expense) => {
-    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
-    return acc;
-  }, {});
-
-  const topCategories = Object.entries(categoryTotals)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
-    .map(([category, amount]) => ({ category, amount }));
-
-  const maxCategoryAmount = Math.max(...topCategories.map(c => c.amount));
-
-  // Calculate who paid what
-  const paidByTotals = expenses.reduce((acc, expense) => {
-    const name = getRoommateName(expense.paidBy);
-    acc[name] = (acc[name] || 0) + expense.amount;
-    return acc;
-  }, {});
-
-  const paidByData = Object.entries(paidByTotals).map(([name, amount]) => ({ name, amount }));
-  const maxPaidAmount = Math.max(...paidByData.map(p => p.amount));
-
   // Get unique categories
   const categories = ['All', ...new Set(expenses.map(e => e.category))];
 
-  // Date range options
-  const dateRanges = ['All', 'This Week', 'This Month', 'Last 3 Months'];
+  // Date range options - generate current month and previous months with data
+  const generateDateRanges = () => {
+    const ranges = ['This Week', 'This Month'];
+    const currentDate = new Date();
+
+    // Add previous 11 months only if they have expenses
+    for (let i = 1; i <= 11; i++) {
+      const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthName = targetDate.toLocaleDateString('en-US', { month: 'long' });
+      const targetYear = targetDate.getFullYear();
+      const targetMonth = targetDate.getMonth();
+
+      // Check if this month has any expenses
+      const hasExpenses = expenses.some(expense => {
+        const expenseDate = new Date(expense.date);
+        return expenseDate.getMonth() === targetMonth && expenseDate.getFullYear() === targetYear;
+      });
+
+      if (hasExpenses) {
+        ranges.push(monthName);
+      }
+    }
+
+    return ranges;
+  };
+
+  const dateRanges = generateDateRanges();
 
   // Category picker scroll effect
   React.useEffect(() => {
@@ -155,22 +150,96 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
 
   // Date filter helper
   const filterByDateRange = (expense) => {
-    if (selectedDateRange === 'All') return true;
-
     const expenseDate = new Date(expense.date);
     const now = new Date();
 
-    switch (selectedDateRange) {
-      case 'This Week':
-        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-        return expenseDate >= weekAgo;
-      case 'This Month':
-        return expenseDate.getMonth() === now.getMonth() && expenseDate.getFullYear() === now.getFullYear();
-      case 'Last 3 Months':
-        const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-        return expenseDate >= threeMonthsAgo;
-      default:
-        return true;
+    if (selectedDateRange === 'This Week') {
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      return expenseDate >= weekAgo;
+    } else if (selectedDateRange === 'This Month') {
+      return expenseDate.getMonth() === now.getMonth() && expenseDate.getFullYear() === now.getFullYear();
+    } else {
+      // Handle specific month names (September, August, July, etc.)
+      const expenseMonthName = expenseDate.toLocaleDateString('en-US', { month: 'long' });
+
+      // Check if the expense month matches the selected month
+      // Consider both current year and previous year
+      if (expenseMonthName === selectedDateRange) {
+        const currentYear = now.getFullYear();
+        const expenseYear = expenseDate.getFullYear();
+
+        // Get the month index of the selected month
+        const selectedMonthIndex = dateRanges.indexOf(selectedDateRange);
+        const monthsBack = selectedMonthIndex - 1; // -1 because first two items are "This Week" and "This Month", and we want 1-indexed months back
+
+        // Calculate the expected year for this month
+        const expectedDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+        const expectedYear = expectedDate.getFullYear();
+
+        return expenseYear === expectedYear;
+      }
+
+      return false;
+    }
+  };
+
+  // Filter expenses by date only for charts
+  const dateFilteredExpenses = expenses.filter(expense => filterByDateRange(expense));
+
+  // Get current user ID (assuming "You" is the current user)
+  const currentUser = roommates.find(r => r.name === 'You');
+  const currentUserId = currentUser ? currentUser.id : null;
+
+  // Calculate summary stats from date-filtered expenses
+  // Total Spent (Personal) = Only expenses YOU paid for
+  const totalSpent = dateFilteredExpenses
+    .filter(expense => expense.paidBy === currentUserId)
+    .reduce((sum, expense) => sum + expense.amount, 0);
+
+  // You Owe = Your share of expenses that OTHERS paid
+  const youOwe = dateFilteredExpenses
+    .filter(expense => expense.paidBy !== currentUserId && expense.splitBetween.includes(currentUserId))
+    .reduce((sum, expense) => {
+      const splitAmount = expense.amount / expense.splitBetween.length;
+      return sum + splitAmount;
+    }, 0);
+
+  // Calculate top categories from date-filtered expenses
+  const categoryTotals = dateFilteredExpenses.reduce((acc, expense) => {
+    acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
+    return acc;
+  }, {});
+
+  const topCategories = Object.entries(categoryTotals)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([category, amount]) => ({ category, amount }));
+
+  const maxCategoryAmount = topCategories.length > 0 ? Math.max(...topCategories.map(c => c.amount)) : 0;
+
+  // Calculate who paid what from date-filtered expenses
+  const paidByTotals = dateFilteredExpenses.reduce((acc, expense) => {
+    const name = getRoommateName(expense.paidBy);
+    acc[name] = (acc[name] || 0) + expense.amount;
+    return acc;
+  }, {});
+
+  const paidByData = Object.entries(paidByTotals).map(([name, amount]) => ({ name, amount }));
+  const maxPaidAmount = paidByData.length > 0 ? Math.max(...paidByData.map(p => p.amount)) : 0;
+
+  // Get display title based on selected date range
+  const getDisplayTitle = () => {
+    if (selectedDateRange === 'This Week') {
+      return 'This Week';
+    } else if (selectedDateRange === 'This Month') {
+      return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    } else {
+      // For specific months like September, August, etc.
+      const now = new Date();
+      const selectedMonthIndex = dateRanges.indexOf(selectedDateRange);
+      const monthsBack = selectedMonthIndex - 1; // -1 because first two items are "This Week" and "This Month", and we want 1-indexed months back
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+      return targetDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
   };
 
@@ -331,11 +400,11 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               Total Spent
             </p>
             <p className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              ${totalSpent.toFixed(2)}
+              ${Number.isInteger(totalSpent) ? totalSpent : totalSpent.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
-          {/* Your Share */}
+          {/* You Owe */}
           <div
             className="rounded-3xl shadow-xl p-6"
             style={{
@@ -347,10 +416,10 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             }}
           >
             <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Your Share
+              You Owe
             </p>
-            <p className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              ${yourShare.toFixed(2)}
+            <p className="text-3xl font-bold" style={{ color: '#FF5E00' }}>
+              ${Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
@@ -369,7 +438,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               Total Expenses
             </p>
             <p className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {expenses.length}
+              {dateFilteredExpenses.length}
             </p>
           </div>
         </div>
@@ -382,7 +451,9 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               ? 'rgba(0, 0, 0, 0.3)'
               : 'rgba(255, 255, 255, 0.4)',
             backdropFilter: 'blur(12px)',
-            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)',
+            position: 'relative',
+            zIndex: 20
           }}
         >
           <div className="flex flex-col md:flex-row gap-4">
@@ -427,7 +498,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   <>
                     <div
                       className="fixed inset-0"
-                      style={{ zIndex: 40 }}
+                      style={{ zIndex: 1000 }}
                       onClick={() => setShowCategoryPicker(false)}
                     />
                     <div
@@ -439,7 +510,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                         height: '120px',
                         background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
                         backdropFilter: 'blur(16px)',
-                        zIndex: 50
+                        zIndex: 1001
                       }}
                     >
                       <div className="relative h-full overflow-hidden">
@@ -505,7 +576,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                     backdropFilter: 'blur(16px)'
                   }}
                 >
-                  {selectedDateRange === 'All' ? new Date().toLocaleDateString('en-US', { month: 'long' }) : selectedDateRange}
+                  {selectedDateRange}
                 </button>
 
                 {/* Date Wheel Picker Overlay */}
@@ -513,7 +584,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   <>
                     <div
                       className="fixed inset-0"
-                      style={{ zIndex: 40 }}
+                      style={{ zIndex: 1000 }}
                       onClick={() => setShowDatePicker(false)}
                     />
                     <div
@@ -525,7 +596,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                         height: '120px',
                         background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
                         backdropFilter: 'blur(16px)',
-                        zIndex: 50
+                        zIndex: 1001
                       }}
                     >
                       <div className="relative h-full overflow-hidden">
@@ -592,7 +663,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
           }}
         >
           <h3 className={`text-xl font-bold font-serif mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+            {getDisplayTitle()}
           </h3>
           <div className="space-y-3 overflow-y-auto" style={{ maxHeight: '600px' }}>
             {filteredExpenses.length === 0 ? (
@@ -702,49 +773,60 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               <h3 className={`text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Top Categories
               </h3>
-              <button
-                className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+              <div
+                className="px-4 py-2 rounded-xl text-sm font-semibold"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
                   color: isDarkMode ? 'white' : '#1f2937'
                 }}
               >
-                October ▾
-              </button>
+                {selectedDateRange === 'This Month' ? new Date().toLocaleDateString('en-US', { month: 'long' }) : selectedDateRange}
+              </div>
             </div>
             <div className="space-y-4">
-              {topCategories.map((item, index) => (
-                <div key={index}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {item.category}
-                    </span>
-                    <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      ${item.amount.toFixed(2)}
-                    </span>
-                  </div>
-                  <div
-                    className="h-8 rounded-lg relative overflow-hidden"
-                    style={{
-                      background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
-                    }}
-                  >
-                    <div
-                      className="h-full rounded-lg transition-all duration-500"
-                      style={{
-                        width: `${(item.amount / maxCategoryAmount) * 100}%`,
-                        background: `linear-gradient(90deg, #FF5E00 0%, #FF8534 100%)`
-                      }}
-                    />
-                  </div>
+              {topCategories.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    No category data for this period
+                  </p>
                 </div>
-              ))}
+              ) : (
+                topCategories.map((item, index) => {
+                  const widthPercent = maxCategoryAmount > 0 ? (item.amount / maxCategoryAmount) * 100 : 0;
+                  return (
+                    <div key={index}>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {item.category}
+                        </span>
+                        <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          ${item.amount.toFixed(2)}
+                        </span>
+                      </div>
+                      <div
+                        className="h-8 rounded-lg relative overflow-hidden"
+                        style={{
+                          background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
+                        }}
+                      >
+                        <div
+                          className="h-full rounded-lg transition-all duration-500"
+                          style={{
+                            width: `${widthPercent}%`,
+                            background: `linear-gradient(90deg, #FF5E00 0%, #FF8534 100%)`
+                          }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
           {/* Spending Over Time Chart */}
           <div
-            className="rounded-3xl shadow-xl p-6"
+            className="rounded-3xl shadow-xl px-6 pt-6 pb-3"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -753,76 +835,84 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-4">
               <h3 className={`text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Spending Over Time
               </h3>
-              <button
-                className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+              <div
+                className="px-4 py-2 rounded-xl text-sm font-semibold"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
                   color: isDarkMode ? 'white' : '#1f2937'
                 }}
               >
-                October ▾
-              </button>
-            </div>
-            <div className="relative h-48 flex">
-              {/* Y-axis labels */}
-              <div className="flex flex-col justify-between pr-3 text-xs" style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }}>
-                <span>$200</span>
-                <span>$150</span>
-                <span>$100</span>
-                <span>$50</span>
-                <span>$0</span>
+                {selectedDateRange === 'This Month' ? new Date().toLocaleDateString('en-US', { month: 'long' }) : selectedDateRange}
               </div>
+            </div>
+            {dateFilteredExpenses.length === 0 ? (
+              <div className="flex items-center justify-center h-48">
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  No spending data for this period
+                </p>
+              </div>
+            ) : (
+              <div className="relative h-56 flex">
+                {/* Y-axis labels */}
+                <div className="flex flex-col justify-between pr-3 text-xs" style={{ color: isDarkMode ? '#9ca3af' : '#6b7280' }}>
+                  <span>$200</span>
+                  <span>$150</span>
+                  <span>$100</span>
+                  <span>$50</span>
+                  <span>$0</span>
+                </div>
 
-              {/* Chart */}
-              <div className="flex-1">
-                <svg width="100%" height="100%" viewBox="0 0 400 150" preserveAspectRatio="none">
-                  {/* Grid lines */}
-                  <line x1="0" y1="0" x2="400" y2="0" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
-                  <line x1="0" y1="37.5" x2="400" y2="37.5" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
-                  <line x1="0" y1="75" x2="400" y2="75" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
-                  <line x1="0" y1="112.5" x2="400" y2="112.5" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
-                  <line x1="0" y1="150" x2="400" y2="150" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
+                {/* Chart */}
+                <div className="flex-1">
+                  <svg width="100%" height="100%" viewBox="0 0 400 150" preserveAspectRatio="none">
+                    {/* Grid lines */}
+                    <line x1="0" y1="0" x2="400" y2="0" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
+                    <line x1="0" y1="37.5" x2="400" y2="37.5" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
+                    <line x1="0" y1="75" x2="400" y2="75" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
+                    <line x1="0" y1="112.5" x2="400" y2="112.5" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
+                    <line x1="0" y1="150" x2="400" y2="150" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
 
-                  {/* Area fill */}
-                  <path
-                    d="M 0,100 L 50,80 L 100,60 L 150,90 L 200,50 L 250,70 L 300,40 L 350,60 L 400,80 L 400,150 L 0,150 Z"
-                    fill="url(#gradient)"
-                    opacity="0.3"
-                  />
+                    {/* Area fill */}
+                    <path
+                      d="M 0,100 L 50,80 L 100,60 L 150,90 L 200,50 L 250,70 L 300,40 L 350,60 L 400,80 L 400,150 L 0,150 Z"
+                      fill="url(#gradient)"
+                      opacity="0.3"
+                    />
 
-                  {/* Line */}
-                  <path
-                    d="M 0,100 L 50,80 L 100,60 L 150,90 L 200,50 L 250,70 L 300,40 L 350,60 L 400,80"
-                    fill="none"
-                    stroke="#FF5E00"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
+                    {/* Line */}
+                    <path
+                      d="M 0,100 L 50,80 L 100,60 L 150,90 L 200,50 L 250,70 L 300,40 L 350,60 L 400,80"
+                      fill="none"
+                      stroke="#FF5E00"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
 
-                  {/* Gradient definition */}
-                  <defs>
-                    <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                      <stop offset="0%" stopColor="#FF5E00" stopOpacity="0.4" />
-                      <stop offset="100%" stopColor="#FF5E00" stopOpacity="0" />
-                    </linearGradient>
-                  </defs>
-                </svg>
+                    {/* Gradient definition */}
+                    <defs>
+                      <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stopColor="#FF5E00" stopOpacity="0.4" />
+                        <stop offset="100%" stopColor="#FF5E00" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
 
-                {/* X-axis labels */}
-                <div className="flex justify-between mt-2">
-                  {['Oct 17', 'Oct 18', 'Oct 20', 'Oct 22', 'Oct 23', 'Oct 24'].map((date, i) => (
-                    <span key={i} className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {i % 2 === 0 ? date : ''}
-                    </span>
-                  ))}
+                  {/* X-axis labels */}
+                  <div className="flex justify-between mt-1">
+                    {['Oct 17', 'Oct 18', 'Oct 20', 'Oct 22', 'Oct 23', 'Oct 24'].map((date, i) => (
+                      <span key={i} className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {i % 2 === 0 ? date : ''}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 
@@ -841,45 +931,54 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             <h3 className={`text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Who Paid What
             </h3>
-            <button
-              className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+            <div
+              className="px-4 py-2 rounded-xl text-sm font-semibold"
               style={{
                 background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
                 color: isDarkMode ? 'white' : '#1f2937'
               }}
             >
-              October ▾
-            </button>
+              {selectedDateRange === 'This Month' ? new Date().toLocaleDateString('en-US', { month: 'long' }) : selectedDateRange}
+            </div>
           </div>
           <div className="space-y-4">
-            {paidByData.map((person, index) => {
-              return (
-                <div key={index}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                      {person.name}
-                    </span>
-                    <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      ${person.amount.toFixed(2)}
-                    </span>
-                  </div>
-                  <div
-                    className="h-8 rounded-lg relative overflow-hidden"
-                    style={{
-                      background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
-                    }}
-                  >
+            {paidByData.length === 0 ? (
+              <div className="text-center py-8">
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  No payment data for this period
+                </p>
+              </div>
+            ) : (
+              paidByData.map((person, index) => {
+                const widthPercent = maxPaidAmount > 0 ? (person.amount / maxPaidAmount) * 100 : 0;
+                return (
+                  <div key={index}>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className={`text-sm font-semibold ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                        {person.name}
+                      </span>
+                      <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        ${person.amount.toFixed(2)}
+                      </span>
+                    </div>
                     <div
-                      className="h-full rounded-lg transition-all duration-500"
+                      className="h-8 rounded-lg relative overflow-hidden"
                       style={{
-                        width: `${(person.amount / maxPaidAmount) * 100}%`,
-                        background: `linear-gradient(90deg, #FF5E00 0%, #FF8534 100%)`
+                        background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
                       }}
-                    />
+                    >
+                      <div
+                        className="h-full rounded-lg transition-all duration-500"
+                        style={{
+                          width: `${widthPercent}%`,
+                          background: `linear-gradient(90deg, #FF5E00 0%, #FF8534 100%)`
+                        }}
+                      />
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       </main>
