@@ -31,9 +31,46 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
       const selectedIndex = categories.indexOf(category);
       const itemHeight = 40;
       const scrollTop = selectedIndex * itemHeight;
-      categoryScrollRef.current.scrollTop = scrollTop;
+      const scrollContainer = categoryScrollRef.current;
+
+      // Set initial scroll position
+      scrollContainer.scrollTop = scrollTop;
+
+      // Handler to update highlighting based on scroll position
+      const handleScroll = () => {
+        const currentScrollTop = scrollContainer.scrollTop;
+        const highlightedIndex = Math.floor(currentScrollTop / itemHeight);
+
+        // Update all buttons directly without state
+        const buttons = scrollContainer.querySelectorAll('.category-item');
+        buttons.forEach((button, btnIndex) => {
+          if (btnIndex === highlightedIndex) {
+            // Highlighted item
+            button.style.color = isDarkMode ? 'white' : '#000000';
+            button.style.fontSize = '17px';
+            button.style.fontWeight = '700';
+          } else {
+            // Non-highlighted items
+            button.style.color = isDarkMode ? '#d1d5db' : '#6b7280';
+            button.style.fontSize = '15px';
+            button.style.fontWeight = '400';
+          }
+        });
+      };
+
+      // Add scroll listener
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+
+      // Initial highlight
+      requestAnimationFrame(() => {
+        handleScroll();
+      });
+
+      return () => {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+      };
     }
-  }, [showCategoryPicker, category, categories]);
+  }, [showCategoryPicker, category, categories, isDarkMode]);
 
   const handleSplitWithToggle = (roommateId) => {
     setSplitWith(prev => ({
@@ -281,10 +318,10 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
                           style={{
                             height: '40px',
                             background: 'transparent',
-                            color: isDarkMode ? 'white' : '#000000',
-                            fontSize: '16px',
-                            fontWeight: '600',
-                            transition: 'color 0.2s ease, font-size 0.2s ease, font-weight 0.2s ease'
+                            color: '#6b7280',
+                            fontSize: '15px',
+                            fontWeight: '400',
+                            transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
                           }}
                         >
                           {cat}
