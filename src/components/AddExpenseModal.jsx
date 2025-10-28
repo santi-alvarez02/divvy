@@ -125,7 +125,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
       isPersonal
     });
 
-    onClose();
+    handleClose();
   };
 
   const handleReset = () => {
@@ -136,6 +136,12 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
     setIsPersonal(false);
     setSplitWith({});
     setError('');
+    setShowCategoryPicker(false);
+  };
+
+  const handleClose = () => {
+    handleReset();
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -147,7 +153,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
         backgroundColor: 'rgba(0, 0, 0, 0.5)',
         backdropFilter: 'blur(4px)'
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         className="rounded-3xl shadow-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
@@ -166,7 +172,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
             Add Expense
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className={`text-2xl font-bold hover:opacity-70 transition-opacity ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
           >
             ×
@@ -187,11 +193,12 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
                 setError('');
               }}
               placeholder="What's this expense for?"
-              className="w-full px-4 py-3 rounded-xl font-medium transition-all outline-none"
+              className="w-full px-4 rounded-xl font-medium transition-all outline-none"
               style={{
                 background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                 border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                color: isDarkMode ? 'white' : '#1f2937'
+                color: isDarkMode ? 'white' : '#1f2937',
+                height: '40px'
               }}
             />
           </div>
@@ -211,25 +218,38 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
                   setError('');
                 }}
                 placeholder="0.00"
-                className="flex-1 px-4 py-3 rounded-xl font-medium transition-all outline-none"
+                className="flex-1 px-4 rounded-xl font-medium transition-all outline-none"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                   border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                  color: isDarkMode ? 'white' : '#1f2937'
+                  color: isDarkMode ? 'white' : '#1f2937',
+                  height: '40px'
                 }}
               />
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
-                className="px-4 py-3 rounded-xl font-semibold transition-all outline-none"
+                className="px-4 rounded-xl font-semibold transition-all outline-none"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                   border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                  color: isDarkMode ? 'white' : '#1f2937'
+                  color: isDarkMode ? 'white' : '#1f2937',
+                  height: '40px',
+                  backdropFilter: 'blur(16px)'
                 }}
               >
                 {currencies.map(curr => (
-                  <option key={curr} value={curr}>{curr}</option>
+                  <option
+                    key={curr}
+                    value={curr}
+                    style={{
+                      background: isDarkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                      color: isDarkMode ? 'white' : '#1f2937',
+                      backdropFilter: 'blur(16px)'
+                    }}
+                  >
+                    {curr}
+                  </option>
                 ))}
               </select>
             </div>
@@ -452,14 +472,13 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
           <div className="flex space-x-4 pt-4">
             <button
               type="button"
-              onClick={() => {
-                handleReset();
-                onClose();
-              }}
+              onClick={handleClose}
               className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
               style={{
-                background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                color: isDarkMode ? 'white' : '#374151'
+                background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                backdropFilter: 'blur(16px)',
+                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                color: isDarkMode ? 'white' : '#1f2937'
               }}
             >
               Cancel
