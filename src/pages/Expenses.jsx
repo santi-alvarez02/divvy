@@ -4,6 +4,14 @@ import AddExpenseModal from '../components/AddExpenseModal';
 
 const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedDateRange, setSelectedDateRange] = useState('All');
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const categoryScrollRef = React.useRef(null);
+  const dateScrollRef = React.useRef(null);
+
   // Get roommate name by ID
   const getRoommateName = (id) => {
     const roommate = roommates.find(r => r.id === id);
@@ -58,6 +66,134 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
 
   const paidByData = Object.entries(paidByTotals).map(([name, amount]) => ({ name, amount }));
   const maxPaidAmount = Math.max(...paidByData.map(p => p.amount));
+
+  // Get unique categories
+  const categories = ['All', ...new Set(expenses.map(e => e.category))];
+
+  // Date range options
+  const dateRanges = ['All', 'This Week', 'This Month', 'Last 3 Months'];
+
+  // Category picker scroll effect
+  React.useEffect(() => {
+    if (showCategoryPicker && categoryScrollRef.current) {
+      const selectedIndex = categories.indexOf(selectedCategory);
+      const itemHeight = 40;
+      const scrollTop = selectedIndex * itemHeight;
+      const scrollContainer = categoryScrollRef.current;
+
+      scrollContainer.scrollTop = scrollTop;
+
+      const handleScroll = () => {
+        const currentScrollTop = scrollContainer.scrollTop;
+        const highlightedIndex = Math.round(currentScrollTop / itemHeight);
+
+        const buttons = scrollContainer.querySelectorAll('.category-filter-item');
+        buttons.forEach((button, btnIndex) => {
+          if (btnIndex === highlightedIndex) {
+            button.style.color = isDarkMode ? 'white' : '#000000';
+            button.style.fontSize = '17px';
+            button.style.fontWeight = '700';
+          } else {
+            button.style.color = isDarkMode ? '#d1d5db' : '#6b7280';
+            button.style.fontSize = '15px';
+            button.style.fontWeight = '400';
+          }
+        });
+      };
+
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+
+      requestAnimationFrame(() => {
+        handleScroll();
+      });
+
+      return () => {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, [showCategoryPicker, selectedCategory, categories, isDarkMode]);
+
+  // Date picker scroll effect
+  React.useEffect(() => {
+    if (showDatePicker && dateScrollRef.current) {
+      const selectedIndex = dateRanges.indexOf(selectedDateRange);
+      const itemHeight = 40;
+      const scrollTop = selectedIndex * itemHeight;
+      const scrollContainer = dateScrollRef.current;
+
+      scrollContainer.scrollTop = scrollTop;
+
+      const handleScroll = () => {
+        const currentScrollTop = scrollContainer.scrollTop;
+        const highlightedIndex = Math.round(currentScrollTop / itemHeight);
+
+        const buttons = scrollContainer.querySelectorAll('.date-filter-item');
+        buttons.forEach((button, btnIndex) => {
+          if (btnIndex === highlightedIndex) {
+            button.style.color = isDarkMode ? 'white' : '#000000';
+            button.style.fontSize = '17px';
+            button.style.fontWeight = '700';
+          } else {
+            button.style.color = isDarkMode ? '#d1d5db' : '#6b7280';
+            button.style.fontSize = '15px';
+            button.style.fontWeight = '400';
+          }
+        });
+      };
+
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+
+      requestAnimationFrame(() => {
+        handleScroll();
+      });
+
+      return () => {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, [showDatePicker, selectedDateRange, dateRanges, isDarkMode]);
+
+  // Date filter helper
+  const filterByDateRange = (expense) => {
+    if (selectedDateRange === 'All') return true;
+
+    const expenseDate = new Date(expense.date);
+    const now = new Date();
+
+    switch (selectedDateRange) {
+      case 'This Week':
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return expenseDate >= weekAgo;
+      case 'This Month':
+        return expenseDate.getMonth() === now.getMonth() && expenseDate.getFullYear() === now.getFullYear();
+      case 'Last 3 Months':
+        const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        return expenseDate >= threeMonthsAgo;
+      default:
+        return true;
+    }
+  };
+
+  // Filter expenses based on search term, category, and date
+  const filteredExpenses = expenses.filter(expense => {
+    // Search filter
+    const searchLower = searchTerm.toLowerCase();
+    const matchesSearch = (
+      expense.description.toLowerCase().includes(searchLower) ||
+      expense.category.toLowerCase().includes(searchLower) ||
+      expense.amount.toString().includes(searchLower) ||
+      getRoommateName(expense.paidBy).toLowerCase().includes(searchLower)
+    );
+
+    // Category filter
+    const matchesCategory = selectedCategory === 'All' || expense.category === selectedCategory;
+
+    // Date filter
+    const matchesDate = filterByDateRange(expense);
+
+    return matchesSearch && matchesCategory && matchesDate;
+  });
+
   return (
     <div
       className="min-h-screen relative overflow-hidden"
@@ -255,44 +391,191 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               <input
                 type="text"
                 placeholder="Search expenses..."
-                className="w-full px-4 py-3 rounded-xl font-medium transition-all"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl font-medium transition-all outline-none"
                 style={{
-                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                   border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                  color: isDarkMode ? 'white' : '#1f2937'
+                  color: isDarkMode ? 'white' : '#1f2937',
+                  height: '40px'
                 }}
               />
             </div>
 
             {/* Filter Buttons */}
             <div className="flex gap-3">
-              <button
-                className="px-4 py-3 rounded-xl font-semibold transition-all"
-                style={{
-                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                  color: isDarkMode ? 'white' : '#1f2937'
-                }}
-              >
-                Category
-              </button>
-              <button
-                className="px-4 py-3 rounded-xl font-semibold transition-all"
-                style={{
-                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                  color: isDarkMode ? 'white' : '#1f2937'
-                }}
-              >
-                Date
-              </button>
-              <button
-                className="px-4 py-3 rounded-xl font-semibold transition-all"
-                style={{
-                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                  color: isDarkMode ? 'white' : '#1f2937'
-                }}
-              >
-                Sort
-              </button>
+              {/* Category Filter */}
+              <div className="relative" style={{ width: '160px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryPicker(!showCategoryPicker)}
+                  className="px-4 rounded-xl font-semibold transition-all outline-none w-full"
+                  style={{
+                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                    color: isDarkMode ? 'white' : '#1f2937',
+                    height: '40px',
+                    backdropFilter: 'blur(16px)'
+                  }}
+                >
+                  {selectedCategory === 'All' ? 'Categories' : selectedCategory}
+                </button>
+
+                {/* Category Wheel Picker Overlay */}
+                {showCategoryPicker && (
+                  <>
+                    <div
+                      className="fixed inset-0"
+                      style={{ zIndex: 40 }}
+                      onClick={() => setShowCategoryPicker(false)}
+                    />
+                    <div
+                      className="absolute rounded-xl overflow-hidden scrollbar-hide"
+                      style={{
+                        top: '45px',
+                        left: '0',
+                        width: '160px',
+                        height: '120px',
+                        background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
+                        backdropFilter: 'blur(16px)',
+                        zIndex: 50
+                      }}
+                    >
+                      <div className="relative h-full overflow-hidden">
+                        {/* Selection highlight bar */}
+                        <div
+                          className="absolute left-0 right-0 pointer-events-none rounded-xl"
+                          style={{
+                            top: '0px',
+                            height: '40px',
+                            background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.3)',
+                            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                          }}
+                        />
+
+                        {/* Categories list */}
+                        <div
+                          ref={categoryScrollRef}
+                          className="h-full overflow-y-auto scrollbar-hide"
+                          style={{
+                            paddingTop: '0px',
+                            paddingBottom: '80px'
+                          }}
+                        >
+                          {categories.map((cat) => (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCategory(cat);
+                                setShowCategoryPicker(false);
+                              }}
+                              className="w-full flex items-center justify-center category-filter-item"
+                              style={{
+                                height: '40px',
+                                background: 'transparent',
+                                color: '#6b7280',
+                                fontSize: '15px',
+                                fontWeight: '400',
+                                transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
+                              }}
+                            >
+                              {cat}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Date Filter */}
+              <div className="relative" style={{ width: '130px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  className="px-4 rounded-xl font-semibold transition-all outline-none w-full"
+                  style={{
+                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                    color: isDarkMode ? 'white' : '#1f2937',
+                    height: '40px',
+                    backdropFilter: 'blur(16px)'
+                  }}
+                >
+                  {selectedDateRange === 'All' ? new Date().toLocaleDateString('en-US', { month: 'long' }) : selectedDateRange}
+                </button>
+
+                {/* Date Wheel Picker Overlay */}
+                {showDatePicker && (
+                  <>
+                    <div
+                      className="fixed inset-0"
+                      style={{ zIndex: 40 }}
+                      onClick={() => setShowDatePicker(false)}
+                    />
+                    <div
+                      className="absolute rounded-xl overflow-hidden scrollbar-hide"
+                      style={{
+                        top: '45px',
+                        left: '0',
+                        width: '130px',
+                        height: '120px',
+                        background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
+                        backdropFilter: 'blur(16px)',
+                        zIndex: 50
+                      }}
+                    >
+                      <div className="relative h-full overflow-hidden">
+                        {/* Selection highlight bar */}
+                        <div
+                          className="absolute left-0 right-0 pointer-events-none rounded-xl"
+                          style={{
+                            top: '0px',
+                            height: '40px',
+                            background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.3)',
+                            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                          }}
+                        />
+
+                        {/* Date ranges list */}
+                        <div
+                          ref={dateScrollRef}
+                          className="h-full overflow-y-auto scrollbar-hide"
+                          style={{
+                            paddingTop: '0px',
+                            paddingBottom: '80px'
+                          }}
+                        >
+                          {dateRanges.map((range) => (
+                            <button
+                              key={range}
+                              type="button"
+                              onClick={() => {
+                                setSelectedDateRange(range);
+                                setShowDatePicker(false);
+                              }}
+                              className="w-full flex items-center justify-center date-filter-item"
+                              style={{
+                                height: '40px',
+                                background: 'transparent',
+                                color: '#6b7280',
+                                fontSize: '15px',
+                                fontWeight: '400',
+                                transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
+                              }}
+                            >
+                              {range}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -308,8 +591,18 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
           }}
         >
+          <h3 className={`text-xl font-bold font-serif mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            {new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </h3>
           <div className="space-y-3 overflow-y-auto" style={{ maxHeight: '600px' }}>
-            {expenses.map((expense) => (
+            {filteredExpenses.length === 0 ? (
+              <div className="text-center py-12">
+                <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  No expenses found
+                </p>
+              </div>
+            ) : (
+              filteredExpenses.map((expense) => (
               <div
                 key={expense.id}
                 className="flex items-center justify-between p-4 rounded-2xl transition-all"
@@ -387,7 +680,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   </div>
                 </div>
               </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 

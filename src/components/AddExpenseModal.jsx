@@ -39,7 +39,8 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
       // Handler to update highlighting based on scroll position
       const handleScroll = () => {
         const currentScrollTop = scrollContainer.scrollTop;
-        const highlightedIndex = Math.floor(currentScrollTop / itemHeight);
+        // Add half item height to center the highlighting
+        const highlightedIndex = Math.round(currentScrollTop / itemHeight);
 
         // Update all buttons directly without state
         const buttons = scrollContainer.querySelectorAll('.category-item');
