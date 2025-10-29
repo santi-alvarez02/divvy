@@ -3,6 +3,8 @@ import Sidebar from '../components/Sidebar';
 
 const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
   // Get current user
+  // TEMP: Change to 'Mike' to see his perspective with pending confirmations
+  // Change back to 'You' for normal view
   const currentUser = roommates.find(r => r.name === 'You');
   const currentUserId = currentUser ? currentUser.id : null;
 
@@ -82,7 +84,44 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
     ];
   };
 
-  const [pendingSettlements, setPendingSettlements] = useState([]);
+  // Mock pending settlements - simulate different user perspectives
+  const getMockPendingSettlements = () => {
+    const youId = roommates.find(r => r.name === 'You')?.id;
+    const sarahId = roommates.find(r => r.name === 'Sarah')?.id;
+    const mikeId = roommates.find(r => r.name === 'Mike')?.id;
+
+    // For Mike's perspective: show that "You" paid Mike and it's pending confirmation
+    if (currentUserId === mikeId) {
+      return [{
+        id: Date.now(),
+        from: youId,
+        fromName: 'You',
+        to: mikeId,
+        toName: 'Mike',
+        amount: 48.10,
+        date: new Date().toISOString(),
+        status: 'pending'
+      }];
+    }
+
+    // For your perspective: show pending payment to Mike waiting for confirmation
+    if (currentUserId === youId) {
+      return [{
+        id: Date.now(),
+        from: youId,
+        fromName: 'You',
+        to: mikeId,
+        toName: 'Mike',
+        amount: 48.10,
+        date: new Date().toISOString(),
+        status: 'pending'
+      }];
+    }
+
+    return [];
+  };
+
+  const [pendingSettlements, setPendingSettlements] = useState(getMockPendingSettlements());
   const [settlementHistory, setSettlementHistory] = useState(getMockSettlementHistory());
   const [historyFilter, setHistoryFilter] = useState('all'); // 'all', 'month', 'lastMonth', 'last3Months'
   const [selectedBalance, setSelectedBalance] = useState(null); // Track which balance detail view is showing
@@ -349,69 +388,7 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
           </div>
         </div>
 
-        {/* Pending Confirmations (Payments to Accept/Reject) */}
-        {receivedSettlements.length > 0 && (
-          <div
-            className="rounded-3xl shadow-xl p-4 sm:p-6 mb-6 sm:mb-8"
-            style={{
-              background: isDarkMode
-                ? 'rgba(0, 0, 0, 0.3)'
-                : 'rgba(255, 255, 255, 0.4)',
-              backdropFilter: 'blur(12px)',
-              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
-            }}
-          >
-            <h3 className={`text-lg sm:text-xl font-bold font-serif mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Pending Confirmations
-            </h3>
-            <div className="space-y-3">
-              {receivedSettlements.map((settlement) => (
-                <div
-                  key={settlement.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-2xl"
-                  style={{
-                    background: isDarkMode ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.05)'
-                  }}
-                >
-                  <div className="flex-1 mb-3 sm:mb-0">
-                    <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {settlement.fromName} paid you
-                    </p>
-                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {formatDate(settlement.date)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-xl font-bold" style={{ color: '#10b981' }}>
-                      ${settlement.amount.toFixed(2)}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleAcceptPayment(settlement.id)}
-                        className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-                        style={{ backgroundColor: '#10b981' }}
-                      >
-                        Accept
-                      </button>
-                      <button
-                        onClick={() => handleRejectPayment(settlement.id)}
-                        className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-                        style={{
-                          background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                          color: isDarkMode ? 'white' : '#1f2937'
-                        }}
-                      >
-                        Reject
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Active Balances and Pending Settlements Grid */}
+        {/* Active Balances and Settlements Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 sm:mb-8">
           {/* Active Balances */}
           <div
@@ -572,7 +549,7 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             )}
           </div>
 
-          {/* Pending Settlements (Payments you sent) */}
+          {/* Settlements (Both received and sent) */}
           <div
             className="rounded-3xl shadow-xl p-6"
             style={{
@@ -585,9 +562,9 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             }}
           >
             <h3 className={`text-2xl sm:text-3xl font-bold font-serif mb-5 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Pending Settlements
+              Settlements
             </h3>
-            {sentSettlements.length === 0 ? (
+            {sentSettlements.length === 0 && receivedSettlements.length === 0 ? (
               <div className="text-center py-8">
                 <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                   No pending settlements
@@ -595,6 +572,51 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               </div>
             ) : (
               <div className="space-y-3">
+                {/* Payments to confirm (received) */}
+                {receivedSettlements.map((settlement) => (
+                  <div
+                    key={settlement.id}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-2xl"
+                    style={{
+                      background: isDarkMode ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.05)'
+                    }}
+                  >
+                    <div className="flex-1 mb-3 sm:mb-0">
+                      <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {settlement.fromName} paid you
+                      </p>
+                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {formatDate(settlement.date)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="text-xl font-bold" style={{ color: '#10b981' }}>
+                        ${settlement.amount.toFixed(2)}
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleAcceptPayment(settlement.id)}
+                          className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                          style={{ backgroundColor: '#10b981' }}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => handleRejectPayment(settlement.id)}
+                          className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                          style={{
+                            background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                            color: isDarkMode ? 'white' : '#1f2937'
+                          }}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {/* Payments sent (waiting for confirmation) */}
                 {sentSettlements.map((settlement) => (
                   <div
                     key={settlement.id}
