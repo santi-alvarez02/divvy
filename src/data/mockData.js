@@ -92,6 +92,36 @@ export const expenses = [
     splitBetween: [1, 2, 3],
     icon: '🧹',
   },
+  {
+    id: 9,
+    amount: 180.00,
+    category: 'Utilities',
+    description: 'Water & sewage bill',
+    date: '2025-10-12',
+    paidBy: 3, // Mike
+    splitBetween: [1, 2, 3],
+    icon: '💧',
+  },
+  {
+    id: 10,
+    amount: 95.50,
+    category: 'Groceries',
+    description: 'Trader Joes haul',
+    date: '2025-10-10',
+    paidBy: 2, // Sarah
+    splitBetween: [1, 2, 3],
+    icon: '🛒',
+  },
+  {
+    id: 11,
+    amount: 120.00,
+    category: 'Entertainment',
+    description: 'Concert tickets',
+    date: '2025-10-08',
+    paidBy: 3, // Mike
+    splitBetween: [1, 3],
+    icon: '🎵',
+  },
 ];
 
 // Monthly budget
