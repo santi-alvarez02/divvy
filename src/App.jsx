@@ -4,6 +4,7 @@ import Dashboard from './components/Dashboard';
 import Expenses from './pages/Expenses';
 import Balances from './pages/Balances';
 import Budget from './pages/Budget';
+import Groups from './pages/Groups';
 import Settings from './pages/Settings';
 import { monthlyBudget, expenses, balances, roommates } from './data/mockData';
 
@@ -55,6 +56,16 @@ function App() {
               isDarkMode={isDarkMode}
               setIsDarkMode={setIsDarkMode}
               expenses={expenses}
+              roommates={roommates}
+            />
+          }
+        />
+        <Route
+          path="/groups"
+          element={
+            <Groups
+              isDarkMode={isDarkMode}
+              setIsDarkMode={setIsDarkMode}
               roommates={roommates}
             />
           }

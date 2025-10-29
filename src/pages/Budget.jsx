@@ -1,14 +1,117 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 
 const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
-  const [timePeriod, setTimePeriod] = useState('month'); // 'month', 'lastMonth', 'last3Months'
+  const navigate = useNavigate();
+  const [timePeriod, setTimePeriod] = useState('month'); // 'month' or 'custom'
+  const [selectedMonth, setSelectedMonth] = useState(null); // For custom month selection
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [budgetLimit, setBudgetLimit] = useState(1500);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const monthScrollRef = React.useRef(null);
 
   // Calculate current user's share of expenses
   const currentUser = roommates.find(r => r.name === 'You');
   const currentUserId = currentUser ? currentUser.id : null;
+
+  // Get available month options for picker
+  const getMonthOptions = () => {
+    const options = ['This Month'];
+    const monthsSet = new Set();
+
+    expenses.forEach(expense => {
+      if (expense.splitBetween.includes(currentUserId)) {
+        const expenseDate = new Date(expense.date);
+        const monthYear = `${expenseDate.getFullYear()}-${expenseDate.getMonth()}`;
+        monthsSet.add(monthYear);
+      }
+    });
+
+    const months = Array.from(monthsSet)
+      .map(monthYear => {
+        const [year, month] = monthYear.split('-').map(Number);
+        return { year, month };
+      })
+      .sort((a, b) => {
+        if (a.year !== b.year) return b.year - a.year;
+        return b.month - a.month;
+      });
+
+    // Add month names, excluding current month
+    const now = new Date();
+    months.forEach(monthData => {
+      if (monthData.month !== now.getMonth() || monthData.year !== now.getFullYear()) {
+        const monthName = new Date(monthData.year, monthData.month).toLocaleDateString('en-US', { month: 'long' });
+        options.push(monthName);
+      }
+    });
+
+    return options;
+  };
+
+  const monthOptions = getMonthOptions();
+
+  // Month picker scroll effect
+  React.useEffect(() => {
+    if (showMonthPicker && monthScrollRef.current) {
+      const currentSelection = timePeriod === 'month' ? 'This Month' :
+        (selectedMonth ? new Date(selectedMonth.year, selectedMonth.month).toLocaleDateString('en-US', { month: 'long' }) : 'This Month');
+      const selectedIndex = monthOptions.indexOf(currentSelection);
+      const itemHeight = 40;
+      const scrollTop = selectedIndex * itemHeight;
+      const scrollContainer = monthScrollRef.current;
+
+      scrollContainer.scrollTop = scrollTop;
+
+      const handleScroll = () => {
+        const currentScrollTop = scrollContainer.scrollTop;
+        const highlightedIndex = Math.round(currentScrollTop / itemHeight);
+
+        const buttons = scrollContainer.querySelectorAll('.month-filter-item');
+        buttons.forEach((button, btnIndex) => {
+          if (btnIndex === highlightedIndex) {
+            button.style.color = isDarkMode ? 'white' : '#000000';
+            button.style.fontSize = '17px';
+            button.style.fontWeight = '700';
+          } else {
+            button.style.color = isDarkMode ? '#d1d5db' : '#6b7280';
+            button.style.fontSize = '15px';
+            button.style.fontWeight = '400';
+          }
+        });
+      };
+
+      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+
+      requestAnimationFrame(() => {
+        handleScroll();
+      });
+
+      return () => {
+        scrollContainer.removeEventListener('scroll', handleScroll);
+      };
+    }
+  }, [showMonthPicker, timePeriod, selectedMonth, monthOptions, isDarkMode]);
+
+  // Helper to get month data from month name
+  const getMonthDataFromName = (monthName) => {
+    if (monthName === 'This Month') {
+      const now = new Date();
+      return { month: now.getMonth(), year: now.getFullYear() };
+    }
+
+    // Find the month data from available months
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const targetMonthName = targetDate.toLocaleDateString('en-US', { month: 'long' });
+      if (targetMonthName === monthName) {
+        return { month: targetDate.getMonth(), year: targetDate.getFullYear() };
+      }
+    }
+    return null;
+  };
 
   // Filter expenses by time period
   const getFilteredExpenses = () => {
@@ -24,20 +127,13 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
       const expenseMonth = expenseDate.getMonth();
       const expenseYear = expenseDate.getFullYear();
 
-      switch (timePeriod) {
-        case 'month':
-          return expenseMonth === currentMonth && expenseYear === currentYear;
-        case 'lastMonth':
-          const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
-          const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
-          return expenseMonth === lastMonth && expenseYear === lastMonthYear;
-        case 'last3Months':
-          const threeMonthsAgo = new Date(now);
-          threeMonthsAgo.setMonth(now.getMonth() - 3);
-          return expenseDate >= threeMonthsAgo;
-        default:
-          return true;
+      if (timePeriod === 'month') {
+        return expenseMonth === currentMonth && expenseYear === currentYear;
+      } else if (timePeriod === 'custom' && selectedMonth) {
+        return expenseMonth === selectedMonth.month && expenseYear === selectedMonth.year;
       }
+
+      return false;
     });
   };
 
@@ -201,31 +297,129 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
           </h1>
 
           {/* Time Period Selector */}
-          <div className="flex gap-2">
-            {[
-              { value: 'month', label: 'This Month' },
-              { value: 'lastMonth', label: 'Last Month' },
-              { value: 'last3Months', label: 'Last 3 Months' }
-            ].map(period => (
+          <div className="flex gap-2 relative">
+            {/* This Month Button */}
+            <button
+              onClick={() => {
+                setTimePeriod('month');
+                setSelectedMonth(null);
+                setShowMonthPicker(false);
+              }}
+              className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+                timePeriod === 'month'
+                  ? 'text-white'
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}
+              style={{
+                backgroundColor: timePeriod === 'month'
+                  ? '#FF5E00'
+                  : isDarkMode
+                  ? 'rgba(255, 255, 255, 0.1)'
+                  : 'rgba(0, 0, 0, 0.05)'
+              }}
+            >
+              This Month
+            </button>
+
+            {/* Select Month Button */}
+            <div className="relative">
               <button
-                key={period.value}
-                onClick={() => setTimePeriod(period.value)}
+                onClick={() => setShowMonthPicker(!showMonthPicker)}
                 className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                  timePeriod === period.value
+                  timePeriod === 'custom'
                     ? 'text-white'
                     : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
                 style={{
-                  backgroundColor: timePeriod === period.value
+                  backgroundColor: timePeriod === 'custom'
                     ? '#FF5E00'
                     : isDarkMode
                     ? 'rgba(255, 255, 255, 0.1)'
                     : 'rgba(0, 0, 0, 0.05)'
                 }}
               >
-                {period.label}
+                {timePeriod === 'custom' && selectedMonth
+                  ? new Date(selectedMonth.year, selectedMonth.month).toLocaleDateString('en-US', { month: 'long' })
+                  : 'Select Month'}
               </button>
-            ))}
+
+              {/* Month Wheel Picker Overlay */}
+              {showMonthPicker && (
+                <>
+                  <div
+                    className="fixed inset-0"
+                    style={{ zIndex: 1000 }}
+                    onClick={() => setShowMonthPicker(false)}
+                  />
+                  <div
+                    className="absolute rounded-xl overflow-hidden scrollbar-hide"
+                    style={{
+                      top: '45px',
+                      left: '0',
+                      right: '0',
+                      height: '120px',
+                      background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
+                      backdropFilter: 'blur(16px)',
+                      zIndex: 1001
+                    }}
+                  >
+                    <div className="relative h-full overflow-hidden">
+                      {/* Selection highlight bar */}
+                      <div
+                        className="absolute left-0 right-0 pointer-events-none rounded-xl"
+                        style={{
+                          top: '0px',
+                          height: '40px',
+                          background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.3)',
+                          border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                        }}
+                      />
+
+                      {/* Month options list */}
+                      <div
+                        ref={monthScrollRef}
+                        className="h-full overflow-y-auto scrollbar-hide"
+                        style={{
+                          paddingTop: '0px',
+                          paddingBottom: '80px'
+                        }}
+                      >
+                        {monthOptions.map((monthName) => (
+                          <button
+                            key={monthName}
+                            type="button"
+                            onClick={() => {
+                              if (monthName === 'This Month') {
+                                setTimePeriod('month');
+                                setSelectedMonth(null);
+                              } else {
+                                const monthData = getMonthDataFromName(monthName);
+                                if (monthData) {
+                                  setTimePeriod('custom');
+                                  setSelectedMonth(monthData);
+                                }
+                              }
+                              setShowMonthPicker(false);
+                            }}
+                            className="w-full flex items-center justify-center month-filter-item"
+                            style={{
+                              height: '40px',
+                              background: 'transparent',
+                              color: '#6b7280',
+                              fontSize: '15px',
+                              fontWeight: '400',
+                              transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
+                            }}
+                          >
+                            {monthName}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -243,7 +437,28 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               minHeight: '450px'
             }}
           >
-            <div className="flex items-center justify-center h-full gap-8">
+            {/* Header with Month and Edit Button */}
+            <div className="flex items-center justify-between mb-8">
+              <h2 className={`text-2xl sm:text-3xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {timePeriod === 'month'
+                  ? new Date().toLocaleDateString('en-US', { month: 'long' })
+                  : selectedMonth
+                  ? new Date(selectedMonth.year, selectedMonth.month).toLocaleDateString('en-US', { month: 'long' })
+                  : new Date().toLocaleDateString('en-US', { month: 'long' })}
+              </h2>
+              <button
+                onClick={() => setIsEditingBudget(true)}
+                className="px-6 py-2 rounded-full text-sm font-semibold transition-all hover:opacity-80"
+                style={{
+                  backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)',
+                  color: isDarkMode ? '#9ca3af' : '#6b7280'
+                }}
+              >
+                Edit
+              </button>
+            </div>
+
+            <div className="flex items-center gap-8">
               {/* Circular Progress */}
               <div className="flex flex-col items-center">
                 <div className="relative" style={{ width: '200px', height: '200px' }}>
@@ -350,12 +565,12 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               <div className="flex items-center gap-2">
                 <div className="w-4 h-1 rounded" style={{ backgroundColor: '#FF5E00' }} />
                 <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Actual
+                  Total Spent
                 </span>
               </div>
             </div>
 
-            {/* Line Chart */}
+            {/* Column Chart */}
             <div className="relative flex" style={{ height: '280px' }}>
               {/* Y-axis labels */}
               <div className="flex flex-col justify-between py-2 pr-4" style={{ width: '60px' }}>
@@ -374,90 +589,55 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
 
               {/* Chart area */}
               <div className="flex-1 relative">
-                <svg width="100%" height="100%" viewBox="0 0 100 100" preserveAspectRatio="none" style={{ overflow: 'visible' }}>
-                  {/* Grid lines */}
+                {/* Grid lines */}
+                <div className="absolute inset-0">
                   {[0, 1, 2, 3, 4].map((i) => (
-                    <line
+                    <div
                       key={i}
-                      x1="0"
-                      y1={i * 25}
-                      x2="100"
-                      y2={i * 25}
-                      stroke={isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}
-                      strokeWidth="0.2"
-                      vectorEffect="non-scaling-stroke"
+                      className="absolute w-full"
+                      style={{
+                        top: `${i * 25}%`,
+                        borderTop: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`
+                      }}
                     />
                   ))}
+                </div>
 
-                  {/* Budget Line */}
-                  <polyline
-                    fill="none"
-                    stroke="#6366f1"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    vectorEffect="non-scaling-stroke"
-                    points={monthlyData.map((month, index) => {
-                      const maxValue = Math.max(...monthlyData.map(m => Math.max(m.budget, m.spent)));
-                      const x = (index / (monthlyData.length - 1)) * 100;
-                      const y = 100 - ((month.budget / maxValue) * 90);
-                      return `${x},${y}`;
-                    }).join(' ')}
-                  />
-
-                  {/* Actual Spent Line */}
-                  <polyline
-                    fill="none"
-                    stroke="#FF5E00"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    vectorEffect="non-scaling-stroke"
-                    points={monthlyData.map((month, index) => {
-                      const maxValue = Math.max(...monthlyData.map(m => Math.max(m.budget, m.spent)));
-                      const x = (index / (monthlyData.length - 1)) * 100;
-                      const y = 100 - ((month.spent / maxValue) * 90);
-                      return `${x},${y}`;
-                    }).join(' ')}
-                  />
-
-                  {/* Data points for Budget */}
+                {/* Columns */}
+                <div className="relative h-full flex items-end justify-around gap-4 px-4">
                   {monthlyData.map((month, index) => {
                     const maxValue = Math.max(...monthlyData.map(m => Math.max(m.budget, m.spent)));
-                    const x = (index / (monthlyData.length - 1)) * 100;
-                    const y = 100 - ((month.budget / maxValue) * 90);
-                    return (
-                      <circle
-                        key={`budget-${index}`}
-                        cx={x}
-                        cy={y}
-                        r="1.5"
-                        fill="#6366f1"
-                        vectorEffect="non-scaling-stroke"
-                      />
-                    );
-                  })}
+                    const chartHeight = 280;
+                    const budgetHeightPx = (month.budget / maxValue) * chartHeight * 0.9;
+                    const spentHeightPx = (month.spent / maxValue) * chartHeight * 0.9;
 
-                  {/* Data points for Actual */}
-                  {monthlyData.map((month, index) => {
-                    const maxValue = Math.max(...monthlyData.map(m => Math.max(m.budget, m.spent)));
-                    const x = (index / (monthlyData.length - 1)) * 100;
-                    const y = 100 - ((month.spent / maxValue) * 90);
                     return (
-                      <circle
-                        key={`spent-${index}`}
-                        cx={x}
-                        cy={y}
-                        r="1.5"
-                        fill="#FF5E00"
-                        vectorEffect="non-scaling-stroke"
-                      />
+                      <div key={index} className="flex gap-2 items-end justify-center">
+                        {/* Budget Column */}
+                        <div
+                          className="rounded-t-lg transition-all duration-500"
+                          style={{
+                            height: `${budgetHeightPx}px`,
+                            backgroundColor: '#6366f1',
+                            width: '30px'
+                          }}
+                        />
+                        {/* Actual Column */}
+                        <div
+                          className="rounded-t-lg transition-all duration-500"
+                          style={{
+                            height: `${spentHeightPx}px`,
+                            backgroundColor: '#FF5E00',
+                            width: '30px'
+                          }}
+                        />
+                      </div>
                     );
                   })}
-                </svg>
+                </div>
 
                 {/* X-axis labels */}
-                <div className="absolute bottom-0 left-0 right-0 flex justify-between px-2" style={{ transform: 'translateY(25px)' }}>
+                <div className="absolute bottom-0 left-0 right-0 flex justify-around" style={{ transform: 'translateY(25px)' }}>
                   {monthlyData.map((month, index) => (
                     <span
                       key={index}
@@ -483,9 +663,21 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
           }}
         >
-          <h2 className={`text-2xl sm:text-3xl font-bold font-serif mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Recent Expenses
-          </h2>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className={`text-2xl sm:text-3xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Recent Expenses
+            </h2>
+            <button
+              onClick={() => navigate('/expenses')}
+              className="px-6 py-2 rounded-full text-sm font-semibold transition-all hover:opacity-80"
+              style={{
+                backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)',
+                color: isDarkMode ? '#9ca3af' : '#6b7280'
+              }}
+            >
+              View All
+            </button>
+          </div>
 
           {filteredExpenses.length === 0 ? (
             <div className="text-center py-12">
@@ -494,36 +686,46 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               </p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-6">
               {filteredExpenses.slice(0, 5).map((expense) => {
                 const userShare = expense.amount / expense.splitBetween.length;
                 const payer = roommates.find(r => r.id === expense.paidBy);
+                const currentUser = roommates.find(r => r.name === 'You');
+                const splitText = expense.splitBetween.length === roommates.length ? 'Split evenly' :
+                                  `Split ${expense.splitBetween.length} ways`;
 
                 return (
                   <div
                     key={expense.id}
-                    className="flex items-center justify-between p-4 rounded-2xl"
-                    style={{
-                      background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)'
-                    }}
+                    className="flex items-start justify-between py-4"
                   >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{expense.icon}</span>
-                      <div>
-                        <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           {expense.description}
-                        </p>
-                        <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                          {payer?.name} paid • {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                        </p>
+                        </h3>
+                        <span
+                          className="px-3 py-1 rounded-full text-xs font-medium"
+                          style={{
+                            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.06)',
+                            color: isDarkMode ? '#9ca3af' : '#6b7280'
+                          }}
+                        >
+                          {expense.category}
+                        </span>
                       </div>
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {payer?.id === currentUser?.id ? 'You paid' : `${payer?.name} paid`}
+                        <span className="mx-2">•</span>
+                        {splitText}
+                      </p>
                     </div>
                     <div className="text-right">
-                      <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        ${userShare.toFixed(2)}
+                      <p className="text-lg font-bold" style={{ color: '#FF5E00' }}>
+                        ${expense.amount.toFixed(2)}
                       </p>
-                      <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Your share
+                      <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </p>
                     </div>
                   </div>

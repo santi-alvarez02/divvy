@@ -6,6 +6,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
   const [currency, setCurrency] = useState('USD');
   const [category, setCategory] = useState('Select a category');
   const [isPersonal, setIsPersonal] = useState(false);
+  const [isRecurring, setIsRecurring] = useState(false);
   const [splitWith, setSplitWith] = useState({});
   const [error, setError] = useState('');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -123,7 +124,8 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
       category,
       paidBy: 1, // Current user ID
       splitBetween: splitBetweenIds,
-      isPersonal
+      isPersonal,
+      isRecurring
     });
 
     handleClose();
@@ -135,6 +137,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
     setCurrency('USD');
     setCategory('Select a category');
     setIsPersonal(false);
+    setIsRecurring(false);
     setSplitWith({});
     setError('');
     setShowCategoryPicker(false);
@@ -401,6 +404,51 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode }) => {
                 <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   Personal Expense
                 </span>
+              </label>
+            </div>
+
+            {/* Recurring Expense Checkbox */}
+            <div className="mb-4">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={isRecurring}
+                    onChange={(e) => {
+                      setIsRecurring(e.target.checked);
+                      setError('');
+                    }}
+                    className="w-5 h-5 rounded cursor-pointer appearance-none"
+                    style={{
+                      background: isRecurring ? '#FF5E00' : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)'),
+                      border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  {isRecurring && (
+                    <svg
+                      className="absolute top-0 left-0 w-5 h-5 pointer-events-none"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M16 6L7.5 14.5L4 11"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Recurring Expense
+                  </span>
+                  <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Automatically add this expense every month
+                  </span>
+                </div>
               </label>
             </div>
 
