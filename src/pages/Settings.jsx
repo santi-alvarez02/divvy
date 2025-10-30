@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../contexts/AuthContext';
 
 const Settings = ({ isDarkMode, setIsDarkMode }) => {
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   // Payment usernames state
   const [venmoUsername, setVenmoUsername] = useState('');
   const [paypalUsername, setPaypalUsername] = useState('');
@@ -24,6 +28,16 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
     localStorage.setItem('paypalUsername', paypalUsername);
     localStorage.setItem('zelleEmail', zelleEmail);
     alert('Payment information saved!');
+  };
+
+  // Handle sign out
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (!error) {
+      navigate('/');
+    } else {
+      alert('Error signing out. Please try again.');
+    }
   };
 
   return (
@@ -267,6 +281,51 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
               />
             </button>
           </div>
+        </div>
+
+        {/* Account Section */}
+        <div
+          className="rounded-3xl shadow-xl p-6 mt-6"
+          style={{
+            background: isDarkMode
+              ? 'rgba(0, 0, 0, 0.3)'
+              : 'rgba(255, 255, 255, 0.4)',
+            backdropFilter: 'blur(12px)',
+            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+          }}
+        >
+          <h2 className={`text-2xl font-bold font-serif mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Account
+          </h2>
+
+          {/* User Info */}
+          {user && (
+            <div className="mb-6">
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Signed in as
+              </p>
+              <p className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {user.email}
+              </p>
+              {user.user_metadata?.full_name && (
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  {user.user_metadata.full_name}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Sign Out Button */}
+          <button
+            onClick={handleSignOut}
+            className="px-6 py-3 rounded-2xl text-base font-semibold transition-all hover:opacity-90"
+            style={{
+              backgroundColor: isDarkMode ? '#dc2626' : '#ef4444',
+              color: 'white'
+            }}
+          >
+            Sign Out
+          </button>
         </div>
       </main>
     </div>

@@ -294,11 +294,113 @@ This document tracks all development sessions and serves as a running developmen
 
 ---
 
+---
+
+## Session 14: Backend Setup - Authentication
+**Date:** 2025-10-30
+**Phase:** 1 - Foundation (Week 1)
+
+**Goal:** Set up Supabase and implement authentication system
+
+**Changes Made:**
+- ✅ Installed @supabase/supabase-js (v2.78.0)
+- ✅ Set up environment variables in .env.local
+- ✅ Created src/lib/supabase.js with PKCE auth flow
+- ✅ Created AuthContext with sign up/sign in/sign out methods
+- ✅ Built Login page with validation and error handling
+- ✅ Built Signup page with password strength requirements
+- ✅ Created ProtectedRoute component
+- ✅ Updated App.jsx with AuthProvider and route protection
+- ✅ Created Get Started landing page
+- ✅ Added Sign Out functionality to Settings page
+- ✅ Password requirements: 8+ chars, uppercase, lowercase, number
+
+**Status:** ✅ Complete
+
+---
+
+## Session 15: User Onboarding Flow
+**Date:** 2025-10-30
+**Phase:** 1 - Foundation (Week 1 continued)
+
+**Goal:** Implement multi-step onboarding after signup
+
+**Onboarding Flow:**
+1. Profile Picture Upload (optional - can skip)
+2. Account Type Selection (Solo vs Group)
+   - If Solo: Save user to database → Dashboard
+   - If Group: Choose to Create or Join group → Save to database → Dashboard
+
+**Tasks:**
+- ✅ Create Onboarding page with multi-step wizard
+- ✅ Step 1: Profile picture upload with Supabase Storage
+- ✅ Step 2: Account type selection (Solo/Group)
+- ✅ Step 3a (Group): Create or Join group flow
+- ✅ Create users table in Supabase with RLS
+- ✅ Create groups and group_members tables
+- ✅ Update Signup to redirect to /onboarding
+- ✅ Save user data only after onboarding completion
+- ✅ Test complete signup → onboarding → dashboard flow
+
+**Changes Made:**
+- Created `src/pages/Onboarding.jsx` with multi-step wizard
+- Step 1: Profile picture upload with auto-advance and skip option
+- Step 2: Account type selection (Solo/Group)
+- Step 3: Group creation or join flow with invite codes
+- Database schema created with proper RLS policies
+- Fixed trigger issue that was auto-creating users (dropped `on_auth_user_created`)
+- Set up avatars storage bucket in Supabase
+- Only save user to database after completing onboarding
+
+**UI Refinements:**
+- Made upload picture button glassy/transparent effect
+- Made skip button orange gradient
+- Removed subtitle text on Step 1
+- Auto-advance to next step when picture uploaded
+- Changed buttons from "Skip/Next" to "Cancel/Skip"
+
+**Challenges Encountered:**
+- "Database error saving new user" (500 error) during signup
+- Root cause: Auto-trigger `on_auth_user_created` was trying to create user profile during auth signup
+- Solution: Dropped the trigger and function to allow manual user creation during onboarding
+- SQL table order issue: Had to create group_members table before adding RLS policies that referenced it
+
+**Status:** ✅ Complete
+
+---
+
+## Session 16: UI Polish - Auth Pages (CURRENT SESSION)
+**Date:** 2025-10-30
+**Phase:** 1 - Foundation (Week 1 continued)
+
+**Goal:** Polish Signup and Login pages to match app aesthetic
+
+**Changes Made:**
+- Updated Signup and Login pages with bubble backgrounds
+- Changed from multiple bubbles to single center-right bubble
+- Made "Divvy" heading orange (#FF5E00)
+- Enhanced glass-morphism effect on cards:
+  - Increased backdrop blur to 24px
+  - More refined semi-transparent backgrounds
+  - Softer borders with better opacity
+- Simplified background to solid colors instead of gradients
+- Single large orange gradient bubble (700px × 700px) positioned at center-right
+
+**Technical Details:**
+- Bubble positioned at `left: 55%` with `transform: translate(-50%, -50%)`
+- Bubble opacity: 0.4 in light mode, 0.3 in dark mode
+- Card styling: `rgba(31, 41, 55, 0.4)` dark, `rgba(255, 255, 255, 0.7)` light
+- Rounded corners: `rounded-3xl`
+
+**Status:** ✅ Complete
+
+---
+
 ## Current Status
 
 **UI Completion:** 100%
-**Backend Integration:** 0%
-**Overall Progress:** ~40%
+**Backend Integration:** 15% (Auth complete, onboarding in progress)
+**Overall Progress:** ~45%
 
 ### What's Working:
 - ✅ All 6 pages built and styled

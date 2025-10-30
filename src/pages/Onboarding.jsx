@@ -1,0 +1,550 @@
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+
+const Onboarding = ({ isDarkMode }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const [step, setStep] = useState(1); // 1: Profile, 2: Account Type, 3: Group
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // Step 1: Profile Picture
+  const [profilePicture, setProfilePicture] = useState(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState(null);
+
+  // Step 2: Account Type
+  const [accountType, setAccountType] = useState(''); // 'solo' or 'group'
+
+  // Step 3: Group (if selected)
+  const [groupAction, setGroupAction] = useState(''); // 'create' or 'join'
+  const [groupName, setGroupName] = useState('');
+  const [inviteCode, setInviteCode] = useState('');
+
+  // Handle profile picture selection
+  const handleProfilePictureChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProfilePicture(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePicturePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+      // Automatically move to next step after upload
+      setTimeout(() => {
+        setStep(2);
+      }, 500);
+    }
+  };
+
+  // Upload profile picture to Supabase Storage
+  const uploadProfilePicture = async () => {
+    if (!profilePicture) return null;
+
+    try {
+      const fileExt = profilePicture.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, profilePicture);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      return null;
+    }
+  };
+
+  // Step 1: Next (Profile Picture)
+  const handleStep1Next = () => {
+    setStep(2);
+  };
+
+  // Step 2: Select Account Type
+  const handleAccountTypeSelect = (type) => {
+    setAccountType(type);
+    if (type === 'solo') {
+      // Go directly to finish for solo accounts
+      handleFinishOnboarding(type);
+    } else {
+      // Go to group selection
+      setStep(3);
+    }
+  };
+
+  // Generate random invite code
+  const generateInviteCode = () => {
+    return Math.random().toString(36).substring(2, 8).toUpperCase();
+  };
+
+  // Finish onboarding and save to database
+  const handleFinishOnboarding = async (accType = accountType) => {
+    setLoading(true);
+    setError('');
+
+    try {
+      // Upload profile picture if exists
+      const avatarUrl = await uploadProfilePicture();
+
+      // Save user to database
+      const { error: userError } = await supabase
+        .from('users')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          full_name: user.user_metadata?.full_name || '',
+          avatar_url: avatarUrl,
+          account_type: accType,
+          created_at: new Date().toISOString()
+        });
+
+      if (userError) throw userError;
+
+      // If group account, handle group creation/joining
+      if (accType === 'group') {
+        if (groupAction === 'create') {
+          // Create new group
+          const invCode = generateInviteCode();
+          const { data: groupData, error: groupError } = await supabase
+            .from('groups')
+            .insert({
+              name: groupName,
+              admin_id: user.id,
+              invite_code: invCode
+            })
+            .select()
+            .single();
+
+          if (groupError) throw groupError;
+
+          // Add user as group member
+          const { error: memberError } = await supabase
+            .from('group_members')
+            .insert({
+              group_id: groupData.id,
+              user_id: user.id,
+              role: 'admin'
+            });
+
+          if (memberError) throw memberError;
+        } else if (groupAction === 'join') {
+          // Join existing group
+          const { data: groupData, error: groupError } = await supabase
+            .from('groups')
+            .select('id')
+            .eq('invite_code', inviteCode.toUpperCase())
+            .single();
+
+          if (groupError) {
+            setError('Invalid invite code. Please check and try again.');
+            setLoading(false);
+            return;
+          }
+
+          // Add user as group member
+          const { error: memberError } = await supabase
+            .from('group_members')
+            .insert({
+              group_id: groupData.id,
+              user_id: user.id,
+              role: 'member'
+            });
+
+          if (memberError) throw memberError;
+        }
+      }
+
+      // Onboarding complete - redirect to dashboard
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Error completing onboarding:', err);
+      setError(err.message || 'Failed to complete onboarding. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      style={{
+        background: isDarkMode ? '#0f0f0f' : '#f5f5f5'
+      }}
+    >
+      {/* Single gradient bubble in center-right */}
+      <div
+        className="absolute top-1/2 left-[55%] w-[700px] h-[700px] rounded-full blur-3xl"
+        style={{
+          background: isDarkMode
+            ? 'radial-gradient(circle, rgba(255, 94, 0, 0.3) 0%, rgba(255, 94, 0, 0) 70%)'
+            : 'radial-gradient(circle, rgba(255, 94, 0, 0.4) 0%, rgba(255, 94, 0, 0) 70%)',
+          transform: 'translate(-50%, -50%)'
+        }}
+      />
+
+      <div
+        className="w-full max-w-lg p-8 rounded-3xl shadow-xl relative z-10"
+        style={{
+          background: isDarkMode
+            ? 'rgba(31, 41, 55, 0.4)'
+            : 'rgba(255, 255, 255, 0.7)',
+          backdropFilter: 'blur(24px)',
+          border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.4)'}`
+        }}
+      >
+        {/* Progress Indicator */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Step {step} of {accountType === 'group' ? '3' : '2'}
+            </span>
+          </div>
+          <div className="w-full bg-gray-300 rounded-full h-2">
+            <div
+              className="h-2 rounded-full transition-all duration-300"
+              style={{
+                width: `${(step / (accountType === 'group' ? 3 : 2)) * 100}%`,
+                background: 'linear-gradient(135deg, #FF5E00 0%, #FF8C42 100%)'
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div
+            className={`p-4 rounded-lg mb-6 ${
+              isDarkMode ? 'bg-red-900/30 text-red-300' : 'bg-red-100 text-red-700'
+            }`}
+          >
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Step 1: Profile Picture */}
+        {step === 1 && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className={`text-3xl font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Add a profile picture
+              </h2>
+            </div>
+
+            <div className="flex flex-col items-center space-y-4">
+              {/* Profile Picture Preview */}
+              <div
+                className="w-32 h-32 rounded-full overflow-hidden flex items-center justify-center"
+                style={{
+                  background: profilePicturePreview
+                    ? 'transparent'
+                    : 'linear-gradient(135deg, #FF5E00 0%, #FF8C42 100%)'
+                }}
+              >
+                {profilePicturePreview ? (
+                  <img src={profilePicturePreview} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-5xl text-white">
+                    {user?.user_metadata?.full_name?.charAt(0).toUpperCase() || '?'}
+                  </span>
+                )}
+              </div>
+
+              {/* Upload Button */}
+              <label
+                className={`px-6 py-3 rounded-lg font-semibold cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+                  isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.4)',
+                  backdropFilter: 'blur(12px)',
+                  border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.5)'}`
+                }}
+              >
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleProfilePictureChange}
+                  className="hidden"
+                />
+                {profilePicture ? 'Change Picture' : 'Upload Picture'}
+              </label>
+            </div>
+
+            {/* Navigation Buttons */}
+            <div className="flex gap-4 mt-8">
+              <button
+                onClick={() => navigate('/')}
+                className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
+                  isDarkMode
+                    ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleStep1Next}
+                className="flex-1 py-3 rounded-lg font-semibold text-white transition-all hover:scale-105 active:scale-95"
+                style={{
+                  background: 'linear-gradient(135deg, #FF5E00 0%, #FF8C42 100%)'
+                }}
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2: Account Type */}
+        {step === 2 && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className={`text-3xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                How will you use Divvy?
+              </h2>
+              <p className={`text-base ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Choose your account type
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4">
+              {/* Solo Account */}
+              <button
+                onClick={() => handleAccountTypeSelect('solo')}
+                disabled={loading}
+                className={`p-8 rounded-xl text-center transition-all hover:scale-105 active:scale-95 ${
+                  isDarkMode ? 'bg-gray-700/40 hover:bg-gray-700/60' : 'bg-white/80 hover:bg-white/95'
+                }`}
+                style={{
+                  border: `2px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'}`
+                }}
+              >
+                <div className="mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 mx-auto" style={{ color: '#FF5E00' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold mb-2" style={{ color: '#FF5E00' }}>
+                  Solo Account
+                </h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Track your personal expenses
+                </p>
+              </button>
+
+              {/* Group Account */}
+              <button
+                onClick={() => handleAccountTypeSelect('group')}
+                disabled={loading}
+                className={`p-8 rounded-xl text-center transition-all hover:scale-105 active:scale-95 ${
+                  isDarkMode ? 'bg-gray-700/40 hover:bg-gray-700/60' : 'bg-white/80 hover:bg-white/95'
+                }`}
+                style={{
+                  border: `2px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'}`
+                }}
+              >
+                <div className="mb-4">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 mx-auto" style={{ color: '#FF5E00' }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold mb-2" style={{ color: '#FF5E00' }}>
+                  Group Account
+                </h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  Split expenses with roommates or friends
+                </p>
+              </button>
+            </div>
+
+            {/* Back Button */}
+            <button
+              onClick={() => setStep(1)}
+              className="w-full py-3 rounded-lg font-semibold text-white transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: 'linear-gradient(135deg, #FF5E00 0%, #FF8C42 100%)'
+              }}
+            >
+              Back
+            </button>
+          </div>
+        )}
+
+        {/* Step 3: Group Selection (Create or Join) */}
+        {step === 3 && accountType === 'group' && (
+          <div className="space-y-6">
+            <div className="text-center">
+              <h2 className={`text-3xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {groupAction ? (groupAction === 'create' ? 'Create a Group' : 'Join a Group') : 'Set up your group'}
+              </h2>
+              <p className={`text-base ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {groupAction ? (groupAction === 'create' ? 'Give your group a name' : 'Enter the invite code') : 'Create a new group or join an existing one'}
+              </p>
+            </div>
+
+            {!groupAction ? (
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Create Group */}
+                <button
+                  onClick={() => setGroupAction('create')}
+                  className={`p-8 rounded-xl text-center transition-all hover:scale-105 active:scale-95 ${
+                    isDarkMode ? 'bg-gray-700/40 hover:bg-gray-700/60' : 'bg-white/80 hover:bg-white/95'
+                  }`}
+                  style={{
+                    border: `2px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'}`
+                  }}
+                >
+                  <div className="mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 mx-auto" style={{ color: '#FF5E00' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2" style={{ color: '#FF5E00' }}>
+                    Create Group
+                  </h3>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Start a new group and invite others
+                  </p>
+                </button>
+
+                {/* Join Group */}
+                <button
+                  onClick={() => setGroupAction('join')}
+                  className={`p-8 rounded-xl text-center transition-all hover:scale-105 active:scale-95 ${
+                    isDarkMode ? 'bg-gray-700/40 hover:bg-gray-700/60' : 'bg-white/80 hover:bg-white/95'
+                  }`}
+                  style={{
+                    border: `2px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.3)'}`
+                  }}
+                >
+                  <div className="mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 mx-auto" style={{ color: '#FF5E00' }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+                    </svg>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2" style={{ color: '#FF5E00' }}>
+                    Join Group
+                  </h3>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Join an existing group with an invite code
+                  </p>
+                </button>
+              </div>
+            ) : groupAction === 'create' ? (
+              <div className="space-y-6">
+                <input
+                  type="text"
+                  value={groupName}
+                  onChange={(e) => setGroupName(e.target.value)}
+                  placeholder="e.g., Apartment 4B, College Roommates"
+                  className={`w-full px-4 py-3 rounded-lg border ${
+                    isDarkMode
+                      ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400'
+                      : 'bg-white/80 border-gray-300 text-gray-900 placeholder-gray-500'
+                  } focus:outline-none focus:ring-2 focus:ring-orange-500`}
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setGroupAction('')}
+                    disabled={loading}
+                    className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
+                      isDarkMode
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleFinishOnboarding}
+                    disabled={loading || !groupName.trim()}
+                    className={`flex-1 py-3 rounded-lg font-semibold text-white transition-all ${
+                      loading || !groupName.trim()
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'hover:scale-105 active:scale-95'
+                    }`}
+                    style={{
+                      background: 'linear-gradient(135deg, #FF5E00 0%, #FF8C42 100%)'
+                    }}
+                  >
+                    {loading ? 'Creating...' : 'Create Group'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                <input
+                  type="text"
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                  placeholder="Enter 6-character invite code"
+                  maxLength={6}
+                  className={`w-full px-4 py-3 rounded-lg border text-center text-2xl tracking-widest ${
+                    isDarkMode
+                      ? 'bg-gray-700/50 border-gray-600 text-white placeholder-gray-400'
+                      : 'bg-white/80 border-gray-300 text-gray-900 placeholder-gray-500'
+                  } focus:outline-none focus:ring-2 focus:ring-orange-500`}
+                />
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setGroupAction('')}
+                    disabled={loading}
+                    className={`flex-1 py-3 rounded-lg font-semibold transition-all ${
+                      isDarkMode
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                    }`}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleFinishOnboarding}
+                    disabled={loading || inviteCode.length !== 6}
+                    className={`flex-1 py-3 rounded-lg font-semibold text-white transition-all ${
+                      loading || inviteCode.length !== 6
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'hover:scale-105 active:scale-95'
+                    }`}
+                    style={{
+                      background: 'linear-gradient(135deg, #FF5E00 0%, #FF8C42 100%)'
+                    }}
+                  >
+                    {loading ? 'Joining...' : 'Join Group'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Back Button - Only show when no action is selected */}
+            {!groupAction && (
+              <button
+                onClick={() => setStep(2)}
+                disabled={loading}
+                className="w-full py-3 rounded-lg font-semibold text-white transition-all hover:scale-105 active:scale-95"
+                style={{
+                  background: 'linear-gradient(135deg, #FF5E00 0%, #FF8C42 100%)'
+                }}
+              >
+                Back
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Onboarding;

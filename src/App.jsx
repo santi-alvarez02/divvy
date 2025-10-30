@@ -1,5 +1,11 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import GetStarted from './pages/GetStarted';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import Onboarding from './pages/Onboarding';
 import Dashboard from './components/Dashboard';
 import Expenses from './pages/Expenses';
 import Balances from './pages/Balances';
@@ -12,75 +18,112 @@ function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   return (
-    <Router>
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <Dashboard
-              budget={monthlyBudget}
-              expenses={expenses}
-              balances={balances}
-              roommates={roommates}
-              isDarkMode={isDarkMode}
-              setIsDarkMode={setIsDarkMode}
-            />
-          }
-        />
-        <Route
-          path="/expenses"
-          element={
-            <Expenses
-              isDarkMode={isDarkMode}
-              setIsDarkMode={setIsDarkMode}
-              expenses={expenses}
-              roommates={roommates}
-            />
-          }
-        />
-        <Route
-          path="/balances"
-          element={
-            <Balances
-              isDarkMode={isDarkMode}
-              setIsDarkMode={setIsDarkMode}
-              expenses={expenses}
-              roommates={roommates}
-            />
-          }
-        />
-        <Route
-          path="/budgets"
-          element={
-            <Budget
-              isDarkMode={isDarkMode}
-              setIsDarkMode={setIsDarkMode}
-              expenses={expenses}
-              roommates={roommates}
-            />
-          }
-        />
-        <Route
-          path="/groups"
-          element={
-            <Groups
-              isDarkMode={isDarkMode}
-              setIsDarkMode={setIsDarkMode}
-              roommates={roommates}
-            />
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <Settings
-              isDarkMode={isDarkMode}
-              setIsDarkMode={setIsDarkMode}
-            />
-          }
-        />
-      </Routes>
-    </Router>
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Public Routes */}
+          <Route
+            path="/"
+            element={<GetStarted isDarkMode={isDarkMode} />}
+          />
+          <Route
+            path="/login"
+            element={<Login isDarkMode={isDarkMode} />}
+          />
+          <Route
+            path="/signup"
+            element={<Signup isDarkMode={isDarkMode} />}
+          />
+          <Route
+            path="/onboarding"
+            element={
+              <ProtectedRoute>
+                <Onboarding isDarkMode={isDarkMode} />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard
+                  budget={monthlyBudget}
+                  expenses={expenses}
+                  balances={balances}
+                  roommates={roommates}
+                  isDarkMode={isDarkMode}
+                  setIsDarkMode={setIsDarkMode}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/expenses"
+            element={
+              <ProtectedRoute>
+                <Expenses
+                  isDarkMode={isDarkMode}
+                  setIsDarkMode={setIsDarkMode}
+                  expenses={expenses}
+                  roommates={roommates}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/balances"
+            element={
+              <ProtectedRoute>
+                <Balances
+                  isDarkMode={isDarkMode}
+                  setIsDarkMode={setIsDarkMode}
+                  expenses={expenses}
+                  roommates={roommates}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/budgets"
+            element={
+              <ProtectedRoute>
+                <Budget
+                  isDarkMode={isDarkMode}
+                  setIsDarkMode={setIsDarkMode}
+                  expenses={expenses}
+                  roommates={roommates}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/groups"
+            element={
+              <ProtectedRoute>
+                <Groups
+                  isDarkMode={isDarkMode}
+                  setIsDarkMode={setIsDarkMode}
+                  roommates={roommates}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Settings
+                  isDarkMode={isDarkMode}
+                  setIsDarkMode={setIsDarkMode}
+                />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 
