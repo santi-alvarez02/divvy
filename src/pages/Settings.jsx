@@ -10,6 +10,8 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
   const [venmoUsername, setVenmoUsername] = useState('');
   const [paypalUsername, setPaypalUsername] = useState('');
   const [zelleEmail, setZelleEmail] = useState('');
+  // Sign out confirmation state
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
 
   // Load saved usernames from localStorage on mount
   useEffect(() => {
@@ -32,6 +34,7 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
 
   // Handle sign out
   const handleSignOut = async () => {
+    setShowSignOutConfirm(false);
     const { error } = await signOut();
     if (!error) {
       navigate('/');
@@ -317,7 +320,7 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
 
           {/* Sign Out Button */}
           <button
-            onClick={handleSignOut}
+            onClick={() => setShowSignOutConfirm(true)}
             className="px-6 py-3 rounded-2xl text-base font-semibold transition-all hover:opacity-90"
             style={{
               backgroundColor: isDarkMode ? '#dc2626' : '#ef4444',
@@ -328,6 +331,60 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
           </button>
         </div>
       </main>
+
+      {/* Sign Out Confirmation Modal */}
+      {showSignOutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              backdropFilter: 'blur(8px)'
+            }}
+            onClick={() => setShowSignOutConfirm(false)}
+          />
+
+          {/* Modal */}
+          <div
+            className="relative w-full max-w-md p-8 rounded-3xl shadow-2xl"
+            style={{
+              background: 'rgba(200, 200, 200, 0.85)',
+              backdropFilter: 'blur(20px)',
+              border: '2px solid rgba(255, 255, 255, 0.3)'
+            }}
+          >
+            <h3 className="text-3xl font-bold mb-4" style={{ color: '#1a202c' }}>
+              Sign Out?
+            </h3>
+            <p className="text-base mb-8" style={{ color: '#4a5568' }}>
+              Are you sure you want to sign out of your account?
+            </p>
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => setShowSignOutConfirm(false)}
+                className="flex-1 py-4 rounded-2xl font-bold text-lg transition-all hover:opacity-90"
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#2d3748'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="flex-1 py-4 rounded-2xl font-bold text-lg text-white transition-all hover:opacity-90"
+                style={{
+                  backgroundColor: '#e53e3e'
+                }}
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

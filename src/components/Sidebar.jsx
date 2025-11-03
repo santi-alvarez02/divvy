@@ -1,10 +1,82 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isMobileExpanded, setIsMobileExpanded] = React.useState(false);
+  const { user } = useAuth();
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  const [userData, setUserData] = useState(null);
+
+  // Fetch user data from database
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('full_name, avatar_url')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user data:', error);
+          // Fallback to auth metadata
+          setUserData({
+            full_name: user.user_metadata?.full_name || 'User',
+            avatar_url: null
+          });
+        } else if (data) {
+          setUserData(data);
+        }
+      } catch (error) {
+        console.error('Error in fetchUserData:', error);
+        setUserData({
+          full_name: user.user_metadata?.full_name || 'User',
+          avatar_url: null
+        });
+      }
+    };
+
+    fetchUserData();
+  }, [user]);
+
+  // Get user initials from full name
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) {
+      return parts[0].charAt(0).toUpperCase();
+    }
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+  };
+
+  // Generate a consistent color based on user ID
+  const getAvatarColor = (userId) => {
+    if (!userId) return 'from-purple-400 to-pink-400';
+
+    const colors = [
+      'from-purple-400 to-pink-400',
+      'from-blue-400 to-cyan-400',
+      'from-green-400 to-emerald-400',
+      'from-yellow-400 to-orange-400',
+      'from-red-400 to-rose-400',
+      'from-indigo-400 to-purple-400',
+      'from-teal-400 to-green-400',
+      'from-orange-400 to-red-400',
+    ];
+
+    // Use user ID to generate a consistent index
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
 
   const menuItems = [
     {
@@ -272,12 +344,20 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
       {/* User Profile Section */}
       <div className="p-4 lg:p-6 mt-auto">
         <div className={`flex items-center ${isMobileExpanded ? 'justify-start space-x-3' : 'justify-center'} lg:justify-start lg:space-x-3 px-0 lg:px-2 py-2`}>
-          <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center font-bold text-base lg:text-lg bg-gradient-to-br from-purple-400 to-pink-400 shadow-lg" style={{ color: 'white' }}>
-            Y
-          </div>
+          {userData?.avatar_url ? (
+            <img
+              src={userData.avatar_url}
+              alt="Profile"
+              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover shadow-lg"
+            />
+          ) : (
+            <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center font-bold text-base lg:text-lg bg-gradient-to-br ${getAvatarColor(user?.id)} shadow-lg`} style={{ color: 'white' }}>
+              {getInitials(userData?.full_name || user?.user_metadata?.full_name)}
+            </div>
+          )}
           <div className={`${isMobileExpanded ? 'block' : 'hidden'} lg:block`}>
             <p className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              You
+              {userData?.full_name || user?.user_metadata?.full_name || 'User'}
             </p>
             <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               View profile

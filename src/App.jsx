@@ -37,7 +37,7 @@ function App() {
           <Route
             path="/onboarding"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isDarkMode={isDarkMode}>
                 <Onboarding isDarkMode={isDarkMode} />
               </ProtectedRoute>
             }
@@ -47,7 +47,7 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isDarkMode={isDarkMode}>
                 <Dashboard
                   budget={monthlyBudget}
                   expenses={expenses}
@@ -62,7 +62,7 @@ function App() {
           <Route
             path="/expenses"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isDarkMode={isDarkMode}>
                 <Expenses
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}
@@ -75,7 +75,7 @@ function App() {
           <Route
             path="/balances"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isDarkMode={isDarkMode}>
                 <Balances
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}
@@ -88,7 +88,7 @@ function App() {
           <Route
             path="/budgets"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isDarkMode={isDarkMode}>
                 <Budget
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}
@@ -101,7 +101,7 @@ function App() {
           <Route
             path="/groups"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isDarkMode={isDarkMode}>
                 <Groups
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}
@@ -113,7 +113,7 @@ function App() {
           <Route
             path="/settings"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute isDarkMode={isDarkMode}>
                 <Settings
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}

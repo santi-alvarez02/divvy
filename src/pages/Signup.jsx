@@ -11,7 +11,6 @@ const Signup = ({ isDarkMode }) => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -37,7 +36,6 @@ const Signup = ({ isDarkMode }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setSuccess(false);
 
     // Validation
     if (!fullName || !email || !password || !confirmPassword) {
@@ -80,12 +78,8 @@ const Signup = ({ isDarkMode }) => {
       setError(signUpError.message || 'Failed to create account. Please try again.');
     } else if (data) {
       console.log('Signup successful! User data:', data);
-      setSuccess(true);
-      // Redirect to onboarding after a brief delay
-      setTimeout(() => {
-        console.log('Redirecting to onboarding...');
-        navigate('/onboarding');
-      }, 1500);
+      // Redirect to onboarding immediately
+      navigate('/onboarding');
     }
   };
 
@@ -137,17 +131,6 @@ const Signup = ({ isDarkMode }) => {
               }`}
             >
               <p className="text-sm">{error}</p>
-            </div>
-          )}
-
-          {/* Success Message */}
-          {success && (
-            <div
-              className={`p-4 rounded-lg ${
-                isDarkMode ? 'bg-green-900/30 text-green-300' : 'bg-green-100 text-green-700'
-              }`}
-            >
-              <p className="text-sm">Account created successfully! Redirecting...</p>
             </div>
           )}
 

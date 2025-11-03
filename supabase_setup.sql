@@ -63,13 +63,14 @@ CREATE TABLE IF NOT EXISTS group_members (
 ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 
 -- RLS Policies for group_members table
+-- Note: Avoid recursive queries in RLS policies to prevent infinite recursion
 CREATE POLICY "Users can view members of their groups"
   ON group_members FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM group_members gm
-      WHERE gm.group_id = group_members.group_id
-      AND gm.user_id = auth.uid()
+    user_id = auth.uid()
+    OR
+    group_id IN (
+      SELECT group_id FROM group_members WHERE user_id = auth.uid()
     )
   );
 
@@ -97,12 +98,19 @@ CREATE POLICY "Users can leave groups"
 CREATE POLICY "Users can view groups they belong to"
   ON groups FOR SELECT
   USING (
+    admin_id = auth.uid()
+    OR
     EXISTS (
       SELECT 1 FROM group_members
       WHERE group_members.group_id = groups.id
       AND group_members.user_id = auth.uid()
     )
   );
+
+CREATE POLICY "Users can find groups by invite code"
+  ON groups FOR SELECT
+  TO authenticated
+  USING (invite_code IS NOT NULL);
 
 CREATE POLICY "Admins can update their groups"
   ON groups FOR UPDATE

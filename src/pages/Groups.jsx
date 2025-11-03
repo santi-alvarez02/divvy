@@ -1,8 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
-const Groups = ({ isDarkMode, setIsDarkMode, roommates }) => {
-  const [groupName, setGroupName] = useState('My Household');
+const Groups = ({ isDarkMode, setIsDarkMode }) => {
+  const { user } = useAuth();
+
+  // State for database data
+  const [groups, setGroups] = useState([]);
+  const [currentGroup, setCurrentGroup] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // UI state
+  const [groupName, setGroupName] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showInviteCode, setShowInviteCode] = useState(false);
@@ -11,14 +23,111 @@ const Groups = ({ isDarkMode, setIsDarkMode, roommates }) => {
   const [joinCode, setJoinCode] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
 
-  // Mock data - in real app this would come from backend
-  const currentUserId = 1; // Current user is "You"
-  const groupAdminId = 1; // Mock: current user is the admin
-  const inviteCode = 'ABC123'; // Mock invite code
-  const isAdmin = currentUserId === groupAdminId;
+  // Computed values
+  const isAdmin = currentGroup?.admin_id === user?.id;
+  const inviteCode = currentGroup?.invite_code || '';
+  const hasGroup = groups.length > 0;
 
-  // Check if user is in a group (has roommates besides themselves)
-  const hasGroup = roommates && roommates.length > 1;
+  // Fetch user's groups on component mount
+  useEffect(() => {
+    if (user) {
+      fetchUserGroups();
+    }
+  }, [user]);
+
+  const fetchUserGroups = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      // Fetch groups the user is a member of
+      const { data: groupMemberships, error: memberError } = await supabase
+        .from('group_members')
+        .select(`
+          group_id,
+          role,
+          groups (
+            id,
+            name,
+            admin_id,
+            invite_code,
+            created_at
+          )
+        `)
+        .eq('user_id', user.id);
+
+      if (memberError) throw memberError;
+
+      // Extract groups from memberships
+      const userGroups = groupMemberships.map(membership => ({
+        ...membership.groups,
+        user_role: membership.role
+      }));
+
+      setGroups(userGroups);
+
+      // Set current group (for now, just use the first one)
+      if (userGroups.length > 0) {
+        setCurrentGroup(userGroups[0]);
+        setGroupName(userGroups[0].name);
+        // Fetch members for this group
+        fetchGroupMembers(userGroups[0].id);
+      }
+    } catch (err) {
+      console.error('Error fetching groups:', err);
+      setError('Failed to load groups. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchGroupMembers = async (groupId) => {
+    try {
+      const { data, error } = await supabase
+        .from('group_members')
+        .select(`
+          id,
+          user_id,
+          role,
+          joined_at,
+          users (
+            id,
+            full_name,
+            email,
+            avatar_url
+          )
+        `)
+        .eq('group_id', groupId);
+
+      if (error) throw error;
+
+      setMembers(data);
+    } catch (err) {
+      console.error('Error fetching members:', err);
+    }
+  };
+
+  // Generate a consistent color based on user ID
+  const getAvatarColor = (userId) => {
+    const colors = [
+      'from-purple-400 to-pink-400',
+      'from-blue-400 to-cyan-400',
+      'from-green-400 to-emerald-400',
+      'from-yellow-400 to-orange-400',
+      'from-red-400 to-rose-400',
+      'from-indigo-400 to-purple-400',
+      'from-teal-400 to-green-400',
+      'from-orange-400 to-red-400',
+    ];
+
+    // Use user ID to generate a consistent index
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const index = Math.abs(hash) % colors.length;
+    return colors[index];
+  };
 
   const handleShowInviteCode = () => {
     setShowInviteCode(true);
@@ -26,36 +135,149 @@ const Groups = ({ isDarkMode, setIsDarkMode, roommates }) => {
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(inviteCode);
-    alert('Invite code copied to clipboard!');
   };
 
-  const handleJoinGroup = () => {
-    // Placeholder for joining group with code
-    console.log('Join group with code:', joinCode);
-    alert(`Joining group with code: ${joinCode}`);
-    setShowJoinModal(false);
-    setJoinCode('');
+  const handleJoinGroup = async () => {
+    try {
+      setError('');
+
+      // Find the group with the invite code
+      const { data: groupData, error: groupError } = await supabase
+        .from('groups')
+        .select('*')
+        .eq('invite_code', joinCode.trim().toUpperCase())
+        .single();
+
+      if (groupError || !groupData) {
+        setError('Invalid invite code. Please check and try again.');
+        return;
+      }
+
+      // Check if user is already a member
+      const { data: existingMember, error: checkError } = await supabase
+        .from('group_members')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('group_id', groupData.id)
+        .single();
+
+      if (existingMember) {
+        setShowJoinModal(false);
+        setJoinCode('');
+        return;
+      }
+
+      // Add the user as a member of the group
+      const { error: memberError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: groupData.id,
+          user_id: user.id,
+          role: 'member'
+        });
+
+      if (memberError) throw memberError;
+
+      // Update user's account type to 'group' if it's currently 'solo'
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ account_type: 'group' })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      // Close modal and reset
+      setShowJoinModal(false);
+      setJoinCode('');
+
+      // Refresh the groups list
+      await fetchUserGroups();
+    } catch (err) {
+      console.error('Error joining group:', err);
+      setError('Failed to join group. Please try again.');
+      setShowJoinModal(false);
+    }
   };
 
-  const handleCreateGroup = () => {
-    // Placeholder for creating group
-    console.log('Create group:', newGroupName);
-    alert(`Creating group: ${newGroupName}`);
-    setShowCreateModal(false);
-    setNewGroupName('');
+  const handleCreateGroup = async () => {
+    try {
+      setError('');
+
+      // Create the group in the database
+      const { data: groupData, error: groupError } = await supabase
+        .from('groups')
+        .insert({
+          name: newGroupName.trim(),
+          admin_id: user.id
+        })
+        .select()
+        .single();
+
+      if (groupError) throw groupError;
+
+      // Add the user as a member of the group
+      const { error: memberError } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: groupData.id,
+          user_id: user.id,
+          role: 'admin'
+        });
+
+      if (memberError) throw memberError;
+
+      // Update user's account type to 'group' if it's currently 'solo'
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({ account_type: 'group' })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      // Close modal and reset
+      setShowCreateModal(false);
+      setNewGroupName('');
+
+      // Refresh the groups list
+      await fetchUserGroups();
+    } catch (err) {
+      console.error('Error creating group:', err);
+      setError('Failed to create group. Please try again.');
+      setShowCreateModal(false);
+    }
   };
 
-  const handleLeaveGroup = () => {
-    // Placeholder for leaving group
-    console.log('Leave group');
-    setShowLeaveConfirm(false);
-    alert('Leave group functionality coming soon!');
+  const handleLeaveGroup = async () => {
+    try {
+      setError('');
+
+      // Delete the user's membership from the group
+      const { error: deleteError } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('group_id', currentGroup.id);
+
+      if (deleteError) throw deleteError;
+
+      // Close the modal
+      setShowLeaveConfirm(false);
+
+      // Reset state
+      setGroups([]);
+      setCurrentGroup(null);
+      setMembers([]);
+      setGroupName('');
+    } catch (err) {
+      console.error('Error leaving group:', err);
+      setError('Failed to leave group. Please try again.');
+      setShowLeaveConfirm(false);
+    }
   };
 
   const handleRemoveMember = (roommateId) => {
     // Placeholder for removing member
     console.log('Remove member:', roommateId);
-    alert('Remove member functionality coming soon!');
   };
 
   return (
@@ -143,7 +365,29 @@ const Groups = ({ isDarkMode, setIsDarkMode, roommates }) => {
           </h1>
         </div>
 
-        {hasGroup ? (
+        {/* Error Message */}
+        {error && (
+          <div
+            className={`p-4 rounded-lg mb-6 max-w-3xl ${
+              isDarkMode ? 'bg-red-900/30 text-red-300' : 'bg-red-100 text-red-700'
+            }`}
+          >
+            <p className="text-sm">{error}</p>
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div
+              className="animate-spin rounded-full h-16 w-16 border-4"
+              style={{
+                borderColor: 'rgba(255, 94, 0, 0.2)',
+                borderTopColor: '#FF5E00'
+              }}
+            ></div>
+          </div>
+        ) : hasGroup ? (
           /* In a Group */
           <div
             className="rounded-3xl shadow-xl p-6 sm:p-8 max-w-3xl"
@@ -199,49 +443,65 @@ const Groups = ({ isDarkMode, setIsDarkMode, roommates }) => {
               </div>
 
               <div className="space-y-3">
-                {roommates.map((roommate) => (
-                  <div
-                    key={roommate.id}
-                    className="flex items-center gap-4 p-4 rounded-2xl"
-                    style={{
-                      background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)'
-                    }}
-                  >
-                    {/* Color Avatar */}
+                {members.map((member) => {
+                  const memberUser = member.users;
+                  const isCurrentUser = member.user_id === user.id;
+                  const initials = memberUser?.full_name
+                    ? memberUser.full_name.split(' ').map(n => n[0]).join('').toUpperCase()
+                    : '?';
+
+                  return (
                     <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg ${roommate.color}`}
+                      key={member.id}
+                      className="flex items-center gap-4 p-4 rounded-2xl"
+                      style={{
+                        background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)'
+                      }}
                     >
-                      {roommate.name.charAt(0)}
-                    </div>
+                      {/* Avatar */}
+                      {memberUser?.avatar_url ? (
+                        <img
+                          src={memberUser.avatar_url}
+                          alt={memberUser.full_name}
+                          className="w-12 h-12 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg bg-gradient-to-br ${getAvatarColor(member.user_id)}`}
+                        >
+                          {initials}
+                        </div>
+                      )}
 
-                    {/* Name */}
-                    <div className="flex-1">
-                      <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {roommate.name}
-                        {roommate.name === 'You' && (
-                          <span className={`ml-2 text-sm font-normal ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            (You)
-                          </span>
-                        )}
-                        {isAdmin && roommate.id === groupAdminId && (
-                          <span className={`ml-2 text-xs px-2 py-1 rounded-full ${isDarkMode ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/10 text-orange-600'}`}>
-                            Admin
-                          </span>
-                        )}
-                      </p>
-                    </div>
+                      {/* Name */}
+                      <div className="flex-1">
+                        <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {memberUser?.full_name || 'Unknown User'}
+                          {isCurrentUser && (
+                            <span className={`ml-2 text-sm font-normal ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              (You)
+                            </span>
+                          )}
+                          {member.role === 'admin' && (
+                            <span className={`ml-2 text-xs px-2 py-1 rounded-full ${isDarkMode ? 'bg-orange-500/20 text-orange-400' : 'bg-orange-500/10 text-orange-600'}`}>
+                              Admin
+                            </span>
+                          )}
+                        </p>
+                      </div>
 
-                    {/* Remove button (only for admin, not for current user) */}
-                    {isAdmin && roommate.name !== 'You' && (
-                      <button
-                        onClick={() => handleRemoveMember(roommate.id)}
-                        className={`text-sm font-medium ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-600 hover:text-red-600'} transition-colors`}
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))}
+                      {/* Remove button (only for admin, not for current user) */}
+                      {isAdmin && !isCurrentUser && (
+                        <button
+                          onClick={() => handleRemoveMember(member.id)}
+                          className={`text-sm font-medium ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-600 hover:text-red-600'} transition-colors`}
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
