@@ -1178,14 +1178,151 @@ Created a custom Toast component with auto-dismiss, icons, and smooth animations
 
 ---
 
-## Next Session: Groups & Expense Backend (Phase 2)
+## Session 21: Expenses Backend - Phase 3 (Week 4-5)
+**Date:** 2025-11-03
+**Goal:** Implement complete expense CRUD operations with database backend
 
-### What's Next?
+### Overview
+Phase 3 is the **core functionality** of Divvy - expense tracking and splitting. This phase will replace all mock data with real database operations and implement proper expense splitting logic.
 
-Now that authentication and onboarding are complete, the next phase is to connect the app to real data:
+### Plan - Breaking Down into Small Steps
 
-**Session 18: Group Management Backend**
-**Goal:** Make group creation and joining work with real database
+**Session 21.1: Create Database Tables**
+- [ ] Create `expenses` table in Supabase
+- [ ] Create `expense_splits` table in Supabase
+- [ ] Set up indexes for performance
+- [ ] Test tables are created correctly
+
+**Session 21.2: Set Up RLS Policies**
+- [ ] Add RLS policies for `expenses` table
+- [ ] Add RLS policies for `expense_splits` table
+- [ ] Test policies prevent unauthorized access
+
+**Session 21.3: Fetch Expenses from Database**
+- [ ] Update Expenses page to fetch from database
+- [ ] Display real expenses (if any exist)
+- [ ] Add loading states
+- [ ] Handle empty state
+
+**Session 21.4: Add Expense to Database**
+- [ ] Update AddExpenseModal to insert into database
+- [ ] Save expense to `expenses` table
+- [ ] Save splits to `expense_splits` table
+- [ ] Test expense creation
+
+**Session 21.5: Expense Splitting Logic**
+- [ ] Implement even split calculation
+- [ ] Implement split by amount
+- [ ] Implement split by percentage
+- [ ] Test all split types
+
+**Session 21.6: Edit Expense**
+- [ ] Add edit functionality to Expenses page
+- [ ] Update expense in database
+- [ ] Update splits in database
+- [ ] Test editing
+
+**Session 21.7: Delete Expense**
+- [ ] Add delete functionality
+- [ ] Remove expense from database
+- [ ] Test cascade delete of splits
+- [ ] Test UI updates
+
+**Session 21.8: Replace Mock Data**
+- [ ] Remove all mock data from Expenses page
+- [ ] Remove all mock data from Dashboard
+- [ ] Test with real data only
+
+**Status:** 🚧 Starting Session 21.1
+
+---
+
+### Session 21.1: Create Database Tables
+**Goal:** Create the `expenses` and `expense_splits` tables in Supabase
+
+**Before Starting:**
+- Review database schema in BACKEND_PLAN.md
+- Understand the relationship between expenses and splits
+- Check existing tables are working
+
+**Tasks:**
+- [x] Read database schema from BACKEND_PLAN.md
+- [x] Create SQL file for expenses tables
+- [x] Run SQL in Supabase
+- [x] Verify tables exist
+
+**Files Created:**
+- `create_expenses_tables.sql` - Complete table definitions with RLS policies
+
+**Results:**
+- Tables created successfully in Supabase
+- Both `expenses` and `expense_splits` tables now exist
+- All RLS policies applied (skipping Session 21.2 as RLS already included)
+- Indexes created for performance
+
+**Status:** ✅ Complete
+
+---
+
+### Session 21.3: Fetch Expenses from Database
+**Goal:** Update Expenses page to fetch real expenses from database
+
+**Tasks:**
+- [x] Add Supabase imports to Expenses page
+- [x] Implement fetchUserGroup() function
+- [x] Implement fetchExpenses() function
+- [x] Fetch expense_splits with expenses
+- [x] Add loading state
+- [x] Handle empty state
+- [x] Update state management for real data
+
+**Implementation Details:**
+
+1. **Added State Management:**
+   - `expenses` - State for expenses from database
+   - `roommates` - State for group members
+   - `loading` - Loading indicator
+   - `currentGroup` - User's current group
+   - Mock data props renamed to `mockExpenses` and `mockRoommates` as fallback
+
+2. **fetchUserGroup() Function:**
+   - Fetches user's group membership from `group_members` table
+   - Fetches all members of the user's group
+   - Transforms members data to match expected format
+   - Falls back to mock data if no group found
+
+3. **fetchExpenses() Function:**
+   - Fetches expenses for the user's group from `expenses` table
+   - Includes nested query for `expense_splits`
+   - Orders by date (most recent first)
+   - Transforms data to match existing component format:
+     - `paidBy` instead of `paid_by`
+     - `splitBetween` array from expense_splits
+   - Falls back to mock data on error
+
+4. **Loading State:**
+   - Shows loading message while fetching data
+   - Prevents rendering before data is ready
+
+**Data Flow:**
+1. Component mounts → fetchUserGroup() runs
+2. Group found → setCurrentGroup() triggers fetchExpenses()
+3. Expenses fetched with splits → transformed and set to state
+4. Component renders with real data
+
+**Backward Compatibility:**
+- Still accepts mock data as props for other pages
+- Falls back to mock data if no group or errors occur
+- Seamless transition between mock and real data
+
+**Files Modified:**
+- `src/pages/Expenses.jsx` - Added database integration
+
+**Status:** ✅ Complete - Ready for Testing
+
+---
+
+## Next Session: Expenses Backend (Phase 3)
 
 **Tasks:**
 - [ ] Implement group creation with invite code generation

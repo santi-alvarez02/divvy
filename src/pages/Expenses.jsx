@@ -1,9 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
 import AddExpenseModal from '../components/AddExpenseModal';
+import EditExpenseModal from '../components/EditExpenseModal';
+import { getCurrencySymbol } from '../utils/currency';
 
-const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
+const Expenses = ({ isDarkMode, setIsDarkMode, expenses: mockExpenses, roommates: mockRoommates }) => {
+  const { user } = useAuth();
+
+  // State management
+  const [expenses, setExpenses] = useState([]);
+  const [roommates, setRoommates] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [currentGroup, setCurrentGroup] = useState(null);
+  const [groupCurrency, setGroupCurrency] = useState('USD');
+
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [expenseToEdit, setExpenseToEdit] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDateRange, setSelectedDateRange] = useState('This Month');
@@ -12,10 +27,148 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
   const categoryScrollRef = React.useRef(null);
   const dateScrollRef = React.useRef(null);
 
+
+  // Fetch user's group and members
+  useEffect(() => {
+    const fetchUserGroup = async () => {
+      if (!user) return;
+
+      try {
+        // Get user's group membership
+        const { data: groupMemberships, error: groupError } = await supabase
+          .from('group_members')
+          .select(`
+            group_id,
+            groups (
+              id,
+              name,
+              default_currency
+            )
+          `)
+          .eq('user_id', user.id)
+          .limit(1)
+          .single();
+
+        if (groupError) {
+          console.error('Error fetching group:', groupError);
+          // Use mock data as fallback
+          setRoommates(mockRoommates || []);
+          setLoading(false);
+          return;
+        }
+
+        if (groupMemberships && groupMemberships.groups) {
+          setCurrentGroup(groupMemberships.groups);
+          // Set group currency
+          if (groupMemberships.groups.default_currency) {
+            setGroupCurrency(groupMemberships.groups.default_currency);
+          }
+
+          // Fetch all group members
+          const { data: members, error: membersError } = await supabase
+            .from('group_members')
+            .select(`
+              user_id,
+              role,
+              users (
+                id,
+                full_name,
+                email
+              )
+            `)
+            .eq('group_id', groupMemberships.groups.id);
+
+          if (membersError) {
+            console.error('Error fetching members:', membersError);
+          } else {
+            // Transform members data to match expected format
+            const transformedMembers = members.map(member => ({
+              id: member.users.id,
+              name: member.users.id === user.id ? 'You' : member.users.full_name,
+              email: member.users.email
+            }));
+            setRoommates(transformedMembers);
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchUserGroup:', error);
+        setRoommates(mockRoommates || []);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserGroup();
+  }, [user, mockRoommates]);
+
+  // Fetch expenses for the user's group
+  const fetchExpenses = async () => {
+    if (!user || !currentGroup) {
+      // No group yet, use mock data or empty
+      setExpenses(mockExpenses || []);
+      return;
+    }
+
+    try {
+      // Fetch expenses with their splits
+      const { data: expensesData, error: expensesError } = await supabase
+        .from('expenses')
+        .select(`
+          id,
+          amount,
+          category,
+          description,
+          date,
+          paid_by,
+          icon,
+          created_at,
+          expense_splits (
+            user_id,
+            share_amount
+          )
+        `)
+        .eq('group_id', currentGroup.id)
+        .order('date', { ascending: false });
+
+      if (expensesError) {
+        console.error('Error fetching expenses:', expensesError);
+        setExpenses(mockExpenses || []);
+        return;
+      }
+
+      // Transform expenses data to match expected format
+      const transformedExpenses = expensesData.map(expense => ({
+        id: expense.id,
+        amount: parseFloat(expense.amount),
+        category: expense.category,
+        description: expense.description,
+        date: expense.date,
+        paidBy: expense.paid_by,
+        icon: expense.icon,
+        splitBetween: expense.expense_splits.map(split => split.user_id)
+      }));
+
+      setExpenses(transformedExpenses);
+    } catch (error) {
+      console.error('Error in fetchExpenses:', error);
+      setExpenses(mockExpenses || []);
+    }
+  };
+
+  useEffect(() => {
+    fetchExpenses();
+  }, [user, currentGroup, mockExpenses]);
+
   // Get roommate name by ID
   const getRoommateName = (id) => {
     const roommate = roommates.find(r => r.id === id);
     return roommate ? roommate.name : 'Unknown';
+  };
+
+  // Handle edit expense
+  const handleEditExpense = (expense) => {
+    setExpenseToEdit(expense);
+    setIsEditModalOpen(true);
   };
 
   // Format date
@@ -186,15 +339,18 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
   // Filter expenses by date only for charts
   const dateFilteredExpenses = expenses.filter(expense => filterByDateRange(expense));
 
-  // Get current user ID (assuming "You" is the current user)
-  const currentUser = roommates.find(r => r.name === 'You');
-  const currentUserId = currentUser ? currentUser.id : null;
+  // Get current user ID (use authenticated user ID)
+  const currentUserId = user?.id;
 
   // Calculate summary stats from date-filtered expenses
-  // Total Spent (Personal) = Only expenses YOU paid for
+  // Total Spent (Personal) = Your share of expenses YOU paid for
+  // (Full amount minus what others owe you)
   const totalSpent = dateFilteredExpenses
     .filter(expense => expense.paidBy === currentUserId)
-    .reduce((sum, expense) => sum + expense.amount, 0);
+    .reduce((sum, expense) => {
+      const yourShare = expense.amount / expense.splitBetween.length;
+      return sum + yourShare;
+    }, 0);
 
   // You Owe = Your share of expenses that OTHERS paid
   const youOwe = dateFilteredExpenses
@@ -262,6 +418,27 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
 
     return matchesSearch && matchesCategory && matchesDate;
   });
+
+  // Loading state
+  if (loading) {
+    return (
+      <div
+        className="min-h-screen relative overflow-hidden flex items-center justify-center"
+        style={{
+          background: isDarkMode
+            ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+            : '#f5f5f5'
+        }}
+      >
+        <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+        <div className="ml-20 lg:ml-64">
+          <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            Loading expenses...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -401,7 +578,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               Total Spent
             </p>
             <p className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              ${Number.isInteger(totalSpent) ? totalSpent : totalSpent.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(groupCurrency)}{Number.isInteger(totalSpent) ? totalSpent : totalSpent.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
@@ -420,7 +597,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               You Owe
             </p>
             <p className="text-3xl font-bold" style={{ color: '#FF5E00' }}>
-              ${Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(groupCurrency)}{Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
@@ -719,7 +896,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   {/* Amount and Date - Mobile right side */}
                   <div className="text-right shrink-0">
                     <p className="text-base font-bold" style={{ color: '#FF5E00' }}>
-                      ${expense.amount.toFixed(2)}
+                      {getCurrencySymbol(groupCurrency)}{expense.amount.toFixed(2)}
                     </p>
                     <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       {formatDate(expense.date)}
@@ -727,25 +904,17 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   </div>
                 </div>
 
-                {/* Action Buttons - Full width on mobile */}
-                <div className="flex gap-2 sm:ml-4 sm:shrink-0">
+                {/* Action Button */}
+                <div className="sm:ml-4 sm:shrink-0">
                   <button
-                    className="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all"
+                    onClick={() => handleEditExpense(expense)}
+                    className="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all hover:opacity-80"
                     style={{
                       background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
                       color: isDarkMode ? 'white' : '#1f2937'
                     }}
                   >
                     Edit
-                  </button>
-                  <button
-                    className="flex-1 sm:flex-initial px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all"
-                    style={{
-                      background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                      color: isDarkMode ? 'white' : '#1f2937'
-                    }}
-                  >
-                    Delete
                   </button>
                 </div>
               </div>
@@ -798,7 +967,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                           {item.category}
                         </span>
                         <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                          ${item.amount.toFixed(2)}
+                          {getCurrencySymbol(groupCurrency)}{item.amount.toFixed(2)}
                         </span>
                       </div>
                       <div
@@ -847,73 +1016,11 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                 {selectedDateRange === 'This Month' ? new Date().toLocaleDateString('en-US', { month: 'long' }) : selectedDateRange}
               </div>
             </div>
-            {dateFilteredExpenses.length === 0 ? (
-              <div className="flex items-center justify-center h-48">
-                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  No spending data for this period
-                </p>
-              </div>
-            ) : (
-              <div className="relative h-48 sm:h-64 flex flex-col">
-                {/* Chart container */}
-                <div className="flex-1 flex">
-                  {/* Y-axis labels */}
-                  <div className="flex flex-col justify-between pr-2 sm:pr-3 text-xs" style={{ color: isDarkMode ? '#9ca3af' : '#6b7280', minWidth: '35px' }}>
-                    <span>$200</span>
-                    <span>$150</span>
-                    <span>$100</span>
-                    <span>$50</span>
-                    <span>$0</span>
-                  </div>
-
-                  {/* Chart */}
-                  <div className="flex-1" style={{ minWidth: 0 }}>
-                    <svg width="100%" height="100%" viewBox="0 0 400 150" preserveAspectRatio="none">
-                    {/* Grid lines */}
-                    <line x1="0" y1="0" x2="400" y2="0" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
-                    <line x1="0" y1="37.5" x2="400" y2="37.5" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
-                    <line x1="0" y1="75" x2="400" y2="75" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
-                    <line x1="0" y1="112.5" x2="400" y2="112.5" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
-                    <line x1="0" y1="150" x2="400" y2="150" stroke={isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'} strokeWidth="1" />
-
-                    {/* Area fill */}
-                    <path
-                      d="M 0,100 L 50,80 L 100,60 L 150,90 L 200,50 L 250,70 L 300,40 L 350,60 L 400,80 L 400,150 L 0,150 Z"
-                      fill="url(#gradient)"
-                      opacity="0.3"
-                    />
-
-                    {/* Line */}
-                    <path
-                      d="M 0,100 L 50,80 L 100,60 L 150,90 L 200,50 L 250,70 L 300,40 L 350,60 L 400,80"
-                      fill="none"
-                      stroke="#FF5E00"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-
-                    {/* Gradient definition */}
-                    <defs>
-                      <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#FF5E00" stopOpacity="0.4" />
-                        <stop offset="100%" stopColor="#FF5E00" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  </div>
-                </div>
-
-                {/* X-axis labels */}
-                <div className="flex justify-between mt-2 ml-[35px]">
-                  {['Oct 17', 'Oct 18', 'Oct 20', 'Oct 22', 'Oct 23', 'Oct 24'].map((date, i) => (
-                    <span key={i} className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      {i % 2 === 0 ? date : ''}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            <div className="flex items-center justify-center h-48">
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                {dateFilteredExpenses.length === 0 ? 'No spending data for this period' : 'Chart visualization coming soon'}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -959,7 +1066,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                         {person.name}
                       </span>
                       <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        ${person.amount.toFixed(2)}
+                        {getCurrencySymbol(groupCurrency)}{person.amount.toFixed(2)}
                       </span>
                     </div>
                     <div
@@ -990,6 +1097,20 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
         onClose={() => setIsModalOpen(false)}
         roommates={roommates}
         isDarkMode={isDarkMode}
+        onExpenseAdded={fetchExpenses}
+      />
+
+      {/* Edit Expense Modal */}
+      <EditExpenseModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setExpenseToEdit(null);
+        }}
+        expense={expenseToEdit}
+        roommates={roommates}
+        isDarkMode={isDarkMode}
+        onExpenseUpdated={fetchExpenses}
       />
     </div>
   );

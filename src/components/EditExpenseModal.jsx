@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
-const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdded }) => {
+const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onExpenseUpdated }) => {
   const { user } = useAuth();
 
   const [description, setDescription] = useState('');
@@ -10,7 +10,6 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
   const [currency, setCurrency] = useState('USD');
   const [category, setCategory] = useState('Select a category');
   const [isPersonal, setIsPersonal] = useState(false);
-  const [isRecurring, setIsRecurring] = useState(false);
   const [splitWith, setSplitWith] = useState({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,6 +31,32 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
 
   const currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD'];
 
+  // Initialize form with expense data
+  useEffect(() => {
+    if (expense && isOpen) {
+      setDescription(expense.description || '');
+      setAmount(expense.amount?.toString() || '');
+      setCategory(expense.category || 'Select a category');
+
+      // Determine if personal or split
+      const isPersonalExpense = expense.splitBetween?.length === 1;
+      setIsPersonal(isPersonalExpense);
+
+      // Set split with state for non-personal expenses
+      if (!isPersonalExpense && expense.splitBetween) {
+        const splitState = {};
+        expense.splitBetween.forEach(userId => {
+          if (userId !== user?.id) {
+            splitState[userId] = true;
+          }
+        });
+        setSplitWith(splitState);
+      } else {
+        setSplitWith({});
+      }
+    }
+  }, [expense, isOpen, user?.id]);
+
   useEffect(() => {
     if (showCategoryPicker && categoryScrollRef.current) {
       const selectedIndex = categories.indexOf(category);
@@ -39,25 +64,19 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
       const scrollTop = selectedIndex * itemHeight;
       const scrollContainer = categoryScrollRef.current;
 
-      // Set initial scroll position
       scrollContainer.scrollTop = scrollTop;
 
-      // Handler to update highlighting based on scroll position
       const handleScroll = () => {
         const currentScrollTop = scrollContainer.scrollTop;
-        // Add half item height to center the highlighting
         const highlightedIndex = Math.round(currentScrollTop / itemHeight);
 
-        // Update all buttons directly without state
         const buttons = scrollContainer.querySelectorAll('.category-item');
         buttons.forEach((button, btnIndex) => {
           if (btnIndex === highlightedIndex) {
-            // Highlighted item
             button.style.color = isDarkMode ? 'white' : '#000000';
             button.style.fontSize = '17px';
             button.style.fontWeight = '700';
           } else {
-            // Non-highlighted items
             button.style.color = isDarkMode ? '#d1d5db' : '#6b7280';
             button.style.fontSize = '15px';
             button.style.fontWeight = '400';
@@ -65,10 +84,8 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
         });
       };
 
-      // Add scroll listener
       scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
 
-      // Initial highlight
       requestAnimationFrame(() => {
         handleScroll();
       });
@@ -90,81 +107,73 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Clear previous errors
     setError('');
 
-    // Validation: Check all required fields
+    // Validation
     if (!description.trim()) {
-      setError('Please complete the form to add an expense');
+      setError('Please complete the form to update the expense');
       return;
     }
 
     if (!amount || parseFloat(amount) <= 0) {
-      setError('Please complete the form to add an expense');
+      setError('Please complete the form to update the expense');
       return;
     }
 
     if (!category || category === 'Select a category') {
-      setError('Please complete the form to add an expense');
+      setError('Please complete the form to update the expense');
       return;
     }
 
-    // Validation: For split expenses, at least one roommate must be selected
     if (!isPersonal && Object.keys(splitWith).filter(key => splitWith[key]).length === 0) {
-      setError('Please complete the form to add an expense');
+      setError('Please complete the form to update the expense');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Get user's group
-      const { data: groupMembership, error: groupError } = await supabase
-        .from('group_members')
-        .select('group_id')
-        .eq('user_id', user.id)
-        .limit(1)
-        .single();
-
-      if (groupError || !groupMembership) {
-        setError('Could not find your group. Please try again.');
-        setLoading(false);
-        return;
-      }
-
       // Determine who is splitting the expense
-      // For split expenses, current user is automatically included
       const splitBetweenIds = isPersonal
-        ? [user.id] // Personal expense - only current user
-        : [user.id, ...Object.keys(splitWith).filter(key => splitWith[key])]; // Current user + selected roommates
+        ? [user.id]
+        : [user.id, ...Object.keys(splitWith).filter(key => splitWith[key])];
 
       const expenseAmount = parseFloat(amount);
       const splitAmount = expenseAmount / splitBetweenIds.length;
 
-      // Create the expense
-      const { data: expenseData, error: expenseError } = await supabase
+      // Update the expense
+      const { error: expenseError } = await supabase
         .from('expenses')
-        .insert({
-          group_id: groupMembership.group_id,
+        .update({
           amount: expenseAmount,
           category: category,
-          description: description,
-          date: new Date().toISOString().split('T')[0], // Today's date
-          paid_by: user.id
+          description: description
         })
-        .select()
-        .single();
+        .eq('id', expense.id);
 
       if (expenseError) {
-        console.error('Error creating expense:', expenseError);
-        setError('Failed to create expense. Please try again.');
+        console.error('Error updating expense:', expenseError);
+        setError('Failed to update expense. Please try again.');
         setLoading(false);
         return;
       }
 
-      // Create expense splits
+      // Delete old splits
+      const { error: deleteSplitsError } = await supabase
+        .from('expense_splits')
+        .delete()
+        .eq('expense_id', expense.id);
+
+      if (deleteSplitsError) {
+        console.error('Error deleting old splits:', deleteSplitsError);
+        setError('Failed to update expense splits. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Create new splits
       const splits = splitBetweenIds.map(userId => ({
-        expense_id: expenseData.id,
+        expense_id: expense.id,
         user_id: userId,
         share_amount: splitAmount
       }));
@@ -174,17 +183,15 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
         .insert(splits);
 
       if (splitsError) {
-        console.error('Error creating splits:', splitsError);
-        // Try to delete the expense if splits failed
-        await supabase.from('expenses').delete().eq('id', expenseData.id);
+        console.error('Error creating new splits:', splitsError);
         setError('Failed to save expense splits. Please try again.');
         setLoading(false);
         return;
       }
 
       // Success! Notify parent component to refresh
-      if (onExpenseAdded) {
-        onExpenseAdded();
+      if (onExpenseUpdated) {
+        onExpenseUpdated();
       }
 
       handleClose();
@@ -202,7 +209,6 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
     setCurrency('USD');
     setCategory('Select a category');
     setIsPersonal(false);
-    setIsRecurring(false);
     setSplitWith({});
     setError('');
     setShowCategoryPicker(false);
@@ -213,7 +219,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
     onClose();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !expense) return null;
 
   return (
     <div
@@ -238,7 +244,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
         {/* Header */}
         <div className="flex justify-between items-center mb-6">
           <h2 className={`text-3xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            Add Expense
+            Edit Expense
           </h2>
           <button
             onClick={handleClose}
@@ -365,16 +371,13 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
                 </button>
               ) : (
                 <>
-                  {/* Backdrop to close picker */}
                   <div
                     className="fixed inset-0"
                     style={{ zIndex: -1 }}
                     onClick={() => setShowCategoryPicker(false)}
                   />
 
-                  {/* Wheel Picker - Inline */}
                   <div className="relative h-full overflow-hidden">
-                    {/* Selection highlight bar */}
                     <div
                       className="absolute left-0 right-0 pointer-events-none rounded-xl"
                       style={{
@@ -385,7 +388,6 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
                       }}
                     />
 
-                    {/* Categories list */}
                     <div
                       ref={categoryScrollRef}
                       className="h-full overflow-y-auto scrollbar-hide"
@@ -394,7 +396,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
                         paddingBottom: '80px'
                       }}
                     >
-                      {categories.map((cat, index) => (
+                      {categories.map((cat) => (
                         <button
                           key={cat}
                           type="button"
@@ -469,51 +471,6 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
                 <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   Personal Expense
                 </span>
-              </label>
-            </div>
-
-            {/* Recurring Expense Checkbox */}
-            <div className="mb-4">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={isRecurring}
-                    onChange={(e) => {
-                      setIsRecurring(e.target.checked);
-                      setError('');
-                    }}
-                    className="w-5 h-5 rounded cursor-pointer appearance-none"
-                    style={{
-                      background: isRecurring ? '#FF5E00' : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)'),
-                      border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
-                    }}
-                  />
-                  {isRecurring && (
-                    <svg
-                      className="absolute top-0 left-0 w-5 h-5 pointer-events-none"
-                      viewBox="0 0 20 20"
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        d="M16 6L7.5 14.5L4 11"
-                        stroke="white"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  )}
-                </div>
-                <div className="flex flex-col">
-                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                    Recurring Expense
-                  </span>
-                  <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    Automatically add this expense every month
-                  </span>
-                </div>
               </label>
             </div>
 
@@ -605,7 +562,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
                 background: 'linear-gradient(135deg, #FF5E00 0%, #FF8534 100%)'
               }}
             >
-              {loading ? 'Adding...' : 'Add Expense'}
+              {loading ? 'Updating...' : 'Update Expense'}
             </button>
           </div>
         </form>
@@ -614,4 +571,4 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
   );
 };
 
-export default AddExpenseModal;
+export default EditExpenseModal;
