@@ -1,12 +1,133 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
+import { getCurrencySymbol } from '../utils/currency';
 
-const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
-  // Get current user
-  // TEMP: Change to 'Mike' to see his perspective with pending confirmations
-  // Change back to 'You' for normal view
-  const currentUser = roommates.find(r => r.name === 'You');
-  const currentUserId = currentUser ? currentUser.id : null;
+const Balances = ({ isDarkMode, setIsDarkMode }) => {
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [expenses, setExpenses] = useState([]);
+  const [roommates, setRoommates] = useState([]);
+  const [currentGroup, setCurrentGroup] = useState(null);
+  const [groupCurrency, setGroupCurrency] = useState('USD');
+  const [pendingSettlements, setPendingSettlements] = useState([]);
+  const [settlementHistory, setSettlementHistory] = useState([]);
+  const [historyFilter, setHistoryFilter] = useState('all');
+  const [selectedBalance, setSelectedBalance] = useState(null);
+  const [selectedSettlement, setSelectedSettlement] = useState(null);
+  const [showSettleUpModal, setShowSettleUpModal] = useState(false);
+
+  const currentUserId = user?.id;
+
+  // Fetch user's group, members, and expenses
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+
+      try {
+        // Get user's group membership
+        const { data: groupMemberships, error: groupError } = await supabase
+          .from('group_members')
+          .select(`
+            group_id,
+            groups (
+              id,
+              name,
+              default_currency
+            )
+          `)
+          .eq('user_id', user.id)
+          .limit(1)
+          .single();
+
+        if (groupError) {
+          console.error('Error fetching group:', groupError);
+          setLoading(false);
+          return;
+        }
+
+        if (groupMemberships && groupMemberships.groups) {
+          setCurrentGroup(groupMemberships.groups);
+          setGroupCurrency(groupMemberships.groups.default_currency || 'USD');
+
+          // Fetch all group members
+          const { data: members, error: membersError } = await supabase
+            .from('group_members')
+            .select(`
+              user_id,
+              role,
+              users (
+                id,
+                full_name,
+                email
+              )
+            `)
+            .eq('group_id', groupMemberships.groups.id);
+
+          if (membersError) {
+            console.error('Error fetching members:', membersError);
+          } else {
+            const transformedMembers = members.map(member => ({
+              id: member.users.id,
+              name: member.users.id === user.id ? 'You' : member.users.full_name,
+              email: member.users.email
+            }));
+            setRoommates(transformedMembers);
+          }
+
+          // Fetch expenses for this group with splits
+          const { data: expensesData, error: expensesError } = await supabase
+            .from('expenses')
+            .select(`
+              *,
+              expense_splits (
+                user_id,
+                share_amount
+              )
+            `)
+            .eq('group_id', groupMemberships.groups.id)
+            .order('date', { ascending: false });
+
+          if (expensesError) {
+            console.error('Error fetching expenses:', expensesError);
+          } else {
+            console.log('Raw expenses from database:', expensesData);
+            // Transform expenses to include split_between array
+            const transformedExpenses = expensesData?.map(expense => ({
+              ...expense,
+              split_between: expense.expense_splits?.map(split => split.user_id) || []
+            })) || [];
+            console.log('Transformed expenses:', transformedExpenses);
+            setExpenses(transformedExpenses);
+          }
+
+          // Fetch settlements for this group
+          const { data: settlementsData, error: settlementsError } = await supabase
+            .from('settlements')
+            .select('*')
+            .eq('group_id', groupMemberships.groups.id)
+            .order('created_at', { ascending: false });
+
+          if (settlementsError) {
+            console.error('Error fetching settlements:', settlementsError);
+          } else {
+            // Split into pending and completed
+            const pending = settlementsData?.filter(s => s.status === 'pending') || [];
+            const completed = settlementsData?.filter(s => s.status === 'completed') || [];
+            setPendingSettlements(pending);
+            setSettlementHistory(completed);
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchData:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
 
   // Get payment usernames for roommates from localStorage
   // In production, this would come from a database
@@ -19,146 +140,95 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
     return '';
   };
 
-  // Mock data for testing - remove this in production
-  const getMockSettlementHistory = () => {
-    const now = new Date();
-    const sarahId = roommates.find(r => r.name === 'Sarah')?.id;
-    const mikeId = roommates.find(r => r.name === 'Mike')?.id;
-
-    return [
-      {
-        id: 1,
-        from: currentUserId,
-        fromName: 'You',
-        to: sarahId,
-        toName: 'Sarah',
-        amount: 45.50,
-        date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5).toISOString(),
-        status: 'completed',
-        completedDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5).toISOString()
-      },
-      {
-        id: 2,
-        from: mikeId,
-        fromName: 'Mike',
-        to: currentUserId,
-        toName: 'You',
-        amount: 30.00,
-        date: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 12).toISOString(),
-        status: 'completed',
-        completedDate: new Date(now.getFullYear(), now.getMonth(), now.getDate() - 12).toISOString()
-      },
-      {
-        id: 3,
-        from: currentUserId,
-        fromName: 'You',
-        to: mikeId,
-        toName: 'Mike',
-        amount: 25.75,
-        date: new Date(now.getFullYear(), now.getMonth() - 1, 15).toISOString(),
-        status: 'completed',
-        completedDate: new Date(now.getFullYear(), now.getMonth() - 1, 15).toISOString()
-      },
-      {
-        id: 4,
-        from: sarahId,
-        fromName: 'Sarah',
-        to: currentUserId,
-        toName: 'You',
-        amount: 60.00,
-        date: new Date(now.getFullYear(), now.getMonth() - 2, 20).toISOString(),
-        status: 'completed',
-        completedDate: new Date(now.getFullYear(), now.getMonth() - 2, 20).toISOString()
-      },
-      {
-        id: 5,
-        from: currentUserId,
-        fromName: 'You',
-        to: sarahId,
-        toName: 'Sarah',
-        amount: 15.25,
-        date: new Date(now.getFullYear(), now.getMonth() - 4, 10).toISOString(),
-        status: 'completed',
-        completedDate: new Date(now.getFullYear(), now.getMonth() - 4, 10).toISOString()
-      }
-    ];
+  // Helper function to get user name from ID
+  const getUserName = (userId) => {
+    if (userId === currentUserId) return 'You';
+    const roommate = roommates.find(r => r.id === userId);
+    return roommate?.name || 'Unknown';
   };
-
-  // Mock pending settlements - simulate different user perspectives
-  const getMockPendingSettlements = () => {
-    const youId = roommates.find(r => r.name === 'You')?.id;
-    const sarahId = roommates.find(r => r.name === 'Sarah')?.id;
-    const mikeId = roommates.find(r => r.name === 'Mike')?.id;
-
-    // For Mike's perspective: show that "You" paid Mike and it's pending confirmation
-    if (currentUserId === mikeId) {
-      return [{
-        id: Date.now(),
-        from: youId,
-        fromName: 'You',
-        to: mikeId,
-        toName: 'Mike',
-        amount: 48.10,
-        date: new Date().toISOString(),
-        status: 'pending'
-      }];
-    }
-
-    // For your perspective: show pending payment to Mike waiting for confirmation
-    if (currentUserId === youId) {
-      return [{
-        id: Date.now(),
-        from: youId,
-        fromName: 'You',
-        to: mikeId,
-        toName: 'Mike',
-        amount: 48.10,
-        date: new Date().toISOString(),
-        status: 'pending'
-      }];
-    }
-
-    return [];
-  };
-
-  const [pendingSettlements, setPendingSettlements] = useState(getMockPendingSettlements());
-  const [settlementHistory, setSettlementHistory] = useState(getMockSettlementHistory());
-  const [historyFilter, setHistoryFilter] = useState('all'); // 'all', 'month', 'lastMonth', 'last3Months'
-  const [selectedBalance, setSelectedBalance] = useState(null); // Track which balance detail view is showing
-  const [showSettleUpModal, setShowSettleUpModal] = useState(false); // Track Settle Up modal visibility
 
   // Calculate balances between you and each roommate
   const calculateBalances = () => {
     const balances = {};
 
+    // Debug logging
+    console.log('Calculating balances for user:', currentUserId);
+    console.log('Total expenses:', expenses.length);
+    console.log('Expenses data:', expenses);
+    console.log('Settlement history:', settlementHistory);
+
+    // Get the most recent settlement timestamp for each user pair
+    const getLastSettledTimestamp = (userId1, userId2) => {
+      const relevantSettlements = settlementHistory.filter(s =>
+        s.status === 'completed' &&
+        ((s.from_user_id === userId1 && s.to_user_id === userId2) ||
+         (s.from_user_id === userId2 && s.to_user_id === userId1))
+      );
+
+      if (relevantSettlements.length === 0) return null;
+
+      // Sort by settled_up_to_timestamp or completed_at, get the most recent
+      const mostRecent = relevantSettlements.sort((a, b) => {
+        const dateA = new Date(a.settled_up_to_timestamp || a.completed_at);
+        const dateB = new Date(b.settled_up_to_timestamp || b.completed_at);
+        return dateB - dateA;
+      })[0];
+
+      return mostRecent.settled_up_to_timestamp || mostRecent.completed_at;
+    };
+
+    // First, calculate balances from UNSETTLED expenses only
     expenses.forEach(expense => {
-      const splitAmount = expense.amount / expense.splitBetween.length;
+      const splitBetween = expense.split_between || [];
+      const paidBy = expense.paid_by;
+      const splitAmount = expense.amount / splitBetween.length;
+      const expenseDate = new Date(expense.date);
+
+      console.log('Processing expense:', {
+        description: expense.description,
+        amount: expense.amount,
+        paidBy,
+        splitBetween,
+        splitAmount,
+        date: expense.date
+      });
 
       // If someone else paid and you're in the split
-      if (expense.paidBy !== currentUserId && expense.splitBetween.includes(currentUserId)) {
-        const payerName = roommates.find(r => r.id === expense.paidBy)?.name;
-        if (!balances[expense.paidBy]) {
-          balances[expense.paidBy] = { name: payerName, id: expense.paidBy, amount: 0, expenses: [] };
+      if (paidBy !== currentUserId && splitBetween.includes(currentUserId)) {
+        const lastSettled = getLastSettledTimestamp(currentUserId, paidBy);
+
+        // Only include expense if it's after the last settlement or no settlement exists
+        if (!lastSettled || expenseDate > new Date(lastSettled)) {
+          const payerName = roommates.find(r => r.id === paidBy)?.name;
+          if (!balances[paidBy]) {
+            balances[paidBy] = { name: payerName, id: paidBy, amount: 0, expenses: [] };
+          }
+          balances[paidBy].amount += splitAmount;
+          balances[paidBy].expenses.push({ ...expense, yourShare: splitAmount });
         }
-        balances[expense.paidBy].amount += splitAmount;
-        balances[expense.paidBy].expenses.push({ ...expense, yourShare: splitAmount });
       }
 
       // If you paid and others are in the split
-      if (expense.paidBy === currentUserId) {
-        expense.splitBetween.forEach(personId => {
+      if (paidBy === currentUserId) {
+        splitBetween.forEach(personId => {
           if (personId !== currentUserId) {
-            const personName = roommates.find(r => r.id === personId)?.name;
-            if (!balances[personId]) {
-              balances[personId] = { name: personName, id: personId, amount: 0, expenses: [] };
+            const lastSettled = getLastSettledTimestamp(currentUserId, personId);
+
+            // Only include expense if it's after the last settlement or no settlement exists
+            if (!lastSettled || expenseDate > new Date(lastSettled)) {
+              const personName = roommates.find(r => r.id === personId)?.name;
+              if (!balances[personId]) {
+                balances[personId] = { name: personName, id: personId, amount: 0, expenses: [] };
+              }
+              balances[personId].amount -= splitAmount;
+              balances[personId].expenses.push({ ...expense, theirShare: splitAmount });
             }
-            balances[personId].amount -= splitAmount;
-            balances[personId].expenses.push({ ...expense, theirShare: splitAmount });
           }
         });
       }
     });
 
+    // No need to subtract settlements anymore - we're filtering expenses by timestamp
     return Object.values(balances).filter(b => Math.abs(b.amount) > 0.01);
   };
 
@@ -170,40 +240,106 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
   const netBalance = youreOwed - youOwe;
 
   // Handle marking payment as sent
-  const handleMarkAsPaid = (roommateId, amount) => {
-    const roommate = roommates.find(r => r.id === roommateId);
-    const newSettlement = {
-      id: Date.now(),
-      from: currentUserId,
-      fromName: 'You',
-      to: roommateId,
-      toName: roommate.name,
-      amount: amount,
-      date: new Date().toISOString(),
-      status: 'pending'
-    };
-    setPendingSettlements([...pendingSettlements, newSettlement]);
+  const handleMarkAsPaid = async (roommateId, amount) => {
+    if (!currentGroup) return;
+
+    try {
+      // Find the most recent expense between these two users to set settled_up_to_timestamp
+      const relevantExpenses = expenses.filter(expense => {
+        const splitBetween = expense.split_between || [];
+        const paidBy = expense.paid_by;
+
+        // Check if this expense involves both users
+        return (
+          (paidBy === roommateId && splitBetween.includes(currentUserId)) ||
+          (paidBy === currentUserId && splitBetween.includes(roommateId))
+        );
+      });
+
+      // Get the most recent expense date (expenses are already sorted by date DESC)
+      const mostRecentExpenseDate = relevantExpenses.length > 0
+        ? relevantExpenses[0].date
+        : new Date().toISOString();
+
+      const { data, error } = await supabase
+        .from('settlements')
+        .insert({
+          group_id: currentGroup.id,
+          from_user_id: currentUserId,
+          to_user_id: roommateId,
+          amount: amount,
+          status: 'pending',
+          settled_up_to_timestamp: mostRecentExpenseDate
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating settlement:', error);
+        alert('Failed to create settlement. Please try again.');
+        return;
+      }
+
+      // Add to local state
+      setPendingSettlements([...pendingSettlements, data]);
+    } catch (error) {
+      console.error('Error in handleMarkAsPaid:', error);
+      alert('Failed to create settlement. Please try again.');
+    }
   };
 
   // Handle accepting payment
-  const handleAcceptPayment = (settlementId) => {
-    const settlement = pendingSettlements.find(s => s.id === settlementId);
-    if (settlement) {
-      setSettlementHistory([...settlementHistory, { ...settlement, status: 'completed', completedDate: new Date().toISOString() }]);
+  const handleAcceptPayment = async (settlementId) => {
+    try {
+      const { data, error } = await supabase
+        .from('settlements')
+        .update({ status: 'completed' })
+        .eq('id', settlementId)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error accepting payment:', error);
+        alert('Failed to accept payment. Please try again.');
+        return;
+      }
+
+      // Update local state
       setPendingSettlements(pendingSettlements.filter(s => s.id !== settlementId));
+      setSettlementHistory([data, ...settlementHistory]);
+    } catch (error) {
+      console.error('Error in handleAcceptPayment:', error);
+      alert('Failed to accept payment. Please try again.');
     }
   };
 
   // Handle rejecting payment
-  const handleRejectPayment = (settlementId) => {
-    setPendingSettlements(pendingSettlements.filter(s => s.id !== settlementId));
+  const handleRejectPayment = async (settlementId) => {
+    try {
+      const { error } = await supabase
+        .from('settlements')
+        .update({ status: 'rejected' })
+        .eq('id', settlementId);
+
+      if (error) {
+        console.error('Error rejecting payment:', error);
+        alert('Failed to reject payment. Please try again.');
+        return;
+      }
+
+      // Remove from local state
+      setPendingSettlements(pendingSettlements.filter(s => s.id !== settlementId));
+    } catch (error) {
+      console.error('Error in handleRejectPayment:', error);
+      alert('Failed to reject payment. Please try again.');
+    }
   };
 
   // Get pending settlements sent by you
-  const sentSettlements = pendingSettlements.filter(s => s.from === currentUserId);
+  const sentSettlements = pendingSettlements.filter(s => s.from_user_id === currentUserId);
 
   // Get pending settlements to confirm (sent to you)
-  const receivedSettlements = pendingSettlements.filter(s => s.to === currentUserId);
+  const receivedSettlements = pendingSettlements.filter(s => s.to_user_id === currentUserId);
 
   // Format date
   const formatDate = (dateString) => {
@@ -220,7 +356,7 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
     const currentYear = now.getFullYear();
 
     return settlementHistory.filter(settlement => {
-      const settlementDate = new Date(settlement.completedDate);
+      const settlementDate = new Date(settlement.completed_at || settlement.created_at);
       const settlementMonth = settlementDate.getMonth();
       const settlementYear = settlementDate.getFullYear();
 
@@ -328,6 +464,19 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
           </h1>
         </div>
 
+        {/* Loading State */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div
+              className="animate-spin rounded-full h-16 w-16 border-4"
+              style={{
+                borderColor: 'rgba(255, 94, 0, 0.2)',
+                borderTopColor: '#FF5E00'
+              }}
+            ></div>
+          </div>
+        ) : (
+          <>
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* You Owe */}
@@ -345,7 +494,7 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               You Owe
             </p>
             <p className="text-3xl font-bold" style={{ color: '#FF5E00' }}>
-              ${Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(groupCurrency)}{Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
@@ -364,7 +513,7 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               You're Owed
             </p>
             <p className="text-3xl font-bold" style={{ color: '#10b981' }}>
-              ${Number.isInteger(youreOwed) ? youreOwed : youreOwed.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(groupCurrency)}{Number.isInteger(youreOwed) ? youreOwed : youreOwed.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
@@ -383,7 +532,7 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               Net Balance
             </p>
             <p className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {netBalance >= 0 ? '+' : ''}${Number.isInteger(netBalance) ? netBalance : netBalance.toFixed(2).replace(/\.00$/, '')}
+              {netBalance >= 0 ? '+' : ''}{getCurrencySymbol(groupCurrency)}{Number.isInteger(Math.abs(netBalance)) ? Math.abs(netBalance) : Math.abs(netBalance).toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
         </div>
@@ -408,7 +557,11 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
               </h2>
               <button
                 onClick={() => setShowSettleUpModal(true)}
-                className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:scale-[1.01] ${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-900'}`}
+                className={`px-4 py-2 rounded-xl font-semibold text-sm transition-all hover:scale-[1.01] ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                  backdropFilter: 'blur(10px)'
+                }}
               >
                 Settle Up
               </button>
@@ -417,7 +570,7 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             {balances.length === 0 ? (
               <div className="text-center py-8">
                 <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  All settled up! 🎉
+                  No active balances!
                 </p>
               </div>
             ) : selectedBalance ? (
@@ -451,7 +604,7 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   </div>
                   <div className="flex items-center gap-2">
                     <p className="text-xl sm:text-2xl font-bold" style={{ color: selectedBalance.amount > 0 ? '#FF5E00' : '#10b981' }}>
-                      {selectedBalance.amount > 0 ? '-' : '+'}${Math.abs(selectedBalance.amount).toFixed(2)}
+                      {selectedBalance.amount > 0 ? '-' : '+'}{getCurrencySymbol(groupCurrency)}{Math.abs(selectedBalance.amount).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -461,6 +614,11 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   {selectedBalance.expenses && selectedBalance.expenses.map((expense, idx) => {
                     const isDebt = selectedBalance.amount > 0;
                     const yourShare = isDebt ? expense.yourShare : expense.theirShare;
+
+                    // Determine who paid: if expense has yourShare, they paid; if theirShare, you paid
+                    const whoPaid = expense.yourShare ? selectedBalance.name : 'You';
+                    // Color: green if you paid, orange if they paid
+                    const amountColor = expense.yourShare ? '#FF5E00' : '#10b981';
 
                     return (
                       <div
@@ -487,12 +645,12 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                               </span>
                             </div>
                             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {selectedBalance.name} paid
+                              {whoPaid} paid
                             </p>
                           </div>
                           <div className="text-right ml-4">
-                            <p className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                              ${yourShare ? yourShare.toFixed(2) : (expense.amount / expense.splitBetween.length).toFixed(2)}
+                            <p className="text-base font-bold" style={{ color: amountColor }}>
+                              {getCurrencySymbol(groupCurrency)}{yourShare ? yourShare.toFixed(2) : (expense.amount / (expense.split_between?.length || 1)).toFixed(2)}
                             </p>
                             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                               {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -539,7 +697,7 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                       </div>
                       <div className="flex items-center gap-2">
                         <p className="text-xl sm:text-2xl font-bold" style={{ color: isDebt ? '#FF5E00' : '#10b981' }}>
-                          {isDebt ? '-' : '+'}${Math.abs(balance.amount).toFixed(2)}
+                          {isDebt ? '-' : '+'}{getCurrencySymbol(groupCurrency)}{Math.abs(balance.amount).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -583,15 +741,15 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   >
                     <div className="flex-1 mb-3 sm:mb-0">
                       <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {settlement.fromName} paid you
+                        {getUserName(settlement.from_user_id)} paid you
                       </p>
                       <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {formatDate(settlement.date)}
+                        {formatDate(settlement.created_at)}
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
                       <p className="text-xl font-bold" style={{ color: '#10b981' }}>
-                        ${settlement.amount.toFixed(2)}
+                        {getCurrencySymbol(groupCurrency)}{settlement.amount.toFixed(2)}
                       </p>
                       <div className="flex gap-2">
                         <button
@@ -627,14 +785,14 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   >
                     <div>
                       <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        Waiting for {settlement.toName} to confirm
+                        Waiting for {getUserName(settlement.to_user_id)} to confirm
                       </p>
                       <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {formatDate(settlement.date)}
+                        {formatDate(settlement.created_at)}
                       </p>
                     </div>
                     <p className="text-xl font-bold" style={{ color: '#FF5E00' }}>
-                      ${settlement.amount.toFixed(2)}
+                      {getCurrencySymbol(groupCurrency)}{settlement.amount.toFixed(2)}
                     </p>
                   </div>
                 ))}
@@ -696,31 +854,213 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                   : `No settlements in ${historyFilter === 'all' ? 'all time' : historyFilter === 'month' ? 'this month' : historyFilter === 'lastMonth' ? 'last month' : 'the last 3 months'}`}
               </p>
             </div>
+          ) : selectedSettlement ? (
+            // Detail view for selected settlement - shows related expenses
+            <div className="space-y-3">
+              {/* Back button */}
+              <div
+                onClick={() => setSelectedSettlement(null)}
+                className="flex items-center justify-between p-4 rounded-3xl cursor-pointer transition-all hover:scale-[1.01]"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.6)'
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-12 h-12 rounded-3xl flex items-center justify-center font-bold text-xl shadow-lg"
+                    style={{
+                      background: selectedSettlement.from_user_id === currentUserId
+                        ? 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)'
+                        : 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)',
+                      color: 'white'
+                    }}
+                  >
+                    {selectedSettlement.from_user_id === currentUserId
+                      ? getUserName(selectedSettlement.to_user_id).charAt(0)
+                      : getUserName(selectedSettlement.from_user_id).charAt(0)}
+                  </div>
+                  <div>
+                    <p className={`text-base sm:text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      {selectedSettlement.from_user_id === currentUserId
+                        ? `You paid ${getUserName(selectedSettlement.to_user_id)}`
+                        : `${getUserName(selectedSettlement.from_user_id)} paid you`}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <p className="text-xl sm:text-2xl font-bold" style={{
+                    color: selectedSettlement.from_user_id === currentUserId ? '#FF5E00' : '#10b981'
+                  }}>
+                    {getCurrencySymbol(groupCurrency)}{selectedSettlement.amount.toFixed(2)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Expense list - EXACT SAME as Active Balances */}
+              <div className="space-y-2">
+                {(() => {
+                  // Get the other person involved in this settlement
+                  const otherUserId = selectedSettlement.from_user_id === currentUserId
+                    ? selectedSettlement.to_user_id
+                    : selectedSettlement.from_user_id;
+
+                  const otherUserName = getUserName(otherUserId);
+
+                  // Build a balance-like object to get expenses
+                  const settlementBalance = {
+                    name: otherUserName,
+                    id: otherUserId,
+                    amount: selectedSettlement.to_user_id === currentUserId ? selectedSettlement.amount : -selectedSettlement.amount,
+                    expenses: []
+                  };
+
+                  // Get the timestamp cutoff for this settlement
+                  const settledUpTo = selectedSettlement.settled_up_to_timestamp
+                    ? new Date(selectedSettlement.settled_up_to_timestamp)
+                    : new Date(selectedSettlement.completed_at || selectedSettlement.created_at);
+
+                  // Get the previous settlement timestamp (if any) to know the range
+                  const previousSettlements = settlementHistory.filter(s =>
+                    s.status === 'completed' &&
+                    s.id !== selectedSettlement.id &&
+                    ((s.from_user_id === currentUserId && s.to_user_id === otherUserId) ||
+                     (s.from_user_id === otherUserId && s.to_user_id === currentUserId))
+                  ).sort((a, b) => {
+                    const dateA = new Date(a.settled_up_to_timestamp || a.completed_at);
+                    const dateB = new Date(b.settled_up_to_timestamp || b.completed_at);
+                    return dateB - dateA;
+                  });
+
+                  // Find the settlement right before this one
+                  const previousSettlement = previousSettlements.find(s => {
+                    const sDate = new Date(s.settled_up_to_timestamp || s.completed_at);
+                    return sDate < settledUpTo;
+                  });
+
+                  const previousSettledUpTo = previousSettlement
+                    ? new Date(previousSettlement.settled_up_to_timestamp || previousSettlement.completed_at)
+                    : null;
+
+                  // Gather ONLY expenses that were part of THIS settlement
+                  // (after previous settlement, up to this settlement's timestamp)
+                  expenses.forEach(expense => {
+                    const splitBetween = expense.split_between || [];
+                    const paidBy = expense.paid_by;
+                    const splitAmount = expense.amount / splitBetween.length;
+                    const expenseDate = new Date(expense.date);
+
+                    // Only include if expense is in the range for this settlement
+                    const isInRange = expenseDate <= settledUpTo &&
+                      (!previousSettledUpTo || expenseDate > previousSettledUpTo);
+
+                    if (!isInRange) return;
+
+                    // If other person paid and we're in the split
+                    if (paidBy === otherUserId && splitBetween.includes(currentUserId)) {
+                      settlementBalance.expenses.push({ ...expense, yourShare: splitAmount });
+                    }
+
+                    // If we paid and other person is in split
+                    if (paidBy === currentUserId && splitBetween.includes(otherUserId)) {
+                      settlementBalance.expenses.push({ ...expense, theirShare: splitAmount });
+                    }
+                  });
+
+                  // Use EXACT SAME rendering as Active Balances
+                  if (settlementBalance.expenses.length === 0) {
+                    return (
+                      <div
+                        className="p-4 rounded-2xl text-center"
+                        style={{
+                          background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.6)'
+                        }}
+                      >
+                        <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                          Payment settled
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  const isDebt = settlementBalance.amount > 0;
+
+                  return settlementBalance.expenses.map((expense, idx) => {
+                    const yourShare = isDebt ? expense.yourShare : expense.theirShare;
+
+                    // Determine who paid: if expense has yourShare, they paid; if theirShare, you paid
+                    const whoPaid = expense.yourShare ? settlementBalance.name : 'You';
+                    // Color: green if you paid, orange if they paid
+                    const amountColor = expense.yourShare ? '#FF5E00' : '#10b981';
+
+                    return (
+                      <div
+                        key={idx}
+                        className="p-3 rounded-2xl"
+                        style={{
+                          background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.6)'
+                        }}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              <h3 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {expense.description}
+                              </h3>
+                              <span
+                                className="px-2 py-0.5 rounded-full text-xs font-medium"
+                                style={{
+                                  background: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
+                                  color: isDarkMode ? '#d1d5db' : '#6b7280'
+                                }}
+                              >
+                                {expense.category}
+                              </span>
+                            </div>
+                            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {whoPaid} paid
+                            </p>
+                          </div>
+                          <div className="text-right ml-4">
+                            <p className="text-base font-bold" style={{ color: amountColor }}>
+                              {getCurrencySymbol(groupCurrency)}{yourShare ? yourShare.toFixed(2) : (expense.amount / expense.split_between.length).toFixed(2)}
+                            </p>
+                            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                              {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
           ) : (
             <div className="space-y-3">
               {filteredHistory.slice().reverse().map((settlement) => (
                 <div
                   key={settlement.id}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-2xl"
+                  onClick={() => setSelectedSettlement(settlement)}
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-2xl cursor-pointer transition-all hover:scale-[1.01]"
                   style={{
                     background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)'
                   }}
                 >
                   <div className="flex-1 mb-2 sm:mb-0">
                     <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {settlement.from === currentUserId
-                        ? `You paid ${settlement.toName}`
-                        : `${settlement.fromName} paid you`}
+                      {settlement.from_user_id === currentUserId
+                        ? `You paid ${getUserName(settlement.to_user_id)}`
+                        : `${getUserName(settlement.from_user_id)} paid you`}
                     </p>
                     <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {formatDate(settlement.completedDate)}
+                      {formatDate(settlement.completed_at || settlement.created_at)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">
                     <p className="text-lg font-bold" style={{
-                      color: settlement.from === currentUserId ? '#FF5E00' : '#10b981'
+                      color: settlement.from_user_id === currentUserId ? '#FF5E00' : '#10b981'
                     }}>
-                      ${settlement.amount.toFixed(2)}
+                      {getCurrencySymbol(groupCurrency)}{settlement.amount.toFixed(2)}
                     </p>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${isDarkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'}`}>
                       Completed
@@ -731,6 +1071,8 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
             </div>
           )}
         </div>
+          </>
+        )}
       </main>
 
       {/* Settle Up Modal */}
@@ -800,7 +1142,7 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                           </div>
                         </div>
                         <p className="text-2xl font-bold" style={{ color: '#FF5E00' }}>
-                          ${balance.amount.toFixed(2)}
+                          {getCurrencySymbol(groupCurrency)}{balance.amount.toFixed(2)}
                         </p>
                       </div>
 
@@ -857,9 +1199,9 @@ const Balances = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                               }
                               // Copy Zelle info to clipboard and show instructions
                               navigator.clipboard.writeText(zelleEmail).then(() => {
-                                alert(`Zelle info copied!\n\nSend $${balance.amount.toFixed(2)} to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
+                                alert(`Zelle info copied!\n\nSend ${getCurrencySymbol(groupCurrency)}${balance.amount.toFixed(2)} to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
                               }).catch(() => {
-                                alert(`Send $${balance.amount.toFixed(2)} via Zelle to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
+                                alert(`Send ${getCurrencySymbol(groupCurrency)}${balance.amount.toFixed(2)} via Zelle to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
                               });
                             }}
                             className="px-4 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 shadow-sm"

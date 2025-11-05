@@ -27,6 +27,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
   const [newGroupCurrency, setNewGroupCurrency] = useState('USD');
   const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
   const currencyScrollRef = React.useRef(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   // Computed values
   const isAdmin = currentGroup?.admin_id === user?.id;
@@ -138,10 +139,18 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
 
   const handleShowInviteCode = () => {
     setShowInviteCode(true);
+    setCodeCopied(false);
   };
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(inviteCode);
+    setShowInviteCode(false);
+    setCodeCopied(true);
+
+    // Hide notification after 3 seconds
+    setTimeout(() => {
+      setCodeCopied(false);
+    }, 3000);
   };
 
   const handleJoinGroup = async () => {
@@ -426,6 +435,19 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
 
       {/* Sidebar */}
       <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+
+      {/* Copy Code Notification */}
+      {codeCopied && (
+        <div
+          className="fixed top-6 right-6 px-6 py-4 rounded-2xl shadow-2xl font-semibold text-white z-50 animate-slide-in"
+          style={{
+            background: 'linear-gradient(135deg, #FF5E00 0%, #FF8534 100%)',
+            animation: 'slideIn 0.3s ease-out'
+          }}
+        >
+          Code copied!
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
