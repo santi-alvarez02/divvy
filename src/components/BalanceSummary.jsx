@@ -1,4 +1,5 @@
 import React from 'react';
+import { getAvatarColor } from '../utils/avatarColors';
 
 const BalanceSummary = ({ balances, isDarkMode }) => {
   return (
@@ -29,7 +30,6 @@ const BalanceSummary = ({ balances, isDarkMode }) => {
 
       {balances.length === 0 ? (
         <div className="text-center py-8">
-          <div className="text-5xl mb-3">✨</div>
           <p className={`font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>All settled up!</p>
           <p className={`text-sm mt-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
             No outstanding balances
@@ -56,9 +56,12 @@ const BalanceSummary = ({ balances, isDarkMode }) => {
               >
                 <div className="flex items-center space-x-4">
                   {/* Avatar/Initial */}
-                  <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg ${
-                    isOwedToYou ? 'bg-gradient-to-br from-green-400 to-emerald-500' : 'bg-gradient-to-br from-orange-400 to-red-500'
-                  }`}>
+                  <div
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg"
+                    style={{
+                      background: balance.userId ? getAvatarColor(balance.userId) : 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)'
+                    }}
+                  >
                     {balance.person.charAt(0)}
                   </div>
 
@@ -97,20 +100,6 @@ const BalanceSummary = ({ balances, isDarkMode }) => {
               </div>
             );
           })}
-        </div>
-      )}
-
-      {/* Quick settle note */}
-      {balances.length > 0 && (
-        <div
-          className="mt-4 p-4 rounded-2xl"
-          style={{
-            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)'
-          }}
-        >
-          <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-            <span className="font-bold">💡 Tip:</span> Click "Settle Up" to mark debts as paid
-          </p>
         </div>
       )}
     </div>

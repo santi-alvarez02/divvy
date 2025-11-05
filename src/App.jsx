@@ -12,7 +12,6 @@ import Balances from './pages/Balances';
 import Budget from './pages/Budget';
 import Groups from './pages/Groups';
 import Settings from './pages/Settings';
-import { monthlyBudget, expenses, balances, roommates } from './data/mockData';
 
 function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -49,10 +48,6 @@ function App() {
             element={
               <ProtectedRoute isDarkMode={isDarkMode}>
                 <Dashboard
-                  budget={monthlyBudget}
-                  expenses={expenses}
-                  balances={balances}
-                  roommates={roommates}
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}
                 />
@@ -66,8 +61,6 @@ function App() {
                 <Expenses
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}
-                  expenses={expenses}
-                  roommates={roommates}
                 />
               </ProtectedRoute>
             }
@@ -79,8 +72,6 @@ function App() {
                 <Balances
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}
-                  expenses={expenses}
-                  roommates={roommates}
                 />
               </ProtectedRoute>
             }
@@ -92,8 +83,6 @@ function App() {
                 <Budget
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}
-                  expenses={expenses}
-                  roommates={roommates}
                 />
               </ProtectedRoute>
             }
@@ -105,7 +94,6 @@ function App() {
                 <Groups
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}
-                  roommates={roommates}
                 />
               </ProtectedRoute>
             }

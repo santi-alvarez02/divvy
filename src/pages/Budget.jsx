@@ -1,19 +1,131 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
-const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
+const Budget = ({ isDarkMode, setIsDarkMode }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [timePeriod, setTimePeriod] = useState('month'); // 'month' or 'custom'
   const [selectedMonth, setSelectedMonth] = useState(null); // For custom month selection
   const [showMonthPicker, setShowMonthPicker] = useState(false);
-  const [budgetLimit, setBudgetLimit] = useState(1500);
+  const [budgetLimit, setBudgetLimit] = useState(0);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [expenses, setExpenses] = useState([]);
+  const [roommates, setRoommates] = useState([]);
+  const [currentGroup, setCurrentGroup] = useState(null);
+  const [currency, setCurrency] = useState('USD');
   const monthScrollRef = React.useRef(null);
 
-  // Calculate current user's share of expenses
-  const currentUser = roommates.find(r => r.name === 'You');
-  const currentUserId = currentUser ? currentUser.id : null;
+  const currentUserId = user?.id;
+
+  // Fetch group, budget, expenses, and members
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!user) return;
+
+      try {
+        // Get user's budget and currency from users table
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('monthly_budget, default_currency')
+          .eq('id', user.id)
+          .single();
+
+        if (userError) {
+          console.error('Error fetching user data:', userError);
+        } else {
+          console.log('Budget Page - User data:', userData);
+          setBudgetLimit(userData?.monthly_budget || 0);
+          setCurrency(userData?.default_currency || 'USD');
+        }
+
+        // Get user's group membership
+        const { data: groupMemberships, error: groupError } = await supabase
+          .from('group_members')
+          .select(`
+            group_id,
+            groups (
+              id,
+              name,
+              default_currency
+            )
+          `)
+          .eq('user_id', user.id)
+          .limit(1)
+          .single();
+
+        if (groupError) {
+          console.error('Error fetching group:', groupError);
+          setLoading(false);
+          return;
+        }
+
+        if (groupMemberships && groupMemberships.groups) {
+          console.log('Budget Page - Fetched group:', groupMemberships.groups);
+          setCurrentGroup(groupMemberships.groups);
+
+          // Fetch all group members
+          const { data: members, error: membersError } = await supabase
+            .from('group_members')
+            .select(`
+              user_id,
+              role,
+              users (
+                id,
+                full_name,
+                email
+              )
+            `)
+            .eq('group_id', groupMemberships.groups.id);
+
+          if (membersError) {
+            console.error('Error fetching members:', membersError);
+          } else {
+            const transformedMembers = members.map(member => ({
+              id: member.users.id,
+              name: member.users.id === user.id ? 'You' : member.users.full_name,
+              email: member.users.email
+            }));
+            setRoommates(transformedMembers);
+          }
+
+          // Fetch expenses for this group with splits
+          const { data: expensesData, error: expensesError } = await supabase
+            .from('expenses')
+            .select(`
+              *,
+              expense_splits (
+                user_id,
+                share_amount
+              )
+            `)
+            .eq('group_id', groupMemberships.groups.id)
+            .order('date', { ascending: false });
+
+          if (expensesError) {
+            console.error('Error fetching expenses:', expensesError);
+          } else {
+            // Transform expenses to include split_between array
+            const transformedExpenses = expensesData?.map(expense => ({
+              ...expense,
+              splitBetween: expense.expense_splits?.map(split => split.user_id) || [],
+              paidBy: expense.paid_by
+            })) || [];
+            setExpenses(transformedExpenses);
+          }
+        }
+      } catch (error) {
+        console.error('Error in fetchData:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
 
   // Get available month options for picker
   const getMonthOptions = () => {
@@ -134,6 +246,16 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
       }
 
       return false;
+    }).sort((a, b) => {
+      // Sort by date first (most recent first)
+      const dateComparison = new Date(b.date) - new Date(a.date);
+
+      // If dates are the same, sort by created_at (most recent first)
+      if (dateComparison === 0 && a.created_at && b.created_at) {
+        return new Date(b.created_at) - new Date(a.created_at);
+      }
+
+      return dateComparison;
     });
   };
 
@@ -177,13 +299,14 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
   // Progress circle color - always orange
   const progressColor = '#FF5E00';
 
-  // Calculate spending for last few months
+  // Calculate spending - current month plus next 2 months
   const getMonthlySpending = () => {
     const now = new Date();
     const months = [];
 
-    for (let i = 0; i < 4; i++) {
-      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    // Show current month and next 2 upcoming months (3 months total)
+    for (let i = 0; i < 3; i++) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const monthName = monthDate.toLocaleDateString('en-US', { month: 'short' });
       const monthYear = monthDate.getFullYear();
       const month = monthDate.getMonth();
@@ -207,10 +330,122 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
       });
     }
 
-    return months.reverse();
+    return months;
   };
 
   const monthlyData = getMonthlySpending();
+
+  // Handle budget update
+  const handleBudgetUpdate = async (newBudget) => {
+    if (!user) return;
+
+    const previousBudget = budgetLimit;
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ monthly_budget: newBudget })
+        .eq('id', user.id);
+
+      if (error) {
+        console.error('Error updating budget:', error);
+        alert('Failed to update budget. Please try again.');
+        // Revert to previous value
+        setBudgetLimit(previousBudget);
+      } else {
+        console.log('Budget updated successfully:', newBudget);
+        setBudgetLimit(newBudget);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Failed to update budget. Please try again.');
+      setBudgetLimit(previousBudget);
+    } finally {
+      setIsEditingBudget(false);
+    }
+  };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div
+        className="min-h-screen relative overflow-hidden"
+        style={{
+          background: isDarkMode
+            ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+            : '#f5f5f5'
+        }}
+      >
+        {/* Orange Gradient Bubble Backgrounds */}
+        {!isDarkMode ? (
+          <>
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                top: '10%',
+                right: '20%',
+                width: '700px',
+                height: '700px',
+                background: 'radial-gradient(circle, rgba(255, 154, 86, 0.5) 0%, rgba(255, 184, 77, 0.35) 35%, rgba(255, 198, 112, 0.2) 60%, transparent 100%)',
+                filter: 'blur(80px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                bottom: '10%',
+                left: '15%',
+                width: '500px',
+                height: '500px',
+                background: 'radial-gradient(circle, rgba(255, 198, 112, 0.4) 0%, rgba(255, 184, 77, 0.25) 40%, transparent 100%)',
+                filter: 'blur(70px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                top: '10%',
+                right: '20%',
+                width: '700px',
+                height: '700px',
+                background: 'radial-gradient(circle, rgba(255, 94, 0, 0.25) 0%, rgba(255, 94, 0, 0.15) 35%, rgba(255, 94, 0, 0.08) 60%, transparent 100%)',
+                filter: 'blur(80px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                bottom: '10%',
+                left: '15%',
+                width: '500px',
+                height: '500px',
+                background: 'radial-gradient(circle, rgba(255, 94, 0, 0.2) 0%, rgba(255, 94, 0, 0.1) 40%, transparent 100%)',
+                filter: 'blur(70px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+          </>
+        )}
+
+        <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+        <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -509,7 +744,12 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                       type="number"
                       value={budgetLimit}
                       onChange={(e) => setBudgetLimit(Number(e.target.value))}
-                      onBlur={() => setIsEditingBudget(false)}
+                      onBlur={() => handleBudgetUpdate(budgetLimit)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          handleBudgetUpdate(budgetLimit);
+                        }
+                      }}
                       autoFocus
                       className="text-3xl font-bold bg-transparent border-b-2 border-orange-500 outline-none w-full"
                       style={{ color: isDarkMode ? 'white' : '#1f2937' }}
@@ -604,44 +844,57 @@ const Budget = ({ isDarkMode, setIsDarkMode, expenses, roommates }) => {
                 </div>
 
                 {/* Columns */}
-                <div className="relative h-full flex items-end justify-around gap-4 px-4">
+                <div className="relative h-full flex items-end justify-start gap-16 px-4">
                   {monthlyData.map((month, index) => {
                     const maxValue = Math.max(...monthlyData.map(m => Math.max(m.budget, m.spent)));
                     const chartHeight = 280;
                     const budgetHeightPx = (month.budget / maxValue) * chartHeight * 0.9;
                     const spentHeightPx = (month.spent / maxValue) * chartHeight * 0.9;
 
+                    // Only show columns for current month (index 0)
+                    const showBudgetColumn = index === 0;
+                    const showSpentColumn = index === 0 && month.spent > 0;
+
                     return (
                       <div key={index} className="flex gap-2 items-end justify-center">
-                        {/* Budget Column */}
-                        <div
-                          className="rounded-t-lg transition-all duration-500"
-                          style={{
-                            height: `${budgetHeightPx}px`,
-                            backgroundColor: '#6366f1',
-                            width: '30px'
-                          }}
-                        />
-                        {/* Actual Column */}
-                        <div
-                          className="rounded-t-lg transition-all duration-500"
-                          style={{
-                            height: `${spentHeightPx}px`,
-                            backgroundColor: '#FF5E00',
-                            width: '30px'
-                          }}
-                        />
+                        {/* Budget Column - only for current month */}
+                        {showBudgetColumn && (
+                          <div
+                            className="rounded-t-lg transition-all duration-500"
+                            style={{
+                              height: `${budgetHeightPx}px`,
+                              backgroundColor: '#6366f1',
+                              width: '30px'
+                            }}
+                          />
+                        )}
+                        {/* Actual Column - only for current month with spending */}
+                        {showSpentColumn && (
+                          <div
+                            className="rounded-t-lg transition-all duration-500"
+                            style={{
+                              height: `${spentHeightPx}px`,
+                              backgroundColor: '#FF5E00',
+                              width: '30px'
+                            }}
+                          />
+                        )}
+                        {/* Placeholder for empty months */}
+                        {!showBudgetColumn && (
+                          <div style={{ width: '68px', height: '1px' }} />
+                        )}
                       </div>
                     );
                   })}
                 </div>
 
                 {/* X-axis labels */}
-                <div className="absolute bottom-0 left-0 right-0 flex justify-around" style={{ transform: 'translateY(25px)' }}>
+                <div className="absolute bottom-0 left-0 right-0 flex justify-start gap-16 px-4" style={{ transform: 'translateY(25px)' }}>
                   {monthlyData.map((month, index) => (
                     <span
                       key={index}
                       className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                      style={{ width: '68px', textAlign: 'center' }}
                     >
                       {month.label}
                     </span>

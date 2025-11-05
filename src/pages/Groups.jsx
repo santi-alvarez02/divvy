@@ -363,6 +363,88 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
     }
   }, [showCurrencyPicker, groupCurrency, currencies, isDarkMode]);
 
+  // Loading State
+  if (loading) {
+    return (
+      <div
+        className="min-h-screen relative overflow-hidden"
+        style={{
+          background: isDarkMode
+            ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
+            : '#f5f5f5'
+        }}
+      >
+        {/* Orange Gradient Bubble Backgrounds */}
+        {!isDarkMode ? (
+          <>
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                top: '10%',
+                right: '20%',
+                width: '700px',
+                height: '700px',
+                background: 'radial-gradient(circle, rgba(255, 154, 86, 0.5) 0%, rgba(255, 184, 77, 0.35) 35%, rgba(255, 198, 112, 0.2) 60%, transparent 100%)',
+                filter: 'blur(80px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                bottom: '10%',
+                left: '15%',
+                width: '500px',
+                height: '500px',
+                background: 'radial-gradient(circle, rgba(255, 198, 112, 0.4) 0%, rgba(255, 184, 77, 0.25) 40%, transparent 100%)',
+                filter: 'blur(70px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                top: '10%',
+                right: '20%',
+                width: '700px',
+                height: '700px',
+                background: 'radial-gradient(circle, rgba(255, 94, 0, 0.25) 0%, rgba(255, 94, 0, 0.15) 35%, rgba(255, 94, 0, 0.08) 60%, transparent 100%)',
+                filter: 'blur(80px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                bottom: '10%',
+                left: '15%',
+                width: '500px',
+                height: '500px',
+                background: 'radial-gradient(circle, rgba(255, 94, 0, 0.2) 0%, rgba(255, 94, 0, 0.1) 40%, transparent 100%)',
+                filter: 'blur(70px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+          </>
+        )}
+
+        <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
+        <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div
       className="min-h-screen relative overflow-hidden"
@@ -472,18 +554,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
           </div>
         )}
 
-        {/* Loading State */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div
-              className="animate-spin rounded-full h-16 w-16 border-4"
-              style={{
-                borderColor: 'rgba(255, 94, 0, 0.2)',
-                borderTopColor: '#FF5E00'
-              }}
-            ></div>
-          </div>
-        ) : hasGroup ? (
+        {hasGroup ? (
           /* In a Group */
           <div
             className="rounded-3xl shadow-xl p-6 sm:p-8 max-w-3xl"

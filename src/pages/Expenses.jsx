@@ -6,7 +6,7 @@ import AddExpenseModal from '../components/AddExpenseModal';
 import EditExpenseModal from '../components/EditExpenseModal';
 import { getCurrencySymbol } from '../utils/currency';
 
-const Expenses = ({ isDarkMode, setIsDarkMode, expenses: mockExpenses, roommates: mockRoommates }) => {
+const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const { user } = useAuth();
 
   // State management
@@ -51,8 +51,6 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses: mockExpenses, roommates
 
         if (groupError) {
           console.error('Error fetching group:', groupError);
-          // Use mock data as fallback
-          setRoommates(mockRoommates || []);
           setLoading(false);
           return;
         }
@@ -92,20 +90,17 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses: mockExpenses, roommates
         }
       } catch (error) {
         console.error('Error in fetchUserGroup:', error);
-        setRoommates(mockRoommates || []);
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserGroup();
-  }, [user, mockRoommates]);
+  }, [user]);
 
   // Fetch expenses for the user's group
   const fetchExpenses = async () => {
     if (!user || !currentGroup) {
-      // No group yet, use mock data or empty
-      setExpenses(mockExpenses || []);
       return;
     }
 
@@ -132,7 +127,6 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses: mockExpenses, roommates
 
       if (expensesError) {
         console.error('Error fetching expenses:', expensesError);
-        setExpenses(mockExpenses || []);
         return;
       }
 
@@ -145,19 +139,19 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses: mockExpenses, roommates
         date: expense.date,
         paidBy: expense.paid_by,
         icon: expense.icon,
+        createdAt: expense.created_at,
         splitBetween: expense.expense_splits.map(split => split.user_id)
       }));
 
       setExpenses(transformedExpenses);
     } catch (error) {
       console.error('Error in fetchExpenses:', error);
-      setExpenses(mockExpenses || []);
     }
   };
 
   useEffect(() => {
     fetchExpenses();
-  }, [user, currentGroup, mockExpenses]);
+  }, [user, currentGroup]);
 
   // Get roommate name by ID
   const getRoommateName = (id) => {
@@ -383,6 +377,19 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses: mockExpenses, roommates
   const paidByData = Object.entries(paidByTotals).map(([name, amount]) => ({ name, amount }));
   const maxPaidAmount = paidByData.length > 0 ? Math.max(...paidByData.map(p => p.amount)) : 0;
 
+  // Calculate spending over time from date-filtered expenses
+  const spendingByDate = dateFilteredExpenses.reduce((acc, expense) => {
+    const date = expense.date;
+    acc[date] = (acc[date] || 0) + expense.amount;
+    return acc;
+  }, {});
+
+  const spendingOverTimeData = Object.entries(spendingByDate)
+    .map(([date, amount]) => ({ date, amount }))
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+  const maxSpendingAmount = spendingOverTimeData.length > 0 ? Math.max(...spendingOverTimeData.map(d => d.amount)) : 0;
+
   // Get display title based on selected date range
   const getDisplayTitle = () => {
     if (selectedDateRange === 'This Week') {
@@ -400,42 +407,115 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses: mockExpenses, roommates
   };
 
   // Filter expenses based on search term, category, and date
-  const filteredExpenses = expenses.filter(expense => {
-    // Search filter
-    const searchLower = searchTerm.toLowerCase();
-    const matchesSearch = (
-      expense.description.toLowerCase().includes(searchLower) ||
-      expense.category.toLowerCase().includes(searchLower) ||
-      expense.amount.toString().includes(searchLower) ||
-      getRoommateName(expense.paidBy).toLowerCase().includes(searchLower)
-    );
+  const filteredExpenses = expenses
+    .filter(expense => {
+      // Search filter
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch = (
+        expense.description.toLowerCase().includes(searchLower) ||
+        expense.category.toLowerCase().includes(searchLower) ||
+        expense.amount.toString().includes(searchLower) ||
+        getRoommateName(expense.paidBy).toLowerCase().includes(searchLower)
+      );
 
-    // Category filter
-    const matchesCategory = selectedCategory === 'All' || expense.category === selectedCategory;
+      // Category filter
+      const matchesCategory = selectedCategory === 'All' || expense.category === selectedCategory;
 
-    // Date filter
-    const matchesDate = filterByDateRange(expense);
+      // Date filter
+      const matchesDate = filterByDateRange(expense);
 
-    return matchesSearch && matchesCategory && matchesDate;
-  });
+      return matchesSearch && matchesCategory && matchesDate;
+    })
+    .sort((a, b) => {
+      // Sort by date first (most recent first)
+      const dateComparison = new Date(b.date) - new Date(a.date);
+
+      // If dates are the same, sort by created_at (most recent first)
+      if (dateComparison === 0 && a.createdAt && b.createdAt) {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+
+      return dateComparison;
+    });
 
   // Loading state
   if (loading) {
     return (
       <div
-        className="min-h-screen relative overflow-hidden flex items-center justify-center"
+        className="min-h-screen relative overflow-hidden"
         style={{
           background: isDarkMode
             ? 'linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%)'
             : '#f5f5f5'
         }}
       >
+        {/* Orange Gradient Bubble Backgrounds */}
+        {!isDarkMode ? (
+          <>
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                top: '10%',
+                right: '20%',
+                width: '700px',
+                height: '700px',
+                background: 'radial-gradient(circle, rgba(255, 154, 86, 0.5) 0%, rgba(255, 184, 77, 0.35) 35%, rgba(255, 198, 112, 0.2) 60%, transparent 100%)',
+                filter: 'blur(80px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                bottom: '10%',
+                left: '15%',
+                width: '500px',
+                height: '500px',
+                background: 'radial-gradient(circle, rgba(255, 198, 112, 0.4) 0%, rgba(255, 184, 77, 0.25) 40%, transparent 100%)',
+                filter: 'blur(70px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+          </>
+        ) : (
+          <>
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                top: '10%',
+                right: '20%',
+                width: '700px',
+                height: '700px',
+                background: 'radial-gradient(circle, rgba(255, 94, 0, 0.25) 0%, rgba(255, 94, 0, 0.15) 35%, rgba(255, 94, 0, 0.08) 60%, transparent 100%)',
+                filter: 'blur(80px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                bottom: '10%',
+                left: '15%',
+                width: '500px',
+                height: '500px',
+                background: 'radial-gradient(circle, rgba(255, 94, 0, 0.2) 0%, rgba(255, 94, 0, 0.1) 40%, transparent 100%)',
+                filter: 'blur(70px)',
+                borderRadius: '50%',
+                zIndex: 0
+              }}
+            />
+          </>
+        )}
+
         <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
-        <div className="ml-20 lg:ml-64">
-          <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-            Loading expenses...
-          </p>
-        </div>
+        <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
+          <div className="flex items-center justify-center min-h-screen">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+          </div>
+        </main>
       </div>
     );
   }
@@ -1016,10 +1096,104 @@ const Expenses = ({ isDarkMode, setIsDarkMode, expenses: mockExpenses, roommates
                 {selectedDateRange === 'This Month' ? new Date().toLocaleDateString('en-US', { month: 'long' }) : selectedDateRange}
               </div>
             </div>
-            <div className="flex items-center justify-center h-48">
-              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                {dateFilteredExpenses.length === 0 ? 'No spending data for this period' : 'Chart visualization coming soon'}
-              </p>
+            <div className="relative">
+              {spendingOverTimeData.length === 0 ? (
+                <div className="flex items-center justify-center h-64">
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    No spending data for this period
+                  </p>
+                </div>
+              ) : spendingOverTimeData.length < 5 ? (
+                <div className="flex items-center justify-center h-64">
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Chart will appear after more expenses are added
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="h-64">
+                    <svg width="100%" height="100%" viewBox="0 0 800 256" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                          <stop offset="0%" stopColor="#FF5E00" stopOpacity="0.3" />
+                          <stop offset="100%" stopColor="#FF5E00" stopOpacity="0.05" />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Create path for line and area */}
+                      {(() => {
+                        const padding = 20;
+                        const chartWidth = 800 - (padding * 2);
+                        const chartHeight = 256 - (padding * 2);
+                        const stepX = chartWidth / (spendingOverTimeData.length - 1 || 1);
+
+                        // Create points for the line
+                        const points = spendingOverTimeData.map((data, index) => {
+                          const x = padding + (index * stepX);
+                          const y = padding + chartHeight - ((data.amount / maxSpendingAmount) * chartHeight);
+                          return { x, y, amount: data.amount };
+                        });
+
+                        // Create path string for line
+                        const linePath = points.map((point, index) =>
+                          `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
+                        ).join(' ');
+
+                        // Create path string for filled area
+                        const areaPath = `${linePath} L ${points[points.length - 1].x} ${padding + chartHeight} L ${padding} ${padding + chartHeight} Z`;
+
+                        return (
+                          <>
+                            {/* Filled area under the line */}
+                            <path
+                              d={areaPath}
+                              fill="url(#areaGradient)"
+                            />
+
+                            {/* Line */}
+                            <path
+                              d={linePath}
+                              fill="none"
+                              stroke="#FF5E00"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+
+                            {/* Points */}
+                            {points.map((point, index) => (
+                              <circle
+                                key={index}
+                                cx={point.x}
+                                cy={point.y}
+                                r="5"
+                                fill="#FF5E00"
+                                stroke="white"
+                                strokeWidth="2"
+                              />
+                            ))}
+                          </>
+                        );
+                      })()}
+                    </svg>
+                  </div>
+
+                  {/* X-axis labels inside card */}
+                  <div className="flex justify-between px-4 pb-2">
+                    {spendingOverTimeData.map((data, index) => (
+                      <span
+                        key={index}
+                        className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                      >
+                        {new Date(data.date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

@@ -1924,9 +1924,189 @@ const [selectedSettlement, setSelectedSettlement] = useState(null);
 - Add mobile-specific layouts
 - Add PWA features (offline support, install prompt)
 
-**Awaiting User Decision:** Which feature area should we focus on next?
+**Work Completed:**
 
-**Status:** 🔄 Awaiting Direction
+### Settlement Expense Tracking Fix
+**Problem:** Expenses were showing in both Active Balances and Settlement History even after being settled
+
+**Solution Implemented:**
+1. Added `settled_up_to_timestamp` column to settlements table
+2. Updated settlement creation to capture the most recent expense date
+3. Modified balance calculation to filter out settled expenses
+4. Updated settlement detail view to only show expenses in the settlement period
+
+**Additional UI Improvements:**
+- Fixed "who paid" text to show correct payer
+- Added color coding: green for expenses you paid, orange for expenses others paid
+- Applied color coding to both Active Balances and Settlement History
+- Changed Settle Up button to transparent/glassy style
+
+**Status:** ✅ Complete
+
+---
+
+## Session 25: Connect Budgets Page to Real Data
+**Date:** 2025-11-05
+
+**Goal:** Replace mock data in Budgets page with actual budget data from user's onboarding
+
+**Changes Made:**
+1. **Budget.jsx** - Converted from prop-based mock data to database fetching:
+   - Changed imports: Added `useAuth` and `supabase`
+   - Removed `expenses` and `roommates` from props
+   - Added state: `loading`, `expenses`, `roommates`, `currentGroup`, `currency`
+   - Added `useEffect` to fetch:
+     - User's budget and currency from `users` table (monthly_budget, default_currency)
+     - User's group membership from group_members
+     - All group members (transformed to include 'You' for current user)
+     - All expenses for the group with expense_splits
+   - Added `handleBudgetUpdate()` function to save budget changes to database:
+     - Updates `monthly_budget` in users table (NOT groups table)
+     - Shows error alert if update fails
+     - Reverts to previous value on error
+   - Updated budget input field:
+     - Added `onBlur` handler to save on blur
+     - Added `onKeyPress` handler to save on Enter key
+   - Added loading state UI:
+     - Shows loading spinner while fetching data
+     - Displays "Loading budget..." message
+     - Same styling as rest of app
+
+2. **Fixed Data Source Issue:**
+   - Initially tried to fetch budget from `groups.monthly_budget`
+   - Discovered budget is actually stored in `users.monthly_budget` (set during onboarding)
+   - Updated all queries to fetch from users table instead
+
+3. **Chart Improvements:**
+   - Changed chart to show current month + next 2 upcoming months (Nov, Dec, Jan)
+   - Only show budget and spent bars for current month with data
+   - Future months (Dec, Jan) show only labels without bars
+   - Changed layout from centered (`justify-around`) to left-aligned (`justify-start`)
+   - Increased spacing between months (gap-16 instead of gap-8)
+   - X-axis labels now align with left-aligned columns
+
+4. **Data Flow:**
+   - Budget fetched from: `users.monthly_budget` (set during onboarding)
+   - Currency fetched from: `users.default_currency`
+   - Expenses fetched with: expense_splits joined
+   - Roommates fetched from: group_members with users joined
+   - Budget updates saved to: `users.monthly_budget`
+
+5. **App.jsx Update:**
+   - Removed `expenses` and `roommates` props from Budget route
+   - Budget component now fully self-contained
+
+**Technical Details:**
+- Budget page now fully integrated with Supabase database
+- No longer relies on App.jsx passing props
+- Maintains same UI/UX, just with real data
+- All calculations (total spent, categories, monthly trends) now use real expense data
+- Loading state prevents showing incorrect initial values
+- Chart dynamically shows only relevant months with proper spacing
+- Debug logs added to track data fetching
+
+**Key Files Modified:**
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Budget.jsx` - Complete data integration
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/App.jsx` - Removed unnecessary props
+
+**Testing:**
+- ✅ Code compiles successfully (HMR working)
+- ✅ Budget displays correctly from database ($750)
+- ✅ Chart shows current month (Nov) with data
+- ✅ Future months (Dec, Jan) show as empty with labels only
+- ✅ Chart is left-aligned with proper spacing
+- ✅ Recent expenses display from database
+
+**Challenges Solved:**
+1. Initially looked for budget in wrong table (groups vs users)
+2. Chart was showing all months centered - changed to left-aligned with only relevant months
+3. Future months were showing budget bars - removed to show truly empty state
+
+**NEXT:**
+- Verify budget editing saves correctly to database
+- Test month filtering with historical data when available
+- Ensure currency symbol displays correctly throughout
+
+**Status:** ✅ Complete
+
+---
+
+## Session 26: Unify Loading Screens Across All Pages
+**Date:** 2025-11-05
+
+**Goal:** Create consistent loading screen UI across Budget, Expenses, and Balances pages
+
+**Problem:**
+- Budget page: Had spinning icon with text, plain background
+- Expenses page: Only had text, no spinner, plain background
+- Balances page: Had thicker border spinner (border-4), inline display with orange gradients in main page
+- All three pages had different loading experiences
+
+**Solution:**
+Created unified loading screen with:
+- **Spinner**: Thin orange border spinner (h-12 w-12, border-t-2 border-b-2, border-orange-500)
+- **Background**: Orange gradient bubbles matching app's aesthetic (both light and dark modes)
+- **Layout**: Full-screen centered with loading text below spinner
+- **Consistency**: Same exact code across all three pages
+
+**Changes Made:**
+1. **Budget.jsx** (lines 358-443):
+   - Added orange gradient bubble backgrounds to loading state
+   - Kept existing thin border spinner (was already correct)
+   - Added full-page layout with sidebar
+
+2. **Expenses.jsx** (lines 423-507):
+   - Replaced text-only loading with full loading screen
+   - Added orange gradient bubble backgrounds
+   - Added thin border spinner (h-12 w-12, border-t-2 border-b-2)
+   - Added "Loading expenses..." text
+   - Changed from inline to full-screen centered layout
+
+3. **Balances.jsx** (lines 468-477):
+   - Changed from thick border spinner (border-4, h-16 w-16) to thin border (border-t-2 border-b-2, h-12 w-12)
+   - Changed from inline py-20 to full-screen min-h-screen centered
+   - Added "Loading balances..." text below spinner
+   - Already had orange gradient backgrounds in main page, now consistent
+
+**Unified Loading Screen Pattern:**
+```jsx
+{loading ? (
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="text-center">
+      <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500 mb-4"></div>
+      <p className={`text-lg ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        Loading [page name]...
+      </p>
+    </div>
+  </div>
+) : (
+  // Main content
+)}
+```
+
+**Orange Gradient Bubbles (Light Mode):**
+- Top-right bubble: 700px, vibrant orange gradient with blur(80px)
+- Bottom-left bubble: 500px, softer orange gradient with blur(70px)
+
+**Orange Gradient Bubbles (Dark Mode):**
+- Top-right bubble: 700px, muted orange gradient with blur(80px)
+- Bottom-left bubble: 500px, subtle orange gradient with blur(70px)
+
+**Key Files Modified:**
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Budget.jsx`
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Expenses.jsx`
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Balances.jsx`
+
+**Testing:**
+- ✅ All three pages now have identical loading screens
+- ✅ Orange gradient bubbles display in both light and dark modes
+- ✅ Spinner is consistent size and style across all pages
+- ✅ Loading text displays correctly with proper dark mode support
+
+**Result:**
+All loading screens now provide a consistent, polished user experience with the app's signature orange gradient aesthetic and smooth spinning animation.
+
+**Status:** ✅ Complete
 
 ---
 
@@ -2078,7 +2258,199 @@ return () => subscription.unsubscribe();
 
 ---
 
-**Last Updated:** 2025-10-30
-**Current Phase:** Documentation Complete
-**Next Phase:** Phase 1 - Authentication (Backend Setup)
-**Overall Progress:** ~40% (UI Complete)
+**Last Updated:** 2025-11-05
+**Current Phase:** Dashboard Real Data Integration
+**Next Phase:** Complete backend integration
+**Overall Progress:** ~75% (Auth, Groups, Expenses, Balances, Budget complete)
+
+---
+
+## Session 27: Dashboard Real Data Integration
+**Date:** November 5, 2025
+**Status:** 🚧 In Progress
+
+### Objective
+Convert the Dashboard page from using mock data to fetching and displaying real data from Supabase, similar to how other pages (Expenses, Budget, Balances) work.
+
+### Tasks Breakdown
+
+#### 1. Analyze Current Dashboard Implementation
+- [ ] Review current Dashboard component structure
+- [ ] Identify all data props currently passed as mock data
+- [ ] Review how other pages fetch data (Expenses, Budget, Balances)
+- [ ] Document which data needs to be fetched from Supabase
+
+#### 2. Implement Data Fetching
+- [ ] Add Supabase imports and useAuth hook
+- [ ] Implement useEffect to fetch user's group data
+- [ ] Fetch monthly budget data from `users.monthly_budget`
+- [ ] Fetch expenses data with proper joins and filters
+- [ ] Fetch balances/debt calculations
+- [ ] Fetch roommates/group members data
+- [ ] Add loading state management
+- [ ] Add error handling
+
+#### 3. Update App.jsx Route
+- [ ] Remove mock data props from Dashboard route in App.jsx
+- [ ] Ensure Dashboard fetches its own data
+
+#### 4. Test and Verify
+- [ ] Test loading state displays correctly
+- [ ] Verify all dashboard cards show real data
+- [ ] Verify Recent Expenses section shows actual expenses
+- [ ] Verify budget progress shows actual monthly budget
+- [ ] Test with different users/groups
+- [ ] Ensure error states work properly
+
+### Current Status
+- ✅ Analysis phase complete
+- ✅ Implementation complete
+- ✅ Dashboard now fetches real data from Supabase
+- 🎯 Ready for testing
+
+### Analysis Findings
+
+#### Dashboard Component (src/components/Dashboard.jsx)
+**Current Structure:**
+- Simple presentational component receiving props: `budget`, `expenses`, `balances`, `roommates`
+- No data fetching logic - purely displays data
+- Three child components:
+  - `BudgetOverview` (line 136) - receives `budget` prop
+  - `BalanceSummary` (line 137) - receives `balances` prop
+  - `RecentExpenses` (line 142) - receives `expenses` and `roommates` props
+
+**Data Requirements:**
+1. **Monthly Budget**: User's personal monthly budget from `users.monthly_budget`
+2. **Expenses**: Group expenses with splits from `expenses` table
+3. **Balances**: Calculated debt/owed amounts between users
+4. **Roommates**: Group members from `group_members` + `users` tables
+5. **Group Info**: Current user's group from `groups` table
+
+#### Data Fetching Patterns (from other pages)
+
+**Expenses Page Pattern (src/pages/Expenses.jsx):**
+```javascript
+- Lines 32-102: Fetch user's group and members
+  - Query group_members -> groups (with joins)
+  - Get group currency
+  - Fetch all group members with user details
+  - Transform to expected format
+
+- Lines 105-157: Fetch expenses
+  - Query expenses with expense_splits (nested query)
+  - Filter by group_id
+  - Order by date DESC
+  - Transform to include splitBetween array and createdAt
+```
+
+**Budget Page Pattern (src/pages/Budget.jsx):**
+```javascript
+- Lines 25-128: Fetch all data in single useEffect
+  - Fetch user's monthly_budget and default_currency from users table
+  - Fetch group membership and group details
+  - Fetch all group members
+  - Fetch expenses with splits for the group
+  - Transform expenses to include splitBetween array
+```
+
+**Balances Page Pattern (src/pages/Balances.jsx):**
+```javascript
+- Lines 24-130: Fetch group, members, expenses, and settlements
+  - Similar pattern to Budget page
+  - Additionally fetches settlements table
+  - Calculates balances from expenses (lines 151-233)
+  - Considers settlement history to avoid double-counting
+```
+
+**Common Pattern:**
+1. Import `supabase` and `useAuth`
+2. State: `loading`, `expenses`, `roommates`, `currentGroup`, `groupCurrency`
+3. useEffect with dependency on `user`
+4. Try-catch with error handling
+5. Loading state UI with spinner
+6. Transform data to match component expectations
+
+#### Implementation Plan
+
+**Required Changes to Dashboard.jsx:**
+
+1. **Add Imports:**
+   - `useState`, `useEffect` from React
+   - `supabase` from '../lib/supabase'
+   - `useAuth` from '../contexts/AuthContext'
+
+2. **Add State Variables:**
+   ```javascript
+   const [loading, setLoading] = useState(true);
+   const [budget, setBudget] = useState(0);
+   const [expenses, setExpenses] = useState([]);
+   const [balances, setBalances] = useState([]);
+   const [roommates, setRoommates] = useState([]);
+   const [currentGroup, setCurrentGroup] = useState(null);
+   const [groupCurrency, setGroupCurrency] = useState('USD');
+   ```
+
+3. **Implement Data Fetching useEffect:**
+   - Fetch user's monthly_budget from users table
+   - Fetch user's group membership
+   - Fetch group members
+   - Fetch expenses with splits (current month only for performance)
+   - Calculate balances from expenses
+   - Handle loading and error states
+
+4. **Add Loading State UI:**
+   - Match the pattern from Expenses/Budget/Balances pages
+   - Show spinner centered in page
+
+5. **Balance Calculation Logic:**
+   - Reuse logic from Balances page (lines 151-233)
+   - Calculate who owes whom based on expenses
+   - Format for BalanceSummary component
+
+**App.jsx Changes:**
+- Remove mock data imports (line 15)
+- Remove props from Dashboard route (lines 52-56)
+- Keep only `isDarkMode` and `setIsDarkMode` props
+
+### Implementation Summary
+
+**Changes Made:**
+
+1. **Dashboard.jsx** (src/components/Dashboard.jsx)
+   - Added imports: `useState`, `useEffect`, `supabase`, `useAuth`
+   - Added state management for all data (budget, expenses, balances, roommates, group)
+   - Implemented comprehensive data fetching in useEffect
+   - Added loading state with spinner UI
+   - Fetches user's monthly budget from `users.monthly_budget`
+   - Fetches group membership and members
+   - Fetches current month's expenses with splits
+   - Calculates budget spent (user's share of expenses)
+   - Calculates balances (who owes whom) from expenses
+   - Transforms data to match child component expectations
+
+2. **App.jsx**
+   - Removed mock data import (line 15)
+   - Removed mock data props from Dashboard route
+   - Removed mock data props from Expenses and Balances routes
+   - Dashboard now only receives `isDarkMode` and `setIsDarkMode`
+
+3. **Expenses.jsx** (src/pages/Expenses.jsx)
+   - Removed `mockExpenses` and `mockRoommates` props from function signature
+   - Removed fallback to mock data in error handlers
+   - Cleaned up useEffect dependencies
+
+**Data Flow:**
+- Dashboard fetches its own data directly from Supabase
+- Budget data: `users.monthly_budget` → transformed to `{ limit, spent, month, year }`
+- Expenses: Current month's expenses from `expenses` table with `expense_splits`
+- Balances: Calculated from expenses, transformed to `{ person, amount, type }`
+- Roommates: Fetched from `group_members` + `users` tables
+
+### Notes
+- Dashboard now fully integrated with Supabase
+- Follows same data fetching pattern as Expenses, Budget, and Balances pages
+- All child components (BudgetOverview, BalanceSummary, RecentExpenses) receive correctly formatted data
+- Mock data completely removed from the application
+- Loading states ensure smooth UX during data fetch
+
+---
