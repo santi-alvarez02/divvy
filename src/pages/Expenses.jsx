@@ -5,6 +5,12 @@ import Sidebar from '../components/Sidebar';
 import AddExpenseModal from '../components/AddExpenseModal';
 import EditExpenseModal from '../components/EditExpenseModal';
 import { getCurrencySymbol } from '../utils/currency';
+import {
+  getExchangeRatesFromDB,
+  convertCurrency,
+  updateExchangeRates,
+  shouldUpdateRates
+} from '../utils/exchangeRates';
 
 const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const { user } = useAuth();
@@ -16,6 +22,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const [currentGroup, setCurrentGroup] = useState(null);
   const [groupCurrency, setGroupCurrency] = useState('USD');
   const [settlementHistory, setSettlementHistory] = useState([]);
+  const [userCurrency, setUserCurrency] = useState('USD'); // User's display currency
+  const [exchangeRates, setExchangeRates] = useState({}); // Cached exchange rates
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -99,6 +107,47 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     fetchUserGroup();
   }, [user]);
 
+  // Fetch user's display currency and exchange rates
+  useEffect(() => {
+    const fetchCurrencyData = async () => {
+      if (!user) return;
+
+      try {
+        // Fetch user's preferred display currency
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('default_currency')
+          .eq('id', user.id)
+          .single();
+
+        if (!userError && userData?.default_currency) {
+          setUserCurrency(userData.default_currency);
+        }
+
+        // Check if we need to update rates
+        const needsUpdate = await shouldUpdateRates();
+
+        if (needsUpdate) {
+          console.log('📊 Exchange rates are stale, updating...');
+          await updateExchangeRates();
+        }
+
+        // Fetch cached exchange rates from database
+        const { rates } = await getExchangeRatesFromDB();
+        setExchangeRates(rates);
+
+        console.log('✅ Currency data loaded:', {
+          userCurrency: userData?.default_currency,
+          ratesCount: Object.keys(rates).length
+        });
+      } catch (error) {
+        console.error('Error fetching currency data:', error);
+      }
+    };
+
+    fetchCurrencyData();
+  }, [user]);
+
   // Fetch expenses for the user's group
   const fetchExpenses = async () => {
     if (!user || !currentGroup) {
@@ -112,6 +161,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         .select(`
           id,
           amount,
+          currency,
           category,
           description,
           date,
@@ -132,17 +182,30 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       }
 
       // Transform expenses data to match expected format
-      const transformedExpenses = expensesData.map(expense => ({
-        id: expense.id,
-        amount: parseFloat(expense.amount),
-        category: expense.category,
-        description: expense.description,
-        date: expense.date,
-        paidBy: expense.paid_by,
-        icon: expense.icon,
-        createdAt: expense.created_at,
-        splitBetween: expense.expense_splits.map(split => split.user_id)
-      }));
+      const transformedExpenses = expensesData.map(expense => {
+        const originalAmount = parseFloat(expense.amount);
+        const expenseCurrency = expense.currency || 'USD';
+
+        // Convert amount to user's display currency
+        const convertedAmount = Object.keys(exchangeRates).length > 0
+          ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+          : originalAmount;
+
+        return {
+          id: expense.id,
+          amount: convertedAmount, // Converted amount
+          originalAmount: originalAmount, // Store original for reference
+          currency: expenseCurrency, // Original currency
+          displayCurrency: userCurrency, // Currency being displayed
+          category: expense.category,
+          description: expense.description,
+          date: expense.date,
+          paidBy: expense.paid_by,
+          icon: expense.icon,
+          createdAt: expense.created_at,
+          splitBetween: expense.expense_splits.map(split => split.user_id)
+        };
+      });
 
       setExpenses(transformedExpenses);
 
@@ -696,7 +759,13 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
       {/* Main Content - with left margin for sidebar */}
-      <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
+      <main
+        className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10"
+        style={{
+          borderTop: '2px solid rgba(255, 94, 0, 0.3)',
+          boxShadow: '0 -2px 10px rgba(255, 94, 0, 0.1)'
+        }}
+      >
         {/* Header with Add Expense Button */}
         <div className="mb-6 sm:mb-8 flex justify-between items-center">
           <h1
@@ -732,7 +801,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               Total Spent
             </p>
             <p className={`text-xl lg:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {getCurrencySymbol(groupCurrency)}{Number.isInteger(totalSpent) ? totalSpent : totalSpent.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(userCurrency)}{Number.isInteger(totalSpent) ? totalSpent : totalSpent.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
@@ -751,7 +820,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               You Owe
             </p>
             <p className="text-xl lg:text-3xl font-bold" style={{ color: '#FF5E00' }}>
-              {getCurrencySymbol(groupCurrency)}{Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(userCurrency)}{Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
@@ -1050,7 +1119,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                   {/* Amount and Date - Mobile right side */}
                   <div className="text-right shrink-0">
                     <p className="text-base font-bold" style={{ color: '#FF5E00' }}>
-                      {getCurrencySymbol(groupCurrency)}{expense.amount.toFixed(2)}
+                      {getCurrencySymbol(userCurrency)}{expense.amount.toFixed(2)}
                     </p>
                     <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       {formatDate(expense.date)}
@@ -1121,7 +1190,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                           {item.category}
                         </span>
                         <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                          {getCurrencySymbol(groupCurrency)}{item.amount.toFixed(2)}
+                          {getCurrencySymbol(userCurrency)}{item.amount.toFixed(2)}
                         </span>
                       </div>
                       <div
@@ -1314,7 +1383,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                         {person.name}
                       </span>
                       <span className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {getCurrencySymbol(groupCurrency)}{person.amount.toFixed(2)}
+                        {getCurrencySymbol(userCurrency)}{person.amount.toFixed(2)}
                       </span>
                     </div>
                     <div

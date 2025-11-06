@@ -1,49 +1,88 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+
+// Cache user data globally to persist across component re-mounts
+let cachedUserData = null;
+let isFetching = false;
+const fetchPromises = [];
 
 const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
-  const [userData, setUserData] = useState(null);
+  const [userData, setUserData] = useState(cachedUserData);
 
-  // Fetch user data from database
+  // Fetch user data from database with global caching
   useEffect(() => {
-    const fetchUserData = async () => {
-      if (!user) return;
+    if (!user) {
+      // Clear cache when user logs out
+      cachedUserData = null;
+      setUserData(null);
+      return;
+    }
 
+    // Check if cached data belongs to a different user
+    if (cachedUserData && userData && userData.id !== user.id) {
+      cachedUserData = null; // Clear cache for different user
+    }
+
+    // If we already have cached data for THIS user, use it immediately
+    if (cachedUserData && cachedUserData.id === user.id) {
+      setUserData(cachedUserData);
+      return;
+    }
+
+    // If already fetching, wait for that promise
+    if (isFetching) {
+      return;
+    }
+
+    isFetching = true;
+
+    const fetchUserData = async () => {
       try {
         const { data, error } = await supabase
           .from('users')
-          .select('full_name, avatar_url')
+          .select('id, full_name, avatar_url')
           .eq('id', user.id)
           .single();
 
         if (error) {
           console.error('Error fetching user data:', error);
-          // Fallback to auth metadata
-          setUserData({
+          const fallbackData = {
+            id: user.id,
             full_name: user.user_metadata?.full_name || 'User',
             avatar_url: null
-          });
+          };
+          cachedUserData = fallbackData;
+          setUserData(fallbackData);
         } else if (data) {
-          console.log('User data fetched:', data);
-          console.log('Avatar URL:', data.avatar_url);
+          cachedUserData = data;
           setUserData(data);
         }
       } catch (error) {
         console.error('Error in fetchUserData:', error);
-        setUserData({
+        const fallbackData = {
+          id: user.id,
           full_name: user.user_metadata?.full_name || 'User',
           avatar_url: null
-        });
+        };
+        cachedUserData = fallbackData;
+        setUserData(fallbackData);
+      } finally {
+        isFetching = false;
       }
     };
 
     fetchUserData();
+  }, [user, userData]);
+
+  // Separate useEffect for realtime subscription
+  useEffect(() => {
+    if (!user) return;
 
     // Set up realtime subscription for user data changes
     const channel = supabase
@@ -51,12 +90,13 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
       .on('postgres_changes',
         { event: '*', schema: 'public', table: 'users', filter: `id=eq.${user.id}` },
         (payload) => {
-          console.log('User data changed:', payload);
           if (payload.new) {
-            setUserData({
+            const newData = {
               full_name: payload.new.full_name,
               avatar_url: payload.new.avatar_url
-            });
+            };
+            cachedUserData = newData; // Update cache
+            setUserData(newData);
           }
         }
       )
@@ -369,12 +409,15 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
         <div className={`flex items-center ${isMobileExpanded ? 'justify-start space-x-3' : 'justify-center'} lg:justify-start lg:space-x-3 px-0 lg:px-2 py-2`}>
           {userData?.avatar_url ? (
             <img
+              key={userData.avatar_url}
               src={userData.avatar_url}
               alt="Profile"
-              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover shadow-lg"
+              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover shadow-lg transition-opacity duration-150"
+              loading="eager"
+              style={{ opacity: userData ? 1 : 0 }}
             />
           ) : (
-            <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center font-bold text-base lg:text-lg bg-gradient-to-br ${getAvatarColor(user?.id)} shadow-lg`} style={{ color: 'white' }}>
+            <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center font-bold text-base lg:text-lg bg-gradient-to-br ${getAvatarColor(user?.id)} shadow-lg transition-opacity duration-150`} style={{ color: 'white', opacity: userData ? 1 : 0 }}>
               {getInitials(userData?.full_name || user?.user_metadata?.full_name)}
             </div>
           )}

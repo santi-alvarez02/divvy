@@ -30,7 +30,34 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
     'Other'
   ];
 
-  const currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD'];
+  const currencies = [
+    'USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'CNY',
+    'INR', 'MXN', 'BRL', 'KRW', 'RUB', 'SGD', 'HKD', 'NOK',
+    'SEK', 'DKK', 'NZD', 'ZAR'
+  ];
+
+  // Fetch user's default currency when modal opens
+  useEffect(() => {
+    const fetchUserCurrency = async () => {
+      if (!user || !isOpen) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('default_currency')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && data?.default_currency) {
+          setCurrency(data.default_currency);
+        }
+      } catch (error) {
+        console.error('Error fetching user currency:', error);
+      }
+    };
+
+    fetchUserCurrency();
+  }, [user, isOpen]);
 
   useEffect(() => {
     if (showCategoryPicker && categoryScrollRef.current) {
@@ -147,6 +174,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
         .insert({
           group_id: groupMembership.group_id,
           amount: expenseAmount,
+          currency: currency, // Save the selected currency
           category: category,
           description: description,
           date: new Date().toISOString().split('T')[0], // Today's date

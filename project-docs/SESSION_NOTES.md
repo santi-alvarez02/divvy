@@ -2602,3 +2602,315 @@ Polish the Dashboard page UI and add navigation functionality to make the compon
 
 ---
 
+## Session 29: Currency Handling Redesign
+**Date:** November 6, 2025
+**Status:** 📝 Planning
+
+### Objective
+Redesign how the app handles currencies to improve flexibility and user experience.
+
+### Current Currency Implementation
+
+**Current State:**
+- Group-level default currency stored in `groups.default_currency`
+- Currency set during group creation or onboarding
+- All expenses and balances display in the group's default currency
+- No per-expense currency tracking
+- No currency conversion support
+- Currency selector in Groups page (wheel picker)
+
+**Current Schema:**
+```sql
+groups table:
+  - default_currency VARCHAR(3) DEFAULT 'USD'
+
+users table:
+  - default_currency VARCHAR(3) DEFAULT 'USD'
+
+expenses table:
+  - amount DECIMAL(10, 2) NOT NULL
+  (No currency field - assumes group's default currency)
+```
+
+**Current Display Locations:**
+- ✅ Budget page: Uses group currency
+- ✅ Expenses page: Uses group currency
+- ✅ Balances page: Uses group currency (all amounts)
+- ✅ Dashboard: Uses group currency
+- ✅ Groups page: Shows and allows editing group currency
+
+**Limitations:**
+1. Cannot track expenses in different currencies
+2. Cannot handle multi-currency scenarios (e.g., international groups)
+3. No currency conversion support
+4. User's personal currency preference only matters if they're solo
+5. If group changes currency, all historical data loses context
+
+### Problems User Identified
+User stated: "im not sure if i completly like how we handle the currencies using a group currency and all that"
+
+**Waiting for user input on:**
+- What specific currency handling issues they've encountered
+- What currency behavior they expect
+- How they want multi-currency scenarios handled
+- Whether they want currency conversion
+- How historical data should work with currency changes
+
+### Potential Redesign Options
+
+**Option A: Per-Expense Currency**
+- Add `currency` field to expenses table
+- Store each expense in its original currency
+- Display with currency symbol (e.g., "€50.00", "$75.00")
+- Keep group default currency as a preference
+- Pros: Accurate historical data, handles international groups
+- Cons: Harder to calculate balances across currencies
+
+**Option B: Multi-Currency with Conversion**
+- Add `currency` and `exchange_rate` fields to expenses
+- Store original currency + converted amount
+- Use external API for exchange rates (e.g., exchangerate-api.io)
+- Display in user's preferred currency
+- Pros: Most flexible, handles complex scenarios
+- Cons: Complex implementation, requires API, exchange rates change
+
+**Option C: User Preference Currency Display**
+- Keep group currency as source of truth
+- Allow users to set personal display currency
+- Convert for display only (not storage)
+- Pros: Simple, maintains data integrity
+- Cons: Doesn't solve multi-currency expense tracking
+
+**Option D: Hybrid Approach**
+- Store expenses in original currency
+- Keep group default currency for balance calculations
+- Allow optional currency conversion for display
+- Add currency picker per expense
+- Pros: Flexible, accurate, optional complexity
+- Cons: More UI elements, more complex logic
+
+### Questions to Address
+1. How should currency changes affect historical data?
+2. Should balances always be in one currency or multi-currency?
+3. Do we need real-time exchange rates or fixed rates?
+4. How to handle settlement payments in different currencies?
+5. What happens when someone changes group currency?
+6. Should expenses remember their original currency?
+
+### Database Schema Changes Needed
+Depends on solution chosen, but likely:
+```sql
+-- Option A/D: Add currency to expenses
+ALTER TABLE expenses ADD COLUMN currency VARCHAR(3) DEFAULT 'USD';
+
+-- Option B: Add currency tracking with rates
+ALTER TABLE expenses ADD COLUMN currency VARCHAR(3) DEFAULT 'USD';
+ALTER TABLE expenses ADD COLUMN exchange_rate DECIMAL(10, 6);
+ALTER TABLE expenses ADD COLUMN converted_amount DECIMAL(10, 2);
+
+-- Add user currency preference
+ALTER TABLE users ADD COLUMN display_currency VARCHAR(3) DEFAULT 'USD';
+```
+
+### UI/UX Considerations
+- Where to show currency selector for expenses?
+- How to display mixed-currency balances?
+- How to explain currency conversion to users?
+- Should currency be prominent or subtle in UI?
+- How to handle currency in settlement flows?
+
+### Technical Implementation Considerations
+- Need to update balance calculation logic
+- May need external API integration for rates
+- Need to update all currency display components
+- Need to handle currency formatting (symbols, decimal places)
+- Need to consider offline functionality
+
+### Next Steps
+1. **Get user input on desired currency behavior**
+2. Choose currency handling approach based on requirements
+3. Design database schema changes
+4. Plan UI/UX changes
+5. Implement backend changes (schema, logic)
+6. Update frontend components
+7. Test with various currency scenarios
+8. Document new currency handling
+
+### Notes
+- Current implementation is working but limited to single-currency groups
+- User is unsure about the current approach and wants to explore alternatives
+- Need to balance complexity vs. flexibility
+- Important to maintain data integrity with any changes
+- Consider how this affects existing groups with data
+
+**Status:** ✅ Solution Decided - Implementing Per-User Currency
+
+---
+
+## Solution: Per-User Currency with Real-Time Conversion
+
+### User's Requirements:
+- Each user sees everything in their preferred currency (set during onboarding)
+- When users from different currencies join a group and add expenses, amounts are converted for display
+- Example: Josh (USD) and Sam (USD) add $20 expense, Bob (EUR) sees €18.60
+- Backend handles currency conversion transparently
+
+### Implementation Strategy:
+
+**Chosen Approach: Per-User Display Currency with Daily Exchange Rates**
+
+1. Store expenses in their **original currency** (USD, EUR, GBP, etc.)
+2. Each user has a **display_currency** preference
+3. Fetch exchange rates daily from `exchangerate-api.com` (free tier)
+4. Convert amounts on frontend using cached rates
+5. Allow users to input expenses in any currency
+
+### Architecture:
+
+**Database Changes:**
+```sql
+-- Add currency to expenses (stores original currency)
+ALTER TABLE expenses ADD COLUMN currency VARCHAR(3) DEFAULT 'USD';
+
+-- Create exchange_rates table for caching
+CREATE TABLE exchange_rates (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  from_currency VARCHAR(3) NOT NULL,
+  to_currency VARCHAR(3) NOT NULL,
+  rate DECIMAL(10, 6) NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(from_currency, to_currency)
+);
+
+-- Users already have default_currency, will use as display_currency
+```
+
+**Exchange Rate Service:**
+- API: `exchangerate-api.com` (free, 1,500 requests/month)
+- Update frequency: Once per day
+- Cache in Supabase `exchange_rates` table
+- Base currency: USD (all rates relative to USD)
+
+**Conversion Logic:**
+```javascript
+// Convert any currency to any currency via USD base
+const convert = (amount, fromCurrency, toCurrency, rates) => {
+  if (fromCurrency === toCurrency) return amount;
+  const inUSD = fromCurrency === 'USD' ? amount : amount / rates[fromCurrency];
+  return toCurrency === 'USD' ? inUSD : inUSD * rates[toCurrency];
+};
+```
+
+### Implementation Tasks (Broken Down):
+
+#### **Phase 1: Database Setup** (30 min)
+- [ ] Task 1.1: Create exchange_rates table SQL file
+- [ ] Task 1.2: Add currency column to expenses table migration
+- [ ] Task 1.3: Run migrations in Supabase SQL editor
+- [ ] Task 1.4: Add RLS policies for exchange_rates table
+
+#### **Phase 2: Exchange Rate Service** (45 min)
+- [ ] Task 2.1: Sign up for exchangerate-api.com (free)
+- [ ] Task 2.2: Create utility function to fetch rates
+- [ ] Task 2.3: Create utility function to save rates to database
+- [ ] Task 2.4: Test fetching and storing rates manually
+- [ ] Task 2.5: Create convert() utility function
+
+#### **Phase 3: Add Expense Modal Update** (30 min)
+- [ ] Task 3.1: Add currency dropdown to AddExpenseModal
+- [ ] Task 3.2: Default to user's display_currency
+- [ ] Task 3.3: Save expense with selected currency
+- [ ] Task 3.4: Test adding expenses in different currencies
+
+#### **Phase 4: Display Conversion - Expenses Page** (45 min)
+- [ ] Task 4.1: Fetch user's display_currency
+- [ ] Task 4.2: Fetch exchange rates from database
+- [ ] Task 4.3: Convert all expense amounts to user's currency
+- [ ] Task 4.4: Update Total Spent, You Owe calculations
+- [ ] Task 4.5: Test with mixed currency expenses
+
+#### **Phase 5: Display Conversion - Other Pages** (60 min)
+- [ ] Task 5.1: Update Dashboard to convert amounts
+- [ ] Task 5.2: Update Balances page to convert amounts
+- [ ] Task 5.3: Update Budget page to convert amounts
+- [ ] Task 5.4: Update settlement amounts to convert
+
+#### **Phase 6: Daily Rate Updates** (30 min)
+- [ ] Task 6.1: Create edge function to update rates daily
+- [ ] Task 6.2: Set up Supabase cron job (or manual for now)
+- [ ] Task 6.3: Add error handling for API failures
+- [ ] Task 6.4: Test rate update mechanism
+
+#### **Phase 7: UI Polish** (30 min)
+- [ ] Task 7.1: Show original amount on hover (optional)
+- [ ] Task 7.2: Add "Rates updated: X hours ago" indicator
+- [ ] Task 7.3: Add Wise currency converter to Settings page (info)
+- [ ] Task 7.4: Test entire flow end-to-end
+
+### Exchange Rate API Setup Instructions:
+
+**For exchangerate-api.com:**
+
+1. **Sign Up (Free Tier):**
+   - Go to: https://www.exchangerate-api.com/
+   - Click "Get Free Key"
+   - Sign up with email
+   - Confirm email
+   - Get API key (looks like: `a1b2c3d4e5f6g7h8i9j0`)
+
+2. **API Details:**
+   - **Endpoint:** `https://v6.exchangerate-api.com/v6/YOUR-API-KEY/latest/USD`
+   - **Free Tier:** 1,500 requests/month
+   - **Updates:** Daily (sufficient for our use case)
+   - **Response Format:**
+   ```json
+   {
+     "result": "success",
+     "base_code": "USD",
+     "conversion_rates": {
+       "EUR": 0.93,
+       "GBP": 0.79,
+       "JPY": 149.50,
+       "CAD": 1.36,
+       // ... more currencies
+     }
+   }
+   ```
+
+3. **Usage Calculation:**
+   - Daily updates: 1 request/day = 30 requests/month
+   - Well within free tier limit
+   - Can add manual refresh button if needed
+
+4. **What You Need to Do:**
+   - Sign up and get API key
+   - Share API key with me (we'll store in .env.local)
+   - That's it! I'll handle the rest
+
+**Alternative Free APIs (if needed):**
+- `api.exchangerate.host` - Also free, no API key needed
+- `api.frankfurter.app` - ECB rates, free, open source
+
+### Testing Strategy:
+
+**Test Scenarios:**
+1. Bob (EUR) creates expense in EUR → Everyone sees converted amount
+2. Sam (USD) creates expense in USD → Bob sees converted to EUR
+3. Mixed currency group with USD, EUR, GBP users
+4. Settlement payments across currencies
+5. Balance calculations with multiple currencies
+6. Budget tracking with currency conversion
+
+### Benefits of This Approach:
+
+✅ Each user sees familiar currency
+✅ Accurate real-time conversion
+✅ Handles international groups perfectly
+✅ Simple to implement (no complex backend logic)
+✅ Scalable (easy to add more currencies)
+✅ Low cost (free API tier sufficient)
+
+**Status:** 📋 Ready to Implement - Waiting for API Key
+
+---
+

@@ -89,9 +89,7 @@ const BalanceSummary = ({ balances, isDarkMode, onClick }) => {
                   <p
                     className="text-lg font-bold"
                     style={{
-                      color: isOwedToYou
-                        ? isDarkMode ? '#86efac' : '#16a34a'
-                        : isDarkMode ? '#fca5a5' : '#dc2626'
+                      color: '#FF5E00'
                     }}
                   >
                     {isOwedToYou ? '+' : '-'}${balance.amount.toFixed(2)}

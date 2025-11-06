@@ -438,7 +438,13 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
         )}
 
         <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
-        <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
+        <main
+        className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10"
+        style={{
+          borderTop: '2px solid rgba(255, 94, 0, 0.3)',
+          boxShadow: '0 -2px 10px rgba(255, 94, 0, 0.1)'
+        }}
+      >
           <div className="flex items-center justify-center min-h-screen">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
           </div>
@@ -521,7 +527,13 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
       <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
       {/* Main Content */}
-      <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
+      <main
+        className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10"
+        style={{
+          borderTop: '2px solid rgba(255, 94, 0, 0.3)',
+          boxShadow: '0 -2px 10px rgba(255, 94, 0, 0.1)'
+        }}
+      >
         {/* Header with Time Period Selector */}
         <div className="mb-6 sm:mb-8">
           <h1
