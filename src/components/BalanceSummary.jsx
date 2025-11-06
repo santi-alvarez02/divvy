@@ -1,10 +1,11 @@
 import React from 'react';
 import { getAvatarColor } from '../utils/avatarColors';
 
-const BalanceSummary = ({ balances, isDarkMode }) => {
+const BalanceSummary = ({ balances, isDarkMode, onClick }) => {
   return (
     <div
-      className="rounded-3xl shadow-xl p-6"
+      onClick={onClick}
+      className="rounded-3xl shadow-xl p-6 cursor-pointer transition-all hover:scale-[1.02]"
       style={{
         background: isDarkMode
           ? 'rgba(0, 0, 0, 0.3)'
@@ -43,16 +44,7 @@ const BalanceSummary = ({ balances, isDarkMode }) => {
             return (
               <div
                 key={index}
-                className="flex items-center justify-between p-4 rounded-2xl transition-all"
-                style={{
-                  backgroundColor: 'transparent'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.03)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
+                className="flex items-center justify-between p-4 rounded-2xl"
               >
                 <div className="flex items-center space-x-4">
                   {/* Avatar/Initial */}

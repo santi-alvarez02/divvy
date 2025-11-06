@@ -548,10 +548,10 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-3 lg:grid-cols-3 gap-3 lg:gap-6 mb-6 sm:mb-8">
           {/* You Owe */}
           <div
-            className="rounded-3xl shadow-xl p-6"
+            className="rounded-3xl shadow-xl p-3 lg:p-6"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -560,17 +560,17 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               You Owe
             </p>
-            <p className="text-3xl font-bold" style={{ color: '#FF5E00' }}>
+            <p className="text-xl lg:text-3xl font-bold" style={{ color: '#FF5E00' }}>
               {getCurrencySymbol(groupCurrency)}{Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
           {/* You're Owed */}
           <div
-            className="rounded-3xl shadow-xl p-6"
+            className="rounded-3xl shadow-xl p-3 lg:p-6"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -579,17 +579,17 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               You're Owed
             </p>
-            <p className="text-3xl font-bold" style={{ color: '#10b981' }}>
+            <p className="text-xl lg:text-3xl font-bold" style={{ color: '#10b981' }}>
               {getCurrencySymbol(groupCurrency)}{Number.isInteger(youreOwed) ? youreOwed : youreOwed.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
           {/* Net Balance */}
           <div
-            className="rounded-3xl shadow-xl p-6"
+            className="rounded-3xl shadow-xl p-3 lg:p-6"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -598,10 +598,10 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Net Balance
             </p>
-            <p className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <p className={`text-xl lg:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {netBalance >= 0 ? '+' : ''}{getCurrencySymbol(groupCurrency)}{Number.isInteger(Math.abs(netBalance)) ? Math.abs(netBalance) : Math.abs(netBalance).toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>

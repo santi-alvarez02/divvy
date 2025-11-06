@@ -1,6 +1,6 @@
 import React from 'react';
 
-const BudgetOverview = ({ budget, isDarkMode }) => {
+const BudgetOverview = ({ budget, isDarkMode, onClick }) => {
   const { limit, spent, month, year } = budget;
   const percentage = Math.min((spent / limit) * 100, 100);
   const remaining = limit - spent;
@@ -21,7 +21,8 @@ const BudgetOverview = ({ budget, isDarkMode }) => {
 
   return (
     <div
-      className="rounded-3xl shadow-xl p-6"
+      onClick={onClick}
+      className="rounded-3xl shadow-xl p-6 cursor-pointer transition-all hover:scale-[1.02]"
       style={{
         background: isDarkMode
           ? 'rgba(0, 0, 0, 0.3)'
@@ -81,30 +82,30 @@ const BudgetOverview = ({ budget, isDarkMode }) => {
         <div className="w-full space-y-3">
           <div className="flex justify-between items-center">
             <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Spent
-            </span>
-            <span className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              ${spent.toFixed(2)}
-            </span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Remaining
-            </span>
-            <span className="text-lg font-bold" style={{ color: getProgressColor() }}>
-              ${remaining.toFixed(2)}
-            </span>
-          </div>
-          <div
-            className="h-px w-full"
-            style={{ backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }}
-          />
-          <div className="flex justify-between items-center">
-            <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Budget
             </span>
             <span className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               ${limit.toFixed(2)}
+            </span>
+          </div>
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Spent
+            </span>
+            <span className="text-lg font-bold" style={{ color: '#FF5E00' }}>
+              ${spent.toFixed(2)}
+            </span>
+          </div>
+          <div
+            className="border-t"
+            style={{ borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }}
+          />
+          <div className="flex justify-between items-center">
+            <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+              Remaining
+            </span>
+            <span className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              ${remaining.toFixed(2)}
             </span>
           </div>
         </div>

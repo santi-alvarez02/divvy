@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from './Sidebar';
@@ -8,6 +9,7 @@ import BalanceSummary from './BalanceSummary';
 
 const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // State management
   const [loading, setLoading] = useState(true);
@@ -464,16 +466,20 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
         </div>
 
         {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Budget and Balances */}
-          <div className="lg:col-span-1 space-y-6">
-            <BudgetOverview budget={budget} isDarkMode={isDarkMode} />
-            <BalanceSummary balances={balances} isDarkMode={isDarkMode} />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Budget Card - Always first */}
+          <div className="md:col-span-1 lg:col-span-1">
+            <BudgetOverview budget={budget} isDarkMode={isDarkMode} onClick={() => navigate('/budgets')} />
           </div>
 
-          {/* Right Column - Recent Expenses */}
-          <div className="lg:col-span-2">
-            <RecentExpenses expenses={expenses} roommates={roommates} isDarkMode={isDarkMode} />
+          {/* Who Owes What - Second on mobile/iPad, stays in left column on desktop */}
+          <div className="md:col-span-1 lg:col-span-1 md:order-2 lg:order-3">
+            <BalanceSummary balances={balances} isDarkMode={isDarkMode} onClick={() => navigate('/balances')} />
+          </div>
+
+          {/* Recent Expenses - Third on mobile/iPad (full width), right column on desktop */}
+          <div className="md:col-span-2 lg:col-span-2 md:order-3 lg:order-2">
+            <RecentExpenses expenses={expenses} roommates={roommates} isDarkMode={isDarkMode} onClick={() => navigate('/expenses')} />
           </div>
         </div>
       </main>

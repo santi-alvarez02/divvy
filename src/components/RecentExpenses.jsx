@@ -1,6 +1,6 @@
 import React from 'react';
 
-const RecentExpenses = ({ expenses, roommates, isDarkMode }) => {
+const RecentExpenses = ({ expenses, roommates, isDarkMode, onClick }) => {
   // Get roommate name by ID
   const getRoommateName = (id) => {
     const roommate = roommates.find(r => r.id === id);
@@ -38,7 +38,8 @@ const RecentExpenses = ({ expenses, roommates, isDarkMode }) => {
 
   return (
     <div
-      className="rounded-3xl shadow-xl p-6"
+      onClick={onClick}
+      className="rounded-3xl shadow-xl p-6 cursor-pointer transition-all hover:scale-[1.02]"
       style={{
         background: isDarkMode
           ? 'rgba(0, 0, 0, 0.3)'
@@ -66,16 +67,7 @@ const RecentExpenses = ({ expenses, roommates, isDarkMode }) => {
         {expenses.slice(0, 8).map((expense) => (
           <div
             key={expense.id}
-            className="flex items-center justify-between p-4 rounded-2xl transition-all"
-            style={{
-              backgroundColor: isDarkMode ? 'transparent' : 'transparent'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.03)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
+            className="flex items-center justify-between p-4 rounded-2xl"
           >
             {/* Left side - Icon and details */}
             <div className="flex items-center space-x-4 flex-1">

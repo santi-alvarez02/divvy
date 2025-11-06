@@ -2454,3 +2454,151 @@ Convert the Dashboard page from using mock data to fetching and displaying real 
 - Loading states ensure smooth UX during data fetch
 
 ---
+
+## Session 28: Dashboard UI Polish & Card Interactivity
+**Date:** November 6, 2025
+**Status:** ✅ Complete
+
+### Objective
+Polish the Dashboard page UI and add navigation functionality to make the component cards clickable.
+
+### Tasks Completed
+
+#### 1. Budget Display Reordering
+**Goal:** Reorganize BudgetOverview card to show Budget → Spent → Remaining
+
+**Changes Made:**
+- Reordered budget items in `BudgetOverview.jsx` (lines 81-110)
+- Changed "Spent" amount to display in orange (#FF5E00)
+- Changed "Remaining" amount to display in black/white (matching "Budget")
+- Added thin divider line between "Spent" and "Remaining" sections
+- Divider uses 10% opacity for subtle separation
+
+**Files Modified:**
+- `src/components/BudgetOverview.jsx` - Lines 81-110
+
+---
+
+#### 2. Make Dashboard Cards Clickable
+**Goal:** Add navigation to dashboard cards so they redirect to their respective pages
+
+**Implementation:**
+1. **Dashboard.jsx:**
+   - Added `useNavigate` hook from react-router-dom (lines 1-2, 12)
+   - Added `onClick` props to each card component (lines 472-478):
+     - BudgetOverview → `/budgets`
+     - BalanceSummary → `/balances`
+     - RecentExpenses → `/expenses`
+
+2. **Component Updates:**
+   - **BudgetOverview.jsx** (line 3, 24-25):
+     - Added `onClick` prop to component signature
+     - Added `onClick` handler to main div
+     - Added `cursor-pointer` class
+   
+   - **BalanceSummary.jsx** (line 4, 7-8):
+     - Added `onClick` prop to component signature
+     - Added `onClick` handler to main div
+     - Added `cursor-pointer` class
+   
+   - **RecentExpenses.jsx** (line 3, 41-42):
+     - Added `onClick` prop to component signature
+     - Added `onClick` handler to main div
+     - Added `cursor-pointer` class
+
+**Files Modified:**
+- `src/components/Dashboard.jsx` - Added navigation
+- `src/components/BudgetOverview.jsx` - Made clickable
+- `src/components/BalanceSummary.jsx` - Made clickable
+- `src/components/RecentExpenses.jsx` - Made clickable
+
+---
+
+#### 3. Card Hover Effects
+**Goal:** Add appropriate hover feedback when mousing over dashboard cards
+
+**Iterations:**
+
+**Attempt 1 - Background Color Change:**
+- Added `onMouseEnter` and `onMouseLeave` handlers
+- Changed background opacity on hover
+- User feedback: Animation made cards "move a bit or seem like they are selected"
+
+**Attempt 2 - Shadow Effect:**
+- Tried `hover:shadow-2xl` effect
+- User feedback: Still made cards feel like they were moving
+
+**Final Solution - Scale Effect:**
+- Implemented `hover:scale-[1.02]` for subtle 2% size increase
+- Matches the hover effect used in Balances page for active balance items
+- Smooth transition with `transition-all` class
+- Provides clear visual feedback without feeling disruptive
+
+**Files Modified:**
+- `src/components/BudgetOverview.jsx` - Line 25
+- `src/components/BalanceSummary.jsx` - Line 8
+- `src/components/RecentExpenses.jsx` - Line 42
+
+---
+
+#### 4. Remove Inner Item Hover Effects
+**Goal:** Remove hover effects from individual items inside the dashboard cards
+
+**Problem:** 
+- Items inside "Who Owes What" card (e.g., "Santiago Alvarez owes you") had background darkening on hover
+- Items inside "Recent Expenses" card (e.g., "movie tickets") had background darkening on hover
+- This created confusing nested hover states with the card-level hover
+
+**Solution:**
+- Removed `onMouseEnter` and `onMouseLeave` handlers from individual balance items
+- Removed `style` and `transition-all` from individual expense items
+- Kept only the card-level hover effect (scale)
+- Now only the entire card responds to hover, not individual items within
+
+**Files Modified:**
+- `src/components/BalanceSummary.jsx` - Line 47 (removed hover handlers)
+- `src/components/RecentExpenses.jsx` - Line 70 (removed hover handlers)
+
+---
+
+### Technical Details
+
+**Navigation Implementation:**
+- Used React Router's `useNavigate` hook
+- Navigation triggered via `onClick={() => navigate('/path')}`
+- No need for `<Link>` components as entire cards are clickable regions
+
+**Hover Effect Specifications:**
+- Transform: `scale(1.02)` (2% size increase)
+- Transition: `transition-all` for smooth animation
+- Cursor: `cursor-pointer` to indicate clickability
+
+**Color Specifications:**
+- Spent amount: `#FF5E00` (orange)
+- Remaining amount: Black in light mode, white in dark mode
+- Divider: 10% opacity border
+
+### User Experience Improvements
+
+1. **Clear Navigation:** Users can click anywhere on a dashboard card to view details
+2. **Consistent Interaction:** All three main cards have identical interaction patterns
+3. **Visual Feedback:** Subtle scale effect provides clear hover feedback
+4. **No Confusion:** Removed conflicting nested hover states
+5. **Improved Budget Display:** More logical ordering (Budget → Spent → Remaining)
+
+### Status: ✅ Complete
+
+**Next Potential Enhancements:**
+- Add keyboard navigation (Tab to focus, Enter to navigate)
+- Add loading states when navigating
+- Consider adding card descriptions or summaries
+- Add animation when entering page
+
+---
+
+**Last Updated:** November 6, 2025
+**Files Changed:** 5 files (Dashboard.jsx, BudgetOverview.jsx, BalanceSummary.jsx, RecentExpenses.jsx)
+**Overall Progress:** ~78% (Dashboard UI polish complete)
+
+---
+
