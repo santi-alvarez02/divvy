@@ -30,6 +30,8 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
             avatar_url: null
           });
         } else if (data) {
+          console.log('User data fetched:', data);
+          console.log('Avatar URL:', data.avatar_url);
           setUserData(data);
         }
       } catch (error) {
@@ -42,6 +44,27 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
     };
 
     fetchUserData();
+
+    // Set up realtime subscription for user data changes
+    const channel = supabase
+      .channel('user_changes')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'users', filter: `id=eq.${user.id}` },
+        (payload) => {
+          console.log('User data changed:', payload);
+          if (payload.new) {
+            setUserData({
+              full_name: payload.new.full_name,
+              avatar_url: payload.new.avatar_url
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   // Get user initials from full name

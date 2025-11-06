@@ -1,6 +1,6 @@
 import React from 'react';
 
-const RecentExpenses = ({ expenses, roommates, isDarkMode, onClick }) => {
+const RecentExpenses = ({ expenses, roommates, isDarkMode, onClick, onAddExpense }) => {
   // Get roommate name by ID
   const getRoommateName = (id) => {
     const roommate = roommates.find(r => r.id === id);
@@ -52,15 +52,31 @@ const RecentExpenses = ({ expenses, roommates, isDarkMode, onClick }) => {
         <h2 className={`text-2xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           Recent Expenses
         </h2>
-        <button
-          className="text-sm font-semibold hover:opacity-80 transition-opacity px-4 py-2 rounded-full"
-          style={{
-            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.05)',
-            color: isDarkMode ? 'white' : '#374151'
-          }}
-        >
-          View All
-        </button>
+        {expenses.length === 0 ? (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onAddExpense) onAddExpense();
+            }}
+            className="text-sm font-semibold hover:opacity-80 transition-opacity px-4 py-2 rounded-full"
+            style={{
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.05)',
+              color: isDarkMode ? 'white' : '#374151'
+            }}
+          >
+            Add Expense
+          </button>
+        ) : (
+          <button
+            className="text-sm font-semibold hover:opacity-80 transition-opacity px-4 py-2 rounded-full"
+            style={{
+              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.2)' : 'rgba(0, 0, 0, 0.05)',
+              color: isDarkMode ? 'white' : '#374151'
+            }}
+          >
+            View All
+          </button>
+        )}
       </div>
 
       <div className="space-y-3">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../contexts/AuthContext';
+import { supabase } from '../lib/supabase';
 
 const Settings = ({ isDarkMode, setIsDarkMode }) => {
   const navigate = useNavigate();
@@ -13,6 +14,10 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
   // Sign out confirmation state
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  // Payment modal state
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [currentPaymentType, setCurrentPaymentType] = useState('');
+  const [paymentInput, setPaymentInput] = useState('');
 
   // Load saved usernames from localStorage on mount
   useEffect(() => {
@@ -25,12 +30,30 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
     if (savedZelle) setZelleEmail(savedZelle);
   }, []);
 
-  // Save usernames to localStorage
-  const handleSavePaymentInfo = () => {
-    localStorage.setItem('venmoUsername', venmoUsername);
-    localStorage.setItem('paypalUsername', paypalUsername);
-    localStorage.setItem('zelleEmail', zelleEmail);
-    alert('Payment information saved!');
+  // Open payment modal
+  const openPaymentModal = (type) => {
+    setCurrentPaymentType(type);
+    // Pre-fill with existing value
+    if (type === 'venmo') setPaymentInput(venmoUsername);
+    else if (type === 'paypal') setPaymentInput(paypalUsername);
+    else if (type === 'zelle') setPaymentInput(zelleEmail);
+    setShowPaymentModal(true);
+  };
+
+  // Save payment info from modal
+  const handleSavePayment = () => {
+    if (currentPaymentType === 'venmo') {
+      setVenmoUsername(paymentInput);
+      localStorage.setItem('venmoUsername', paymentInput);
+    } else if (currentPaymentType === 'paypal') {
+      setPaypalUsername(paymentInput);
+      localStorage.setItem('paypalUsername', paymentInput);
+    } else if (currentPaymentType === 'zelle') {
+      setZelleEmail(paymentInput);
+      localStorage.setItem('zelleEmail', paymentInput);
+    }
+    setShowPaymentModal(false);
+    setPaymentInput('');
   };
 
   // Handle sign out
@@ -47,8 +70,48 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
   // Handle delete account
   const handleDeleteAccount = async () => {
     setShowDeleteConfirm(false);
-    // TODO: Implement account deletion logic
-    alert('Account deletion will be implemented soon. This will permanently delete all your data.');
+
+    try {
+      // First, get the user's avatar_url before deleting
+      const { data: userData } = await supabase
+        .from('users')
+        .select('avatar_url')
+        .eq('id', user.id)
+        .single();
+
+      // Delete user's avatar from storage if exists
+      if (userData?.avatar_url) {
+        try {
+          // Extract filename from the full URL
+          const urlParts = userData.avatar_url.split('/');
+          const fileName = urlParts[urlParts.length - 1];
+          await supabase.storage.from('avatars').remove([fileName]);
+        } catch (storageError) {
+          console.log('Error deleting avatar (non-critical):', storageError);
+          // Don't throw - this is non-critical
+        }
+      }
+
+      // Call the database function to delete the user account
+      // This will delete from auth.users which cascades to the users table and all related data
+      const { error: deleteError } = await supabase.rpc('delete_user_account');
+
+      if (deleteError) {
+        console.error('Error deleting account:', deleteError);
+        throw deleteError;
+      }
+
+      // Sign out the user
+      await signOut();
+
+      // Redirect to home page
+      navigate('/');
+
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      alert(`Failed to delete account: ${error.message}. Please try again or contact support.`);
+      setShowDeleteConfirm(false);
+    }
   };
 
   return (
@@ -154,106 +217,43 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
             Add your payment usernames to make settling up easier. Your roommates will be able to pay you directly.
           </p>
 
-          <div className="space-y-4">
-            {/* Venmo Username */}
-            <div>
-              <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Venmo Username
-              </label>
-              <div className="flex items-center gap-3">
-                <div
-                  className="px-3 py-2 rounded-xl font-semibold text-sm"
-                  style={{
-                    backgroundColor: '#008CFF',
-                    color: 'white'
-                  }}
-                >
-                  @
-                </div>
-                <input
-                  type="text"
-                  value={venmoUsername}
-                  onChange={(e) => setVenmoUsername(e.target.value)}
-                  placeholder="your-venmo-username"
-                  className="flex-1 px-4 py-3 rounded-xl border-2 transition-all focus:outline-none"
-                  style={{
-                    background: isDarkMode ? '#1a1a1a' : '#ffffff',
-                    color: isDarkMode ? 'white' : '#1f2937',
-                    borderColor: isDarkMode ? '#404040' : '#e5e7eb'
-                  }}
-                />
-              </div>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Venmo Button */}
+            <button
+              onClick={() => openPaymentModal('venmo')}
+              className="flex flex-col items-center justify-center py-4 rounded-2xl font-bold text-white transition-all hover:opacity-90"
+              style={{ backgroundColor: '#008CFF' }}
+            >
+              <span className="text-lg mb-1">Venmo</span>
+              {venmoUsername && (
+                <span className="text-xs opacity-90">@{venmoUsername}</span>
+              )}
+            </button>
 
-            {/* PayPal Username */}
-            <div>
-              <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                PayPal.me Username
-              </label>
-              <div className="flex items-center gap-3">
-                <div
-                  className="px-3 py-2 rounded-xl font-semibold text-sm"
-                  style={{
-                    backgroundColor: '#0070BA',
-                    color: 'white'
-                  }}
-                >
-                  paypal.me/
-                </div>
-                <input
-                  type="text"
-                  value={paypalUsername}
-                  onChange={(e) => setPaypalUsername(e.target.value)}
-                  placeholder="your-paypal-username"
-                  className="flex-1 px-4 py-3 rounded-xl border-2 transition-all focus:outline-none"
-                  style={{
-                    background: isDarkMode ? '#1a1a1a' : '#ffffff',
-                    color: isDarkMode ? 'white' : '#1f2937',
-                    borderColor: isDarkMode ? '#404040' : '#e5e7eb'
-                  }}
-                />
-              </div>
-            </div>
+            {/* PayPal Button */}
+            <button
+              onClick={() => openPaymentModal('paypal')}
+              className="flex flex-col items-center justify-center py-4 rounded-2xl font-bold text-white transition-all hover:opacity-90"
+              style={{ backgroundColor: '#0070BA' }}
+            >
+              <span className="text-lg mb-1">PayPal</span>
+              {paypalUsername && (
+                <span className="text-xs opacity-90">paypal.me/{paypalUsername}</span>
+              )}
+            </button>
 
-            {/* Zelle Email/Phone */}
-            <div>
-              <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Zelle Email or Phone
-              </label>
-              <div className="flex items-center gap-3">
-                <div
-                  className="px-3 py-2 rounded-xl font-semibold text-sm"
-                  style={{
-                    backgroundColor: '#6D1ED4',
-                    color: 'white'
-                  }}
-                >
-                  📧
-                </div>
-                <input
-                  type="text"
-                  value={zelleEmail}
-                  onChange={(e) => setZelleEmail(e.target.value)}
-                  placeholder="email@example.com or phone"
-                  className="flex-1 px-4 py-3 rounded-xl border-2 transition-all focus:outline-none"
-                  style={{
-                    background: isDarkMode ? '#1a1a1a' : '#ffffff',
-                    color: isDarkMode ? 'white' : '#1f2937',
-                    borderColor: isDarkMode ? '#404040' : '#e5e7eb'
-                  }}
-                />
-              </div>
-            </div>
+            {/* Zelle Button */}
+            <button
+              onClick={() => openPaymentModal('zelle')}
+              className="flex flex-col items-center justify-center py-4 rounded-2xl font-bold text-white transition-all hover:opacity-90"
+              style={{ backgroundColor: '#6D1ED4' }}
+            >
+              <span className="text-lg mb-1">Zelle</span>
+              {zelleEmail && (
+                <span className="text-xs opacity-90 truncate px-2 max-w-full">{zelleEmail}</span>
+              )}
+            </button>
           </div>
-
-          {/* Save Button */}
-          <button
-            onClick={handleSavePaymentInfo}
-            className="mt-6 px-6 py-3 rounded-2xl text-base font-semibold text-white transition-all hover:opacity-90"
-            style={{ backgroundColor: '#FF5E00' }}
-          >
-            Save Payment Information
-          </button>
         </div>
 
         {/* App Preferences Section */}
@@ -481,6 +481,86 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
                 }}
               >
                 Delete Account
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Information Modal */}
+      {showPaymentModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              backdropFilter: 'blur(8px)'
+            }}
+            onClick={() => setShowPaymentModal(false)}
+          />
+
+          {/* Modal */}
+          <div
+            className="relative w-full max-w-md p-8 rounded-3xl shadow-2xl"
+            style={{
+              background: 'rgba(200, 200, 200, 0.85)',
+              backdropFilter: 'blur(20px)',
+              border: '2px solid rgba(255, 255, 255, 0.3)'
+            }}
+          >
+            <h3 className="text-3xl font-bold mb-4" style={{ color: '#1a202c' }}>
+              {currentPaymentType === 'venmo' && 'Venmo Username'}
+              {currentPaymentType === 'paypal' && 'PayPal Username'}
+              {currentPaymentType === 'zelle' && 'Zelle Email'}
+            </h3>
+            <p className="text-base mb-6" style={{ color: '#4a5568' }}>
+              {currentPaymentType === 'venmo' && 'Enter your Venmo username (without @)'}
+              {currentPaymentType === 'paypal' && 'Enter your PayPal.me username'}
+              {currentPaymentType === 'zelle' && 'Enter your Zelle email address'}
+            </p>
+
+            <input
+              type="text"
+              value={paymentInput}
+              onChange={(e) => setPaymentInput(e.target.value)}
+              placeholder={
+                currentPaymentType === 'venmo' ? 'username' :
+                currentPaymentType === 'paypal' ? 'username' :
+                'email@example.com'
+              }
+              className="w-full px-4 py-3 rounded-2xl mb-6 text-base font-medium"
+              style={{
+                backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                border: '2px solid rgba(0, 0, 0, 0.1)',
+                color: '#1a202c',
+                outline: 'none'
+              }}
+              autoFocus
+            />
+
+            <div className="flex gap-4">
+              <button
+                onClick={() => {
+                  setShowPaymentModal(false);
+                  setPaymentInput('');
+                }}
+                className="flex-1 py-4 rounded-2xl font-bold text-lg transition-all hover:opacity-90"
+                style={{
+                  backgroundColor: '#ffffff',
+                  color: '#2d3748'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSavePayment}
+                className="flex-1 py-4 rounded-2xl font-bold text-lg text-white transition-all hover:opacity-90"
+                style={{
+                  backgroundColor: '#FF5E00'
+                }}
+              >
+                Save
               </button>
             </div>
           </div>

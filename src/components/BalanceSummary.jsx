@@ -48,14 +48,22 @@ const BalanceSummary = ({ balances, isDarkMode, onClick }) => {
               >
                 <div className="flex items-center space-x-4">
                   {/* Avatar/Initial */}
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg"
-                    style={{
-                      background: balance.userId ? getAvatarColor(balance.userId) : 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)'
-                    }}
-                  >
-                    {balance.person.charAt(0)}
-                  </div>
+                  {balance.avatar_url ? (
+                    <img
+                      src={balance.avatar_url}
+                      alt={balance.person}
+                      className="w-12 h-12 rounded-2xl object-cover shadow-lg"
+                    />
+                  ) : (
+                    <div
+                      className="w-12 h-12 rounded-2xl flex items-center justify-center text-white font-bold text-lg shadow-lg"
+                      style={{
+                        background: balance.userId ? getAvatarColor(balance.userId) : 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)'
+                      }}
+                    >
+                      {balance.person.charAt(0)}
+                    </div>
+                  )}
 
                   {/* Text */}
                   <div>
@@ -71,7 +79,7 @@ const BalanceSummary = ({ balances, isDarkMode, onClick }) => {
                       )}
                     </p>
                     <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {isOwedToYou ? 'They paid for shared expenses' : 'For shared expenses'}
+                      {isOwedToYou ? 'You paid for shared expenses' : 'They paid for shared expenses'}
                     </p>
                   </div>
                 </div>

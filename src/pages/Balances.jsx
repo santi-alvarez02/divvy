@@ -61,7 +61,8 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               users (
                 id,
                 full_name,
-                email
+                email,
+                avatar_url
               )
             `)
             .eq('group_id', groupMemberships.groups.id);
@@ -72,7 +73,8 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
             const transformedMembers = members.map(member => ({
               id: member.users.id,
               name: member.users.id === user.id ? 'You' : member.users.full_name,
-              email: member.users.email
+              email: member.users.email,
+              avatar_url: member.users.avatar_url
             }));
             setRoommates(transformedMembers);
           }
@@ -200,9 +202,15 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
 
         // Only include expense if it's after the last settlement or no settlement exists
         if (!lastSettled || expenseDate > new Date(lastSettled)) {
-          const payerName = roommates.find(r => r.id === paidBy)?.name;
+          const payer = roommates.find(r => r.id === paidBy);
           if (!balances[paidBy]) {
-            balances[paidBy] = { name: payerName, id: paidBy, amount: 0, expenses: [] };
+            balances[paidBy] = {
+              name: payer?.name,
+              id: paidBy,
+              amount: 0,
+              expenses: [],
+              avatar_url: payer?.avatar_url
+            };
           }
           balances[paidBy].amount += splitAmount;
           balances[paidBy].expenses.push({ ...expense, yourShare: splitAmount });
@@ -217,9 +225,15 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
 
             // Only include expense if it's after the last settlement or no settlement exists
             if (!lastSettled || expenseDate > new Date(lastSettled)) {
-              const personName = roommates.find(r => r.id === personId)?.name;
+              const person = roommates.find(r => r.id === personId);
               if (!balances[personId]) {
-                balances[personId] = { name: personName, id: personId, amount: 0, expenses: [] };
+                balances[personId] = {
+                  name: person?.name,
+                  id: personId,
+                  amount: 0,
+                  expenses: [],
+                  avatar_url: person?.avatar_url
+                };
               }
               balances[personId].amount -= splitAmount;
               balances[personId].expenses.push({ ...expense, theirShare: splitAmount });
@@ -655,17 +669,23 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    <div
-                      className="w-12 h-12 rounded-3xl flex items-center justify-center font-bold text-xl shadow-lg"
-                      style={{
-                        background: selectedBalance.amount > 0
-                          ? 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)'
-                          : 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)',
-                        color: 'white'
-                      }}
-                    >
-                      {selectedBalance.name.charAt(0)}
-                    </div>
+                    {selectedBalance.avatar_url ? (
+                      <img
+                        src={selectedBalance.avatar_url}
+                        alt={selectedBalance.name}
+                        className="w-12 h-12 rounded-3xl object-cover shadow-lg"
+                      />
+                    ) : (
+                      <div
+                        className="w-12 h-12 rounded-3xl flex items-center justify-center font-bold text-xl shadow-lg"
+                        style={{
+                          background: getAvatarColor(selectedBalance.id),
+                          color: 'white'
+                        }}
+                      >
+                        {selectedBalance.name.charAt(0)}
+                      </div>
+                    )}
                     <div>
                       <p className={`text-base sm:text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                         {selectedBalance.amount > 0 ? `You owe ${selectedBalance.name}` : `${selectedBalance.name} owes you`}
@@ -748,15 +768,23 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                       }}
                     >
                       <div className="flex items-center gap-3">
-                        <div
-                          className="w-12 h-12 rounded-3xl flex items-center justify-center font-bold text-xl shadow-lg"
-                          style={{
-                            background: getAvatarColor(balance.id),
-                            color: 'white'
-                          }}
-                        >
-                          {balance.name.charAt(0)}
-                        </div>
+                        {balance.avatar_url ? (
+                          <img
+                            src={balance.avatar_url}
+                            alt={balance.name}
+                            className="w-12 h-12 rounded-3xl object-cover shadow-lg"
+                          />
+                        ) : (
+                          <div
+                            className="w-12 h-12 rounded-3xl flex items-center justify-center font-bold text-xl shadow-lg"
+                            style={{
+                              background: getAvatarColor(balance.id),
+                              color: 'white'
+                            }}
+                          >
+                            {balance.name.charAt(0)}
+                          </div>
+                        )}
                         <div>
                           <p className={`text-base sm:text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                             {isDebt ? `You owe ${balance.name}` : `${balance.name} owes you`}

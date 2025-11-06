@@ -15,6 +15,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const [loading, setLoading] = useState(true);
   const [currentGroup, setCurrentGroup] = useState(null);
   const [groupCurrency, setGroupCurrency] = useState('USD');
+  const [settlementHistory, setSettlementHistory] = useState([]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -144,6 +145,20 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       }));
 
       setExpenses(transformedExpenses);
+
+      // Fetch settlement history for the group
+      const { data: settlementsData, error: settlementsError } = await supabase
+        .from('settlements')
+        .select('*')
+        .eq('group_id', currentGroup.id)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false });
+
+      if (settlementsError) {
+        console.error('Error fetching settlements:', settlementsError);
+      } else {
+        setSettlementHistory(settlementsData || []);
+      }
     } catch (error) {
       console.error('Error in fetchExpenses:', error);
     }
@@ -346,13 +361,72 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       return sum + yourShare;
     }, 0);
 
-  // You Owe = Your share of expenses that OTHERS paid
-  const youOwe = dateFilteredExpenses
-    .filter(expense => expense.paidBy !== currentUserId && expense.splitBetween.includes(currentUserId))
-    .reduce((sum, expense) => {
-      const splitAmount = expense.amount / expense.splitBetween.length;
-      return sum + splitAmount;
-    }, 0);
+  // Helper function to get last settled timestamp for a user pair
+  const getLastSettledTimestamp = (userId1, userId2) => {
+    const relevantSettlements = settlementHistory.filter(s =>
+      ((s.from_user_id === userId1 && s.to_user_id === userId2) ||
+       (s.from_user_id === userId2 && s.to_user_id === userId1))
+    );
+
+    if (relevantSettlements.length === 0) return null;
+
+    // Get the most recent settlement timestamp
+    const mostRecent = relevantSettlements.sort((a, b) => {
+      const dateA = new Date(a.settled_up_to_timestamp || a.completed_at);
+      const dateB = new Date(b.settled_up_to_timestamp || b.completed_at);
+      return dateB - dateA;
+    })[0];
+
+    return mostRecent.settled_up_to_timestamp || mostRecent.completed_at;
+  };
+
+  // Calculate balances using ALL expenses (not just date-filtered)
+  // This matches the Balances page calculation
+  const calculateBalances = () => {
+    const balances = {};
+
+    expenses.forEach(expense => {
+      const splitBetween = expense.splitBetween || [];
+      const paidBy = expense.paidBy;
+      const splitAmount = expense.amount / splitBetween.length;
+      const expenseDate = new Date(expense.date);
+
+      // If someone else paid and you're in the split
+      if (paidBy !== currentUserId && splitBetween.includes(currentUserId)) {
+        const lastSettled = getLastSettledTimestamp(currentUserId, paidBy);
+
+        if (!lastSettled || expenseDate > new Date(lastSettled)) {
+          if (!balances[paidBy]) {
+            balances[paidBy] = { amount: 0 };
+          }
+          balances[paidBy].amount += splitAmount;
+        }
+      }
+
+      // If you paid and others are in the split
+      if (paidBy === currentUserId) {
+        splitBetween.forEach(personId => {
+          if (personId !== currentUserId) {
+            const lastSettled = getLastSettledTimestamp(currentUserId, personId);
+
+            if (!lastSettled || expenseDate > new Date(lastSettled)) {
+              if (!balances[personId]) {
+                balances[personId] = { amount: 0 };
+              }
+              balances[personId].amount -= splitAmount;
+            }
+          }
+        });
+      }
+    });
+
+    return Object.values(balances).filter(b => Math.abs(b.amount) > 0.01);
+  };
+
+  const balances = calculateBalances();
+
+  // You Owe = Sum of positive balances (debts)
+  const youOwe = balances.filter(b => b.amount > 0).reduce((sum, b) => sum + b.amount, 0);
 
   // Calculate top categories from date-filtered expenses
   const categoryTotals = dateFilteredExpenses.reduce((acc, expense) => {

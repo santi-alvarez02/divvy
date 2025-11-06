@@ -47,27 +47,43 @@ const Onboarding = ({ isDarkMode }) => {
 
   // Upload profile picture to Supabase Storage
   const uploadProfilePicture = async () => {
-    if (!profilePicture) return null;
+    if (!profilePicture) {
+      console.log('No profile picture to upload');
+      return null;
+    }
 
     try {
+      console.log('Starting profile picture upload...');
       const fileExt = profilePicture.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
+      const filePath = `${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
+      console.log('Uploading to path:', filePath);
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(filePath, profilePicture);
+        .upload(filePath, profilePicture, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('Upload successful:', uploadData);
 
       // Get public URL
       const { data } = supabase.storage
         .from('avatars')
         .getPublicUrl(filePath);
 
+      console.log('Public URL:', data.publicUrl);
       return data.publicUrl;
     } catch (error) {
       console.error('Error uploading profile picture:', error);
+      // Show error to user
+      setError(`Failed to upload profile picture: ${error.message}`);
       return null;
     }
   };
@@ -111,10 +127,13 @@ const Onboarding = ({ isDarkMode }) => {
 
     try {
       // Upload profile picture if exists
+      console.log('Profile picture state:', profilePicture);
       const avatarUrl = await uploadProfilePicture();
+      console.log('Avatar URL after upload:', avatarUrl);
 
       // Save user to database
-      const { error: userError } = await supabase
+      console.log('Saving user data with avatar_url:', avatarUrl);
+      const { data: userData, error: userError } = await supabase
         .from('users')
         .upsert({
           id: user.id,
@@ -125,9 +144,14 @@ const Onboarding = ({ isDarkMode }) => {
           monthly_budget: parseFloat(monthlyBudget) || 0,
           default_currency: defaultCurrency,
           created_at: new Date().toISOString()
-        });
+        })
+        .select();
 
-      if (userError) throw userError;
+      console.log('User data saved:', userData);
+      if (userError) {
+        console.error('User save error:', userError);
+        throw userError;
+      }
 
       // If group account, handle group creation/joining
       if (accType === 'group') {

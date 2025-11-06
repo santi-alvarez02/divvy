@@ -81,7 +81,8 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
               users (
                 id,
                 full_name,
-                email
+                email,
+                avatar_url
               )
             `)
             .eq('group_id', groupMemberships.groups.id);
@@ -93,7 +94,8 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
             transformedMembers = members.map(member => ({
               id: member.users.id,
               name: member.users.id === user.id ? 'You' : member.users.full_name,
-              email: member.users.email
+              email: member.users.email,
+              avatar_url: member.users.avatar_url
             }));
             setRoommates(transformedMembers);
           }
@@ -241,7 +243,8 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
                   person: roommateInfo?.name || 'Unknown',
                   userId: userId,
                   amount: Math.abs(data.amount),
-                  type: data.amount > 0 ? 'you_owe' : 'owes_you'
+                  type: data.amount > 0 ? 'you_owe' : 'owes_you',
+                  avatar_url: roommateInfo?.avatar_url
                 };
               });
 
@@ -260,8 +263,7 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
   }, [user, currentUserId]);
 
   const handleAddExpense = () => {
-    // Placeholder for add expense functionality
-    alert('Add expense functionality coming soon!');
+    navigate('/expenses');
   };
 
   // Loading state
@@ -479,7 +481,7 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
 
           {/* Recent Expenses - Third on mobile/iPad (full width), right column on desktop */}
           <div className="md:col-span-2 lg:col-span-2 md:order-3 lg:order-2">
-            <RecentExpenses expenses={expenses} roommates={roommates} isDarkMode={isDarkMode} onClick={() => navigate('/expenses')} />
+            <RecentExpenses expenses={expenses} roommates={roommates} isDarkMode={isDarkMode} onClick={() => navigate('/expenses')} onAddExpense={handleAddExpense} />
           </div>
         </div>
       </main>
