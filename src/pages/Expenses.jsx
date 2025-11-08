@@ -773,13 +773,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
       {/* Main Content - with left margin for sidebar */}
-      <main
-        className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10"
-        style={{
-          borderTop: '2px solid rgba(255, 94, 0, 0.3)',
-          boxShadow: '0 -2px 10px rgba(255, 94, 0, 0.1)'
-        }}
-      >
+      <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
+
         {/* Header with Add Expense Button */}
         <div className="mb-6 sm:mb-8 flex justify-between items-center">
           <h1

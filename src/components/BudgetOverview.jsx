@@ -13,10 +13,8 @@ const BudgetOverview = ({ budget, currency = 'USD', isDarkMode, onClick }) => {
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (percentage / 100) * circumference;
 
-  // Determine color based on budget usage
+  // Always use orange color for consistency
   const getProgressColor = () => {
-    if (percentage >= 90) return '#ef4444';
-    if (percentage >= 70) return '#f59e0b';
     return '#FF5E00';
   };
 
