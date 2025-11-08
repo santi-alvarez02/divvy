@@ -406,7 +406,18 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
 
       {/* User Profile Section */}
       <div className="p-4 lg:p-6 mt-auto">
-        <div className={`flex items-center ${isMobileExpanded ? 'justify-start space-x-3' : 'justify-center'} lg:justify-start lg:space-x-3 px-0 lg:px-2 py-2`}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate('/profile');
+            setIsMobileExpanded(false);
+          }}
+          className={`w-full flex items-center ${isMobileExpanded ? 'justify-start space-x-3' : 'justify-center'} lg:justify-start lg:space-x-3 px-0 lg:px-2 py-2 rounded-xl transition-all ${
+            isDarkMode
+              ? 'hover:bg-white hover:bg-opacity-10'
+              : 'hover:bg-gray-50'
+          }`}
+        >
           {userData?.avatar_url ? (
             <img
               key={userData.avatar_url}
@@ -429,7 +440,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
               View profile
             </p>
           </div>
-        </div>
+        </button>
       </div>
     </div>
     </>

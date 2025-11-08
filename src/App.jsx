@@ -12,6 +12,7 @@ import Balances from './pages/Balances';
 import Budget from './pages/Budget';
 import Groups from './pages/Groups';
 import Settings from './pages/Settings';
+import Profile from './pages/Profile';
 
 function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -103,6 +104,17 @@ function App() {
             element={
               <ProtectedRoute isDarkMode={isDarkMode}>
                 <Settings
+                  isDarkMode={isDarkMode}
+                  setIsDarkMode={setIsDarkMode}
+                />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute isDarkMode={isDarkMode}>
+                <Profile
                   isDarkMode={isDarkMode}
                   setIsDarkMode={setIsDarkMode}
                 />
