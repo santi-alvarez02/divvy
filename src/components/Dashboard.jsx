@@ -6,6 +6,12 @@ import Sidebar from './Sidebar';
 import BudgetOverview from './BudgetOverview';
 import RecentExpenses from './RecentExpenses';
 import BalanceSummary from './BalanceSummary';
+import {
+  getExchangeRatesFromDB,
+  convertCurrency,
+  updateExchangeRates,
+  shouldUpdateRates
+} from '../utils/exchangeRates';
 
 const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
   const { user } = useAuth();
@@ -19,15 +25,64 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
   const [roommates, setRoommates] = useState([]);
   const [currentGroup, setCurrentGroup] = useState(null);
   const [groupCurrency, setGroupCurrency] = useState('USD');
+  const [userCurrency, setUserCurrency] = useState('USD');
+  const [exchangeRates, setExchangeRates] = useState({});
 
   const currentUserId = user?.id;
 
-  // Fetch all data
+  // Fetch user's display currency and exchange rates
+  useEffect(() => {
+    const fetchCurrencyData = async () => {
+      if (!user) return;
+
+      try {
+        const [userDataResult, ratesResult] = await Promise.all([
+          supabase
+            .from('users')
+            .select('default_currency')
+            .eq('id', user.id)
+            .single(),
+          getExchangeRatesFromDB()
+        ]);
+
+        if (!userDataResult.error && userDataResult.data?.default_currency) {
+          setUserCurrency(userDataResult.data.default_currency);
+        }
+
+        if (ratesResult.rates) {
+          setExchangeRates(ratesResult.rates);
+        }
+
+        // Background rate update
+        shouldUpdateRates().then(needsUpdate => {
+          if (needsUpdate) {
+            updateExchangeRates().then(() => {
+              getExchangeRatesFromDB().then(({ rates }) => {
+                if (rates) setExchangeRates(rates);
+              });
+            });
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching currency data:', error);
+      }
+    };
+
+    fetchCurrencyData();
+  }, [user]);
+
+  // Fetch all data - wait for exchange rates to be loaded first
   useEffect(() => {
     const fetchData = async () => {
       if (!user) {
         console.log('Dashboard: No user, skipping data fetch');
         setLoading(false);
+        return;
+      }
+
+      // Wait for exchange rates to be loaded before fetching expenses
+      if (!exchangeRates || Object.keys(exchangeRates).length === 0) {
+        console.log('Dashboard: Waiting for exchange rates to load');
         return;
       }
 
@@ -121,6 +176,7 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
             .from('expenses')
             .select(`
               *,
+              currency,
               expense_splits (
                 user_id,
                 share_amount
@@ -132,18 +188,30 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
           if (expensesError) {
             console.error('Error fetching expenses:', expensesError);
           } else {
-            // Transform expenses to match expected format
-            const transformedExpenses = expensesData?.map(expense => ({
-              id: expense.id,
-              amount: parseFloat(expense.amount),
-              category: expense.category,
-              description: expense.description,
-              date: expense.date,
-              paidBy: expense.paid_by,
-              icon: expense.icon,
-              createdAt: expense.created_at,
-              splitBetween: expense.expense_splits?.map(split => split.user_id) || []
-            })) || [];
+            // Transform expenses to match expected format with currency conversion
+            const transformedExpenses = expensesData?.map(expense => {
+              const originalAmount = parseFloat(expense.amount);
+              const expenseCurrency = expense.currency || 'USD';
+
+              // Convert to user's display currency
+              const convertedAmount = Object.keys(exchangeRates).length > 0
+                ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+                : originalAmount;
+
+              return {
+                id: expense.id,
+                amount: convertedAmount,
+                originalAmount: originalAmount,
+                currency: expenseCurrency,
+                category: expense.category,
+                description: expense.description,
+                date: expense.date,
+                paidBy: expense.paid_by,
+                icon: expense.icon,
+                createdAt: expense.created_at,
+                splitBetween: expense.expense_splits?.map(split => split.user_id) || []
+              };
+            }) || [];
 
             // Filter to current month for display in Recent Expenses
             const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -260,14 +328,14 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
     };
 
     fetchData();
-  }, [user, currentUserId]);
+  }, [user, currentUserId, exchangeRates, userCurrency]);
 
   const handleAddExpense = () => {
     navigate('/expenses');
   };
 
   // Loading state
-  if (loading) {
+  if (loading || !exchangeRates || Object.keys(exchangeRates).length === 0) {
     return (
       <div
         className="min-h-screen relative overflow-hidden"
@@ -474,20 +542,20 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
         </div>
 
         {/* Dashboard Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Budget Card - Always first */}
-          <div className="md:col-span-1 lg:col-span-1">
-            <BudgetOverview budget={budget} isDarkMode={isDarkMode} onClick={() => navigate('/budgets')} />
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+          {/* Budget Card - Left (narrower - 2 columns) */}
+          <div className="md:col-span-2">
+            <BudgetOverview budget={budget} currency={userCurrency} isDarkMode={isDarkMode} onClick={() => navigate('/budgets')} />
           </div>
 
-          {/* Who Owes What - Second on mobile/iPad, stays in left column on desktop */}
-          <div className="md:col-span-1 lg:col-span-1 md:order-2 lg:order-3">
-            <BalanceSummary balances={balances} isDarkMode={isDarkMode} onClick={() => navigate('/balances')} />
+          {/* Who Owes What - Right (wider - 3 columns) */}
+          <div className="md:col-span-3">
+            <BalanceSummary balances={balances} currency={userCurrency} isDarkMode={isDarkMode} onClick={() => navigate('/balances')} />
           </div>
 
-          {/* Recent Expenses - Third on mobile/iPad (full width), right column on desktop */}
-          <div className="md:col-span-2 lg:col-span-2 md:order-3 lg:order-2">
-            <RecentExpenses expenses={expenses} roommates={roommates} isDarkMode={isDarkMode} onClick={() => navigate('/expenses')} onAddExpense={handleAddExpense} />
+          {/* Recent Expenses - Full width below */}
+          <div className="md:col-span-5">
+            <RecentExpenses expenses={expenses} roommates={roommates} currency={userCurrency} isDarkMode={isDarkMode} onClick={() => navigate('/expenses')} onAddExpense={handleAddExpense} />
           </div>
         </div>
       </main>

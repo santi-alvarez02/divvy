@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { getCurrencySymbol } from '../utils/currency';
 
 const Groups = ({ isDarkMode, setIsDarkMode }) => {
   const { user } = useAuth();
@@ -16,7 +15,6 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
 
   // UI state
   const [groupName, setGroupName] = useState('');
-  const [groupCurrency, setGroupCurrency] = useState('USD');
   const [isEditingName, setIsEditingName] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const [showInviteCode, setShowInviteCode] = useState(false);
@@ -24,9 +22,6 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [joinCode, setJoinCode] = useState('');
   const [newGroupName, setNewGroupName] = useState('');
-  const [newGroupCurrency, setNewGroupCurrency] = useState('USD');
-  const [showCurrencyPicker, setShowCurrencyPicker] = useState(false);
-  const currencyScrollRef = React.useRef(null);
   const [codeCopied, setCodeCopied] = useState(false);
 
   // Computed values
@@ -77,7 +72,6 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
       if (userGroups.length > 0) {
         setCurrentGroup(userGroups[0]);
         setGroupName(userGroups[0].name);
-        setGroupCurrency(userGroups[0].default_currency || 'USD');
         // Fetch members for this group
         fetchGroupMembers(userGroups[0].id);
       }
@@ -224,8 +218,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
         .from('groups')
         .insert({
           name: newGroupName.trim(),
-          admin_id: user.id,
-          default_currency: newGroupCurrency
+          admin_id: user.id
         })
         .select()
         .single();
@@ -254,7 +247,6 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
       // Close modal and reset
       setShowCreateModal(false);
       setNewGroupName('');
-      setNewGroupCurrency('USD');
 
       // Refresh the groups list
       await fetchUserGroups();
@@ -298,70 +290,6 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
     console.log('Remove member:', roommateId);
   };
 
-  const handleUpdateCurrency = async (newCurrency) => {
-    try {
-      setError('');
-
-      // Update the group currency in the database
-      const { error: updateError } = await supabase
-        .from('groups')
-        .update({ default_currency: newCurrency })
-        .eq('id', currentGroup.id);
-
-      if (updateError) throw updateError;
-
-      // Update local state
-      setGroupCurrency(newCurrency);
-
-      // Refresh groups to get latest data
-      await fetchUserGroups();
-    } catch (err) {
-      console.error('Error updating currency:', err);
-      setError('Failed to update currency. Please try again.');
-    }
-  };
-
-  // Currency picker scroll effect
-  const currencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD'];
-
-  React.useEffect(() => {
-    if (showCurrencyPicker && currencyScrollRef.current) {
-      const selectedIndex = currencies.indexOf(groupCurrency);
-      const itemHeight = 40;
-      const scrollTop = selectedIndex * itemHeight;
-      const scrollContainer = currencyScrollRef.current;
-
-      scrollContainer.scrollTop = scrollTop;
-
-      const handleScroll = () => {
-        const currentScrollTop = scrollContainer.scrollTop;
-        const highlightedIndex = Math.round(currentScrollTop / itemHeight);
-
-        const items = scrollContainer.querySelectorAll('.currency-filter-item');
-        items.forEach((item, index) => {
-          if (index === highlightedIndex) {
-            item.style.color = isDarkMode ? 'white' : '#1f2937';
-            item.style.fontSize = '17px';
-            item.style.fontWeight = '600';
-          } else {
-            item.style.color = '#6b7280';
-            item.style.fontSize = '15px';
-            item.style.fontWeight = '400';
-          }
-        });
-      };
-
-      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-
-      requestAnimationFrame(() => {
-        handleScroll();
-      });
-
-      return () => {
-        scrollContainer.removeEventListener('scroll', handleScroll);
-      };
-    }
-  }, [showCurrencyPicker, groupCurrency, currencies, isDarkMode]);
 
   // Loading State
   if (loading) {
@@ -601,103 +529,6 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
                   )}
                 </div>
 
-                {/* Group Currency */}
-                <div>
-                  <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Group Currency <span style={{ color: '#FF5E00' }}>(Edit)</span>
-                  </label>
-                  <div className="relative" style={{ maxWidth: '200px' }}>
-                    <button
-                      type="button"
-                      onClick={() => setShowCurrencyPicker(!showCurrencyPicker)}
-                      className="px-4 rounded-xl font-semibold transition-all outline-none w-full"
-                      style={{
-                        background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)',
-                        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.05)',
-                        color: isDarkMode ? 'white' : '#1f2937',
-                        height: '40px',
-                        backdropFilter: 'blur(16px)'
-                      }}
-                    >
-                      {getCurrencySymbol(groupCurrency)} {groupCurrency}
-                    </button>
-
-                    {/* Currency Wheel Picker Overlay */}
-                    {showCurrencyPicker && (
-                      <>
-                        <div
-                          className="fixed inset-0"
-                          style={{ zIndex: 1000 }}
-                          onClick={() => setShowCurrencyPicker(false)}
-                        />
-                        <div
-                          className="absolute rounded-xl overflow-hidden scrollbar-hide"
-                          style={{
-                            top: '45px',
-                            left: '0',
-                            right: '0',
-                            height: '120px',
-                            background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
-                            backdropFilter: 'blur(16px)',
-                            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                            zIndex: 1001
-                          }}
-                        >
-                          <div
-                            className="absolute inset-x-0 pointer-events-none"
-                            style={{
-                              top: '40px',
-                              height: '40px',
-                              background: isDarkMode
-                                ? 'linear-gradient(to bottom, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0.05) 100%)'
-                                : 'linear-gradient(to bottom, rgba(0,0,0,0.02) 0%, rgba(0,0,0,0.04) 50%, rgba(0,0,0,0.02) 100%)',
-                              borderTop: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)',
-                              borderBottom: isDarkMode ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.05)',
-                              zIndex: 2
-                            }}
-                          />
-                          <div
-                            ref={currencyScrollRef}
-                            className="overflow-y-scroll h-full scrollbar-hide"
-                            style={{
-                              scrollSnapType: 'y mandatory',
-                              scrollBehavior: 'smooth'
-                            }}
-                          >
-                            <div
-                              style={{
-                                paddingTop: '0px',
-                                paddingBottom: '80px'
-                              }}
-                            >
-                              {currencies.map((curr) => (
-                                <button
-                                  key={curr}
-                                  type="button"
-                                  onClick={() => {
-                                    handleUpdateCurrency(curr);
-                                    setShowCurrencyPicker(false);
-                                  }}
-                                  className="w-full flex items-center justify-center currency-filter-item"
-                                  style={{
-                                    height: '40px',
-                                    background: 'transparent',
-                                    color: '#6b7280',
-                                    fontSize: '15px',
-                                    fontWeight: '400',
-                                    transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
-                                  }}
-                                >
-                                  {getCurrencySymbol(curr)} {curr}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
               </div>
               <button
                 onClick={handleShowInviteCode}
@@ -1039,11 +870,11 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
                 Create a Group
               </h3>
               <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Choose a name and currency for your group
+                Choose a name for your group
               </p>
 
               {/* Group Name */}
-              <div className="mb-4">
+              <div className="mb-6">
                 <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Group Name
                 </label>
@@ -1060,35 +891,11 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
                   }}
                 />
               </div>
-
-              {/* Group Currency */}
-              <div className="mb-6">
-                <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Currency
-                </label>
-                <select
-                  value={newGroupCurrency}
-                  onChange={(e) => setNewGroupCurrency(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl font-semibold outline-none"
-                  style={{
-                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
-                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                    color: isDarkMode ? 'white' : '#1f2937'
-                  }}
-                >
-                  <option value="USD">$ USD - US Dollar</option>
-                  <option value="EUR">€ EUR - Euro</option>
-                  <option value="GBP">£ GBP - British Pound</option>
-                  <option value="CAD">C$ CAD - Canadian Dollar</option>
-                  <option value="AUD">A$ AUD - Australian Dollar</option>
-                </select>
-              </div>
               <div className="flex space-x-4">
                 <button
                   onClick={() => {
                     setShowCreateModal(false);
                     setNewGroupName('');
-                    setNewGroupCurrency('USD');
                   }}
                   className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
                   style={{

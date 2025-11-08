@@ -1,6 +1,7 @@
 import React from 'react';
+import { getCurrencySymbol } from '../utils/currency';
 
-const BudgetOverview = ({ budget, isDarkMode, onClick }) => {
+const BudgetOverview = ({ budget, currency = 'USD', isDarkMode, onClick }) => {
   const { limit, spent, month, year } = budget;
   const percentage = Math.min((spent / limit) * 100, 100);
   const remaining = limit - spent;
@@ -22,13 +23,14 @@ const BudgetOverview = ({ budget, isDarkMode, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="rounded-3xl shadow-xl p-6 cursor-pointer transition-all hover:scale-[1.02]"
+      className="rounded-3xl shadow-xl p-6 cursor-pointer transition-all hover:scale-[1.02] h-full"
       style={{
         background: isDarkMode
           ? 'rgba(0, 0, 0, 0.3)'
           : 'rgba(255, 255, 255, 0.4)',
         backdropFilter: 'blur(12px)',
-        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
+        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)',
+        minHeight: '450px'
       }}
     >
       <div className="flex justify-between items-center mb-6">
@@ -85,7 +87,7 @@ const BudgetOverview = ({ budget, isDarkMode, onClick }) => {
               Budget
             </span>
             <span className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              ${limit.toFixed(2)}
+              {getCurrencySymbol(currency)}{limit.toFixed(2)}
             </span>
           </div>
           <div className="flex justify-between items-center">
@@ -93,7 +95,7 @@ const BudgetOverview = ({ budget, isDarkMode, onClick }) => {
               Spent
             </span>
             <span className="text-lg font-bold" style={{ color: '#FF5E00' }}>
-              ${spent.toFixed(2)}
+              {getCurrencySymbol(currency)}{spent.toFixed(2)}
             </span>
           </div>
           <div
@@ -105,7 +107,7 @@ const BudgetOverview = ({ budget, isDarkMode, onClick }) => {
               Remaining
             </span>
             <span className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              ${remaining.toFixed(2)}
+              {getCurrencySymbol(currency)}{remaining.toFixed(2)}
             </span>
           </div>
         </div>

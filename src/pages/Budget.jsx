@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { getCurrencySymbol } from '../utils/currency';
+import {
+  getExchangeRatesFromDB,
+  convertCurrency,
+  updateExchangeRates,
+  shouldUpdateRates
+} from '../utils/exchangeRates';
 
 const Budget = ({ isDarkMode, setIsDarkMode }) => {
   const navigate = useNavigate();
@@ -17,6 +24,8 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
   const [roommates, setRoommates] = useState([]);
   const [currentGroup, setCurrentGroup] = useState(null);
   const [currency, setCurrency] = useState('USD');
+  const [userCurrency, setUserCurrency] = useState('USD');
+  const [exchangeRates, setExchangeRates] = useState({});
   const monthScrollRef = React.useRef(null);
 
   const currentUserId = user?.id;
@@ -92,11 +101,12 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
             setRoommates(transformedMembers);
           }
 
-          // Fetch expenses for this group with splits
+          // Fetch expenses for this group with splits and currency
           const { data: expensesData, error: expensesError } = await supabase
             .from('expenses')
             .select(`
               *,
+              currency,
               expense_splits (
                 user_id,
                 share_amount
@@ -108,12 +118,19 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
           if (expensesError) {
             console.error('Error fetching expenses:', expensesError);
           } else {
-            // Transform expenses to include split_between array
-            const transformedExpenses = expensesData?.map(expense => ({
-              ...expense,
-              splitBetween: expense.expense_splits?.map(split => split.user_id) || [],
-              paidBy: expense.paid_by
-            })) || [];
+            // Transform expenses to include split_between array and convert amounts
+            const transformedExpenses = expensesData?.map(expense => {
+              const originalAmount = parseFloat(expense.amount);
+              const expenseCurrency = expense.currency || 'USD';
+
+              return {
+                ...expense,
+                originalAmount,
+                expenseCurrency,
+                splitBetween: expense.expense_splits?.map(split => split.user_id) || [],
+                paidBy: expense.paid_by
+              };
+            }) || [];
             setExpenses(transformedExpenses);
           }
         }
@@ -125,6 +142,42 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
     };
 
     fetchData();
+  }, [user]);
+
+  // Fetch currency data
+  useEffect(() => {
+    const fetchCurrencyData = async () => {
+      if (!user) return;
+
+      const [userDataResult, ratesResult] = await Promise.all([
+        supabase
+          .from('users')
+          .select('default_currency')
+          .eq('id', user.id)
+          .single(),
+        getExchangeRatesFromDB()
+      ]);
+
+      if (userDataResult.data?.default_currency) {
+        setUserCurrency(userDataResult.data.default_currency);
+      }
+      if (ratesResult.rates) {
+        setExchangeRates(ratesResult.rates);
+      }
+
+      // Background rate update (non-blocking)
+      shouldUpdateRates().then(needsUpdate => {
+        if (needsUpdate) {
+          updateExchangeRates().then(() => {
+            getExchangeRatesFromDB().then(({ rates }) => {
+              if (rates) setExchangeRates(rates);
+            });
+          });
+        }
+      });
+    };
+
+    fetchCurrencyData();
   }, [user]);
 
   // Get available month options for picker
@@ -261,8 +314,23 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
 
   const filteredExpenses = getFilteredExpenses();
 
-  // Calculate total spent (user's share)
-  const totalSpent = filteredExpenses.reduce((sum, expense) => {
+  // Convert expenses to user's currency
+  const convertedExpenses = filteredExpenses.map(expense => {
+    const originalAmount = expense.originalAmount || parseFloat(expense.amount);
+    const expenseCurrency = expense.expenseCurrency || expense.currency || 'USD';
+    const convertedAmount = Object.keys(exchangeRates).length > 0
+      ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+      : originalAmount;
+
+    return {
+      ...expense,
+      amount: convertedAmount,
+      displayCurrency: userCurrency
+    };
+  });
+
+  // Calculate total spent (user's share) - using converted amounts
+  const totalSpent = convertedExpenses.reduce((sum, expense) => {
     const userShare = expense.amount / expense.splitBetween.length;
     return sum + userShare;
   }, 0);
@@ -271,8 +339,8 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
   const percentageUsed = Math.min((totalSpent / budgetLimit) * 100, 100);
   const percentageRemaining = Math.max((remaining / budgetLimit) * 100, 0);
 
-  // Calculate spending by category
-  const categorySpending = filteredExpenses.reduce((acc, expense) => {
+  // Calculate spending by category - using converted amounts
+  const categorySpending = convertedExpenses.reduce((acc, expense) => {
     const userShare = expense.amount / expense.splitBetween.length;
     if (!acc[expense.category]) {
       acc[expense.category] = {
@@ -299,7 +367,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
   // Progress circle color - always orange
   const progressColor = '#FF5E00';
 
-  // Calculate spending - current month plus next 2 months
+  // Calculate spending - current month plus next 2 months (with currency conversion)
   const getMonthlySpending = () => {
     const now = new Date();
     const months = [];
@@ -318,7 +386,12 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
       });
 
       const spent = monthExpenses.reduce((sum, expense) => {
-        const userShare = expense.amount / expense.splitBetween.length;
+        const originalAmount = expense.originalAmount || parseFloat(expense.amount);
+        const expenseCurrency = expense.expenseCurrency || expense.currency || 'USD';
+        const convertedAmount = Object.keys(exchangeRates).length > 0
+          ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+          : originalAmount;
+        const userShare = convertedAmount / expense.splitBetween.length;
         return sum + userShare;
       }, 0);
 
@@ -365,8 +438,8 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
     }
   };
 
-  // Show loading state
-  if (loading) {
+  // Show loading state - wait for both data and exchange rates
+  if (loading || !exchangeRates || Object.keys(exchangeRates).length === 0) {
     return (
       <div
         className="min-h-screen relative overflow-hidden"
@@ -735,7 +808,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
                   {/* Center Text */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <p className="text-4xl font-bold" style={{ color: '#FF5E00' }}>
-                      ${Math.abs(remaining).toFixed(0)}
+                      {getCurrencySymbol(userCurrency)}{Math.abs(remaining).toFixed(0)}
                     </p>
                     <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                       Remaining
@@ -772,7 +845,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
                       style={{ color: isDarkMode ? 'white' : '#1f2937' }}
                       onClick={() => setIsEditingBudget(true)}
                     >
-                      ${budgetLimit.toFixed(2)}
+                      {getCurrencySymbol(userCurrency)}{budgetLimit.toFixed(2)}
                     </p>
                   )}
                 </div>
@@ -783,7 +856,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
                     Total Spent
                   </p>
                   <p className="text-3xl font-bold" style={{ color: '#FF5E00' }}>
-                    ${totalSpent.toFixed(2)}
+                    {getCurrencySymbol(userCurrency)}{totalSpent.toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -833,7 +906,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
                       key={i}
                       className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
                     >
-                      ${Math.round((maxValue * i) / 4)}
+                      {getCurrencySymbol(userCurrency)}{Math.round((maxValue * i) / 4)}
                     </span>
                   ));
                 })()}
@@ -944,7 +1017,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
             </button>
           </div>
 
-          {filteredExpenses.length === 0 ? (
+          {convertedExpenses.length === 0 ? (
             <div className="text-center py-12">
               <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 No expenses for this period
@@ -952,7 +1025,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
             </div>
           ) : (
             <div className="space-y-6">
-              {filteredExpenses.slice(0, 5).map((expense) => {
+              {convertedExpenses.slice(0, 5).map((expense) => {
                 const userShare = expense.amount / expense.splitBetween.length;
                 const payer = roommates.find(r => r.id === expense.paidBy);
                 const currentUser = roommates.find(r => r.name === 'You');
@@ -987,7 +1060,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-bold" style={{ color: '#FF5E00' }}>
-                        ${expense.amount.toFixed(2)}
+                        {getCurrencySymbol(userCurrency)}{expense.amount.toFixed(2)}
                       </p>
                       <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                         {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

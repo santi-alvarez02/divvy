@@ -4,6 +4,12 @@ import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { getCurrencySymbol } from '../utils/currency';
 import { getAvatarColor } from '../utils/avatarColors';
+import {
+  getExchangeRatesFromDB,
+  convertCurrency,
+  updateExchangeRates,
+  shouldUpdateRates
+} from '../utils/exchangeRates';
 
 const Balances = ({ isDarkMode, setIsDarkMode }) => {
   const { user } = useAuth();
@@ -12,6 +18,8 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
   const [roommates, setRoommates] = useState([]);
   const [currentGroup, setCurrentGroup] = useState(null);
   const [groupCurrency, setGroupCurrency] = useState('USD');
+  const [userCurrency, setUserCurrency] = useState('USD');
+  const [exchangeRates, setExchangeRates] = useState({});
   const [pendingSettlements, setPendingSettlements] = useState([]);
   const [settlementHistory, setSettlementHistory] = useState([]);
   const [historyFilter, setHistoryFilter] = useState('all');
@@ -79,11 +87,12 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
             setRoommates(transformedMembers);
           }
 
-          // Fetch expenses for this group with splits
+          // Fetch expenses for this group with splits and currency
           const { data: expensesData, error: expensesError } = await supabase
             .from('expenses')
             .select(`
               *,
+              currency,
               expense_splits (
                 user_id,
                 share_amount
@@ -130,6 +139,42 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
     };
 
     fetchData();
+  }, [user]);
+
+  // Fetch currency data
+  useEffect(() => {
+    const fetchCurrencyData = async () => {
+      if (!user) return;
+
+      const [userDataResult, ratesResult] = await Promise.all([
+        supabase
+          .from('users')
+          .select('default_currency')
+          .eq('id', user.id)
+          .single(),
+        getExchangeRatesFromDB()
+      ]);
+
+      if (userDataResult.data?.default_currency) {
+        setUserCurrency(userDataResult.data.default_currency);
+      }
+      if (ratesResult.rates) {
+        setExchangeRates(ratesResult.rates);
+      }
+
+      // Background rate update (non-blocking)
+      shouldUpdateRates().then(needsUpdate => {
+        if (needsUpdate) {
+          updateExchangeRates().then(() => {
+            getExchangeRatesFromDB().then(({ rates }) => {
+              if (rates) setExchangeRates(rates);
+            });
+          });
+        }
+      });
+    };
+
+    fetchCurrencyData();
   }, [user]);
 
   // Get payment usernames for roommates from localStorage
@@ -180,11 +225,19 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
       return mostRecent.settled_up_to_timestamp || mostRecent.completed_at;
     };
 
-    // First, calculate balances from UNSETTLED expenses only
+    // First, calculate balances from UNSETTLED expenses only (with currency conversion)
     expenses.forEach(expense => {
       const splitBetween = expense.split_between || [];
       const paidBy = expense.paid_by;
-      const splitAmount = expense.amount / splitBetween.length;
+
+      // Convert expense amount to user's currency
+      const originalAmount = parseFloat(expense.amount);
+      const expenseCurrency = expense.currency || 'USD';
+      const convertedAmount = Object.keys(exchangeRates).length > 0
+        ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+        : originalAmount;
+
+      const splitAmount = convertedAmount / splitBetween.length;
       const expenseDate = new Date(expense.date);
 
       console.log('Processing expense:', {
@@ -213,7 +266,12 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
             };
           }
           balances[paidBy].amount += splitAmount;
-          balances[paidBy].expenses.push({ ...expense, yourShare: splitAmount });
+          balances[paidBy].expenses.push({
+            ...expense,
+            yourShare: splitAmount,
+            convertedAmount,
+            displayCurrency: userCurrency
+          });
         }
       }
 
@@ -236,7 +294,12 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                 };
               }
               balances[personId].amount -= splitAmount;
-              balances[personId].expenses.push({ ...expense, theirShare: splitAmount });
+              balances[personId].expenses.push({
+                ...expense,
+                theirShare: splitAmount,
+                convertedAmount,
+                displayCurrency: userCurrency
+              });
             }
           }
         });
@@ -394,8 +457,8 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
 
   const filteredHistory = getFilteredHistory();
 
-  // Loading State
-  if (loading) {
+  // Loading State - wait for both data and exchange rates
+  if (loading || !exchangeRates || Object.keys(exchangeRates).length === 0) {
     return (
       <div
         className="min-h-screen relative overflow-hidden"
@@ -584,7 +647,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               You Owe
             </p>
             <p className="text-xl lg:text-3xl font-bold" style={{ color: '#FF5E00' }}>
-              {getCurrencySymbol(groupCurrency)}{Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(userCurrency)}{Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
@@ -603,7 +666,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               You're Owed
             </p>
             <p className="text-xl lg:text-3xl font-bold" style={{ color: '#10b981' }}>
-              {getCurrencySymbol(groupCurrency)}{Number.isInteger(youreOwed) ? youreOwed : youreOwed.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(userCurrency)}{Number.isInteger(youreOwed) ? youreOwed : youreOwed.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
@@ -622,7 +685,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               Net Balance
             </p>
             <p className={`text-xl lg:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {netBalance >= 0 ? '+' : ''}{getCurrencySymbol(groupCurrency)}{Number.isInteger(Math.abs(netBalance)) ? Math.abs(netBalance) : Math.abs(netBalance).toFixed(2).replace(/\.00$/, '')}
+              {netBalance >= 0 ? '+' : ''}{getCurrencySymbol(userCurrency)}{Number.isInteger(Math.abs(netBalance)) ? Math.abs(netBalance) : Math.abs(netBalance).toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
         </div>
@@ -700,7 +763,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                   </div>
                   <div className="flex items-center gap-2">
                     <p className="text-xl sm:text-2xl font-bold" style={{ color: selectedBalance.amount > 0 ? '#FF5E00' : '#10b981' }}>
-                      {selectedBalance.amount > 0 ? '-' : '+'}{getCurrencySymbol(groupCurrency)}{Math.abs(selectedBalance.amount).toFixed(2)}
+                      {selectedBalance.amount > 0 ? '-' : '+'}{getCurrencySymbol(userCurrency)}{Math.abs(selectedBalance.amount).toFixed(2)}
                     </p>
                   </div>
                 </div>
@@ -746,7 +809,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                           </div>
                           <div className="text-right ml-4">
                             <p className="text-base font-bold" style={{ color: amountColor }}>
-                              {getCurrencySymbol(groupCurrency)}{yourShare ? yourShare.toFixed(2) : (expense.amount / (expense.split_between?.length || 1)).toFixed(2)}
+                              {getCurrencySymbol(userCurrency)}{yourShare ? yourShare.toFixed(2) : (expense.amount / (expense.split_between?.length || 1)).toFixed(2)}
                             </p>
                             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                               {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -799,7 +862,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                       </div>
                       <div className="flex items-center gap-2">
                         <p className="text-xl sm:text-2xl font-bold" style={{ color: isDebt ? '#FF5E00' : '#10b981' }}>
-                          {isDebt ? '-' : '+'}{getCurrencySymbol(groupCurrency)}{Math.abs(balance.amount).toFixed(2)}
+                          {isDebt ? '-' : '+'}{getCurrencySymbol(userCurrency)}{Math.abs(balance.amount).toFixed(2)}
                         </p>
                       </div>
                     </div>
@@ -851,7 +914,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                     </div>
                     <div className="flex items-center gap-3">
                       <p className="text-xl font-bold" style={{ color: '#10b981' }}>
-                        {getCurrencySymbol(groupCurrency)}{settlement.amount.toFixed(2)}
+                        {getCurrencySymbol(userCurrency)}{settlement.amount.toFixed(2)}
                       </p>
                       <div className="flex gap-2">
                         <button
@@ -894,7 +957,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                       </p>
                     </div>
                     <p className="text-xl font-bold" style={{ color: '#FF5E00' }}>
-                      {getCurrencySymbol(groupCurrency)}{settlement.amount.toFixed(2)}
+                      {getCurrencySymbol(userCurrency)}{settlement.amount.toFixed(2)}
                     </p>
                   </div>
                 ))}
@@ -993,7 +1056,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                   <p className="text-xl sm:text-2xl font-bold" style={{
                     color: selectedSettlement.from_user_id === currentUserId ? '#FF5E00' : '#10b981'
                   }}>
-                    {getCurrencySymbol(groupCurrency)}{selectedSettlement.amount.toFixed(2)}
+                    {getCurrencySymbol(userCurrency)}{selectedSettlement.amount.toFixed(2)}
                   </p>
                 </div>
               </div>
@@ -1043,12 +1106,20 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                     ? new Date(previousSettlement.settled_up_to_timestamp || previousSettlement.completed_at)
                     : null;
 
-                  // Gather ONLY expenses that were part of THIS settlement
+                  // Gather ONLY expenses that were part of THIS settlement (with currency conversion)
                   // (after previous settlement, up to this settlement's timestamp)
                   expenses.forEach(expense => {
                     const splitBetween = expense.split_between || [];
                     const paidBy = expense.paid_by;
-                    const splitAmount = expense.amount / splitBetween.length;
+
+                    // Convert expense amount to user's currency
+                    const originalAmount = parseFloat(expense.amount);
+                    const expenseCurrency = expense.currency || 'USD';
+                    const convertedAmount = Object.keys(exchangeRates).length > 0
+                      ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+                      : originalAmount;
+
+                    const splitAmount = convertedAmount / splitBetween.length;
                     const expenseDate = new Date(expense.date);
 
                     // Only include if expense is in the range for this settlement
@@ -1059,12 +1130,22 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
 
                     // If other person paid and we're in the split
                     if (paidBy === otherUserId && splitBetween.includes(currentUserId)) {
-                      settlementBalance.expenses.push({ ...expense, yourShare: splitAmount });
+                      settlementBalance.expenses.push({
+                        ...expense,
+                        yourShare: splitAmount,
+                        convertedAmount,
+                        displayCurrency: userCurrency
+                      });
                     }
 
                     // If we paid and other person is in split
                     if (paidBy === currentUserId && splitBetween.includes(otherUserId)) {
-                      settlementBalance.expenses.push({ ...expense, theirShare: splitAmount });
+                      settlementBalance.expenses.push({
+                        ...expense,
+                        theirShare: splitAmount,
+                        convertedAmount,
+                        displayCurrency: userCurrency
+                      });
                     }
                   });
 
@@ -1124,7 +1205,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                           </div>
                           <div className="text-right ml-4">
                             <p className="text-base font-bold" style={{ color: amountColor }}>
-                              {getCurrencySymbol(groupCurrency)}{yourShare ? yourShare.toFixed(2) : (expense.amount / expense.split_between.length).toFixed(2)}
+                              {getCurrencySymbol(userCurrency)}{yourShare ? yourShare.toFixed(2) : (expense.amount / expense.split_between.length).toFixed(2)}
                             </p>
                             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                               {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -1162,7 +1243,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                     <p className="text-lg font-bold" style={{
                       color: settlement.from_user_id === currentUserId ? '#FF5E00' : '#10b981'
                     }}>
-                      {getCurrencySymbol(groupCurrency)}{settlement.amount.toFixed(2)}
+                      {getCurrencySymbol(userCurrency)}{settlement.amount.toFixed(2)}
                     </p>
                     <span className={`px-3 py-1 rounded-full text-xs font-semibold ${isDarkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'}`}>
                       Completed
@@ -1242,7 +1323,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                           </div>
                         </div>
                         <p className="text-2xl font-bold" style={{ color: '#FF5E00' }}>
-                          {getCurrencySymbol(groupCurrency)}{balance.amount.toFixed(2)}
+                          {getCurrencySymbol(userCurrency)}{balance.amount.toFixed(2)}
                         </p>
                       </div>
 
@@ -1299,9 +1380,9 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                               }
                               // Copy Zelle info to clipboard and show instructions
                               navigator.clipboard.writeText(zelleEmail).then(() => {
-                                alert(`Zelle info copied!\n\nSend ${getCurrencySymbol(groupCurrency)}${balance.amount.toFixed(2)} to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
+                                alert(`Zelle info copied!\n\nSend ${getCurrencySymbol(userCurrency)}${balance.amount.toFixed(2)} to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
                               }).catch(() => {
-                                alert(`Send ${getCurrencySymbol(groupCurrency)}${balance.amount.toFixed(2)} via Zelle to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
+                                alert(`Send ${getCurrencySymbol(userCurrency)}${balance.amount.toFixed(2)} via Zelle to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
                               });
                             }}
                             className="px-4 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 shadow-sm"

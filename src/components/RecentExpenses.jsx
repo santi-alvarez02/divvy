@@ -1,6 +1,7 @@
 import React from 'react';
+import { getCurrencySymbol } from '../utils/currency';
 
-const RecentExpenses = ({ expenses, roommates, isDarkMode, onClick, onAddExpense }) => {
+const RecentExpenses = ({ expenses, roommates, currency = 'USD', isDarkMode, onClick, onAddExpense }) => {
   // Get roommate name by ID
   const getRoommateName = (id) => {
     const roommate = roommates.find(r => r.id === id);
@@ -117,7 +118,7 @@ const RecentExpenses = ({ expenses, roommates, isDarkMode, onClick, onAddExpense
             {/* Right side - Amount and date */}
             <div className="text-right ml-4">
               <p className="text-base font-bold" style={{ color: '#FF5E00' }}>
-                ${expense.amount.toFixed(2)}
+                {getCurrencySymbol(currency)}{expense.amount.toFixed(2)}
               </p>
               <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                 {formatDate(expense.date)}

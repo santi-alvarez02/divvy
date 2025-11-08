@@ -156,13 +156,12 @@ const Onboarding = ({ isDarkMode }) => {
       // If group account, handle group creation/joining
       if (accType === 'group') {
         if (groupAction === 'create') {
-          // Create new group with user's default currency
+          // Create new group
           const { data: groupData, error: groupError } = await supabase
             .from('groups')
             .insert({
               name: groupName,
-              admin_id: user.id,
-              default_currency: defaultCurrency
+              admin_id: user.id
             })
             .select()
             .single();

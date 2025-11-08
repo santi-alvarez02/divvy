@@ -107,38 +107,51 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     fetchUserGroup();
   }, [user]);
 
-  // Fetch user's display currency and exchange rates
+  // Fetch user's display currency and exchange rates (runs immediately)
   useEffect(() => {
     const fetchCurrencyData = async () => {
       if (!user) return;
 
       try {
-        // Fetch user's preferred display currency
-        const { data: userData, error: userError } = await supabase
-          .from('users')
-          .select('default_currency')
-          .eq('id', user.id)
-          .single();
+        // Fetch both user currency and exchange rates in parallel
+        const [userDataResult, ratesResult] = await Promise.all([
+          supabase
+            .from('users')
+            .select('default_currency')
+            .eq('id', user.id)
+            .single(),
+          getExchangeRatesFromDB()
+        ]);
 
-        if (!userError && userData?.default_currency) {
-          setUserCurrency(userData.default_currency);
+        // Set user currency immediately
+        if (!userDataResult.error && userDataResult.data?.default_currency) {
+          setUserCurrency(userDataResult.data.default_currency);
         }
 
-        // Check if we need to update rates
-        const needsUpdate = await shouldUpdateRates();
-
-        if (needsUpdate) {
-          console.log('📊 Exchange rates are stale, updating...');
-          await updateExchangeRates();
+        // Set exchange rates immediately
+        if (ratesResult.rates) {
+          setExchangeRates(ratesResult.rates);
         }
-
-        // Fetch cached exchange rates from database
-        const { rates } = await getExchangeRatesFromDB();
-        setExchangeRates(rates);
 
         console.log('✅ Currency data loaded:', {
-          userCurrency: userData?.default_currency,
-          ratesCount: Object.keys(rates).length
+          userCurrency: userDataResult.data?.default_currency,
+          ratesCount: Object.keys(ratesResult.rates || {}).length
+        });
+
+        // Check if we need to update rates (do this in background, don't wait)
+        shouldUpdateRates().then(needsUpdate => {
+          if (needsUpdate) {
+            console.log('📊 Updating exchange rates in background...');
+            updateExchangeRates().then(() => {
+              // Refresh rates after update
+              getExchangeRatesFromDB().then(({ rates }) => {
+                if (rates) {
+                  setExchangeRates(rates);
+                  console.log('✅ Exchange rates refreshed');
+                }
+              });
+            });
+          }
         });
       } catch (error) {
         console.error('Error fetching currency data:', error);
@@ -576,7 +589,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     });
 
   // Loading state
-  if (loading) {
+  // Wait for both initial data and currency data before rendering
+  if (loading || !exchangeRates || Object.keys(exchangeRates).length === 0) {
     return (
       <div
         className="min-h-screen relative overflow-hidden"

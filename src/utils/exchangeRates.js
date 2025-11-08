@@ -1,16 +1,17 @@
 import { supabase } from '../lib/supabase';
 
-const API_KEY = import.meta.env.VITE_EXCHANGE_RATE_API_KEY;
-const API_BASE_URL = 'https://v6.exchangerate-api.com/v6';
+const API_KEY = import.meta.env.VITE_EXCHANGERATESAPI_KEY;
+const API_BASE_URL = 'https://api.exchangeratesapi.io/v1';
 
 /**
- * Fetch latest exchange rates from exchangerate-api.com
- * Base currency: USD
+ * Fetch latest exchange rates from exchangeratesapi.io API
  * @returns {Promise<Object>} Object with rates keyed by currency code
  */
 export const fetchExchangeRates = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/${API_KEY}/latest/USD`);
+    // Use access_key query parameter for authentication
+    // Free tier only supports EUR base, so we don't specify base parameter
+    const response = await fetch(`${API_BASE_URL}/latest?access_key=${API_KEY}`);
 
     if (!response.ok) {
       throw new Error(`API responded with status: ${response.status}`);
@@ -18,14 +19,48 @@ export const fetchExchangeRates = async () => {
 
     const data = await response.json();
 
-    if (data.result !== 'success') {
-      throw new Error(`API error: ${data['error-type']}`);
+    if (!data.success) {
+      throw new Error(`API error: ${data.error?.type || 'Unknown error'}`);
     }
 
+    // API returns EUR-based rates, convert to USD-based for our app
+    const eurToUsd = data.rates.USD; // How many USD per 1 EUR
+    const usdBasedRates = {};
+
+    // Convert all EUR-based rates to USD-based rates
+    Object.entries(data.rates).forEach(([currency, eurRate]) => {
+      // eurRate is how many of that currency per 1 EUR
+      // We want: how many of that currency per 1 USD
+      // Formula: usdRate = eurRate / eurToUsd
+      usdBasedRates[currency] = eurRate / eurToUsd;
+    });
+
+    // Log the conversion for debugging
+    console.log('📊 API Response (EUR-based):', {
+      base: data.base,
+      timestamp: new Date(data.timestamp * 1000).toLocaleString(),
+      eurToUsd: eurToUsd,
+      sampleEURRates: {
+        USD: data.rates.USD,
+        EUR: data.rates.EUR,
+        GBP: data.rates.GBP,
+        JPY: data.rates.JPY
+      }
+    });
+
+    console.log('📊 Converted to USD-based:', {
+      sampleUSDRates: {
+        USD: usdBasedRates.USD,
+        EUR: usdBasedRates.EUR,
+        GBP: usdBasedRates.GBP,
+        JPY: usdBasedRates.JPY
+      }
+    });
+
     return {
-      rates: data.conversion_rates,
-      timestamp: data.time_last_update_unix,
-      baseCode: data.base_code
+      rates: usdBasedRates,
+      timestamp: data.timestamp,
+      baseCode: 'USD' // We converted to USD base
     };
   } catch (error) {
     console.error('Error fetching exchange rates:', error);
@@ -40,7 +75,7 @@ export const fetchExchangeRates = async () => {
  */
 export const saveExchangeRatesToDB = async (rates) => {
   try {
-    // Prepare data for bulk insert
+    // Prepare data for bulk insert - rates are USD-based (converted from EUR)
     const rateEntries = Object.entries(rates).map(([currency, rate]) => ({
       from_currency: 'USD',
       to_currency: currency,
@@ -125,7 +160,7 @@ export const updateExchangeRates = async () => {
  * @param {number} amount - Amount to convert
  * @param {string} fromCurrency - Source currency code (e.g., 'USD')
  * @param {string} toCurrency - Target currency code (e.g., 'EUR')
- * @param {Object} rates - Exchange rates object from database
+ * @param {Object} rates - Exchange rates object from database (USD-based)
  * @returns {number} Converted amount
  */
 export const convertCurrency = (amount, fromCurrency, toCurrency, rates) => {
@@ -133,6 +168,15 @@ export const convertCurrency = (amount, fromCurrency, toCurrency, rates) => {
   if (fromCurrency === toCurrency) {
     return amount;
   }
+
+  // Log the conversion details
+  console.log('💱 Converting:', {
+    amount,
+    from: fromCurrency,
+    to: toCurrency,
+    rateFrom: rates[fromCurrency],
+    rateTo: rates[toCurrency]
+  });
 
   // All rates are relative to USD, so we convert through USD
   // Step 1: Convert from source currency to USD
@@ -144,6 +188,11 @@ export const convertCurrency = (amount, fromCurrency, toCurrency, rates) => {
   const convertedAmount = toCurrency === 'USD'
     ? amountInUSD
     : amountInUSD * rates[toCurrency];
+
+  console.log('💱 Conversion result:', {
+    amountInUSD,
+    convertedAmount
+  });
 
   return convertedAmount;
 };
@@ -181,7 +230,7 @@ export const formatCurrencyAmount = (amount, currency) => {
 };
 
 /**
- * Check if exchange rates need updating (older than 24 hours)
+ * Check if exchange rates need updating (older than 8 hours)
  * @returns {Promise<boolean>} True if rates need updating
  */
 export const shouldUpdateRates = async () => {
@@ -196,7 +245,7 @@ export const shouldUpdateRates = async () => {
     const now = new Date();
     const hoursSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60);
 
-    return hoursSinceUpdate >= 24;
+    return hoursSinceUpdate >= 8;
   } catch (error) {
     console.error('Error checking if rates need update:', error);
     return false;
