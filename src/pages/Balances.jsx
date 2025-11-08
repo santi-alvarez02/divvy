@@ -114,19 +114,24 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
             setExpenses(transformedExpenses);
           }
 
-          // Fetch settlements for this group
+          // Fetch settlements for this group where current user is involved
           const { data: settlementsData, error: settlementsError } = await supabase
             .from('settlements')
             .select('*')
             .eq('group_id', groupMemberships.groups.id)
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false});
 
           if (settlementsError) {
             console.error('Error fetching settlements:', settlementsError);
           } else {
+            // Filter to only settlements involving the current user
+            const userSettlements = settlementsData?.filter(s =>
+              s.from_user_id === user.id || s.to_user_id === user.id
+            ) || [];
+
             // Split into pending and completed
-            const pending = settlementsData?.filter(s => s.status === 'pending') || [];
-            const completed = settlementsData?.filter(s => s.status === 'completed') || [];
+            const pending = userSettlements.filter(s => s.status === 'pending');
+            const completed = userSettlements.filter(s => s.status === 'completed');
             setPendingSettlements(pending);
             setSettlementHistory(completed);
           }

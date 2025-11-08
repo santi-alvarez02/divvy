@@ -916,3 +916,350 @@ if (currentUserData) {
 4. **Amount Format:** Remove .00 for cleaner visual hierarchy
 
 ---
+
+## Session 38: Expenses Page - Additional UI Improvements ✅
+
+**Date**: 2025-11-08
+
+### Goals
+
+Complete additional UI improvements to the Expenses page including Y-axis labels for charts and filtered totals display.
+
+### Features Implemented
+
+#### 1. Spending Over Time Chart - Y-axis Labels ✅
+
+**Problem:**
+The "Spending Over Time" chart had no Y-axis labels, making it difficult to understand the actual dollar amounts represented by the chart.
+
+**Solution:**
+Added a Y-axis column showing 5 evenly-spaced monetary values from the maximum spending amount down to 0.
+
+**Implementation:** `src/pages/Expenses.jsx:1332-1416`
+
+```javascript
+<div className="h-64 flex">
+  {/* Y-axis labels */}
+  <div className="flex flex-col justify-between pr-2" style={{ width: '60px' }}>
+    {[...Array(5)].map((_, i) => {
+      const value = maxSpendingAmount * (1 - i / 4);
+      return (
+        <span key={i} className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          {getCurrencySymbol(userCurrency)}{Math.round(value)}
+        </span>
+      );
+    })}
+  </div>
+
+  {/* Chart */}
+  <div className="flex-1">
+    <svg>...</svg>
+  </div>
+</div>
+
+{/* X-axis labels - adjusted with left margin */}
+<div className="flex justify-between pb-2" style={{ marginLeft: '60px' }}>
+  ...
+</div>
+```
+
+**Key Changes:**
+- Added 60px-wide column on the left for Y-axis labels
+- Displays 5 values from max to 0 (e.g., $1500, $1125, $750, $375, $0)
+- Values rounded to nearest dollar for clean display
+- X-axis labels container adjusted with matching left margin for alignment
+
+#### 2. Filtered Total Display ✅
+
+**Problem:**
+When filtering expenses by category or date range, there was no indication of the total amount for the filtered results.
+
+**Solution:**
+Added a total display that appears in the top-right corner (same line as the date header) when any filter is active.
+
+**Implementation:** `src/pages/Expenses.jsx:1085-1102`
+
+```javascript
+<div className="flex justify-between items-center mb-3 sm:mb-4">
+  <h3 className={`text-lg sm:text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+    {getDisplayTitle()}
+  </h3>
+  {(selectedCategory !== 'All' || selectedDateRange !== 'This Month') && filteredExpenses.length > 0 && (
+    <div className="text-right">
+      <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+        Total:{' '}
+      </span>
+      <span className="text-lg font-bold" style={{ color: '#FF5E00' }}>
+        {getCurrencySymbol(userCurrency)}
+        {Number.isInteger(filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0))
+          ? filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0)
+          : filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2).replace(/\.00$/, '')}
+      </span>
+    </div>
+  )}
+</div>
+```
+
+**Key Features:**
+- Only displays when filters are active (category ≠ 'All' OR dateRange ≠ 'This Month')
+- Shows "Total: " in black/white with the amount in orange
+- Uses same number formatting as expenses (no .00 for whole numbers)
+- Positioned at top-right, aligned with date header
+
+**Example Display:**
+```
+November 2025          Total: $1152
+```
+
+#### 3. Tooltip Flicker Fix ✅
+
+**Problem:**
+The hover tooltip for split details would flicker and glitch when hovering over the last expense in the list, causing a poor user experience.
+
+**Root Cause:**
+The tooltip was positioned below the text (`top-full`), which could cause layout shifts and create a hover loop where:
+1. Hover triggers tooltip
+2. Tooltip appears and pushes text
+3. Mouse no longer over text
+4. Tooltip disappears
+5. Repeat
+
+**Solution:**
+1. Changed tooltip position from `bottom` to `top` (`bottom-full mb-1`)
+2. Moved hover handlers to parent container
+3. Added `pointer-events-none` to tooltip to prevent interference
+
+**Implementation:** `src/pages/Expenses.jsx:1141-1162`
+
+```javascript
+<div
+  className="relative"
+  style={{ display: 'inline-block', lineHeight: '1' }}
+  onMouseEnter={() => setHoveredExpenseId(expense.id)}
+  onMouseLeave={() => setHoveredExpenseId(null)}
+>
+  <p className={`text-xs font-medium cursor-pointer...`}>
+    {getSplitInfo(expense)}
+  </p>
+
+  {/* Hover Tooltip */}
+  {hoveredExpenseId === expense.id && (
+    <div
+      className="absolute left-0 bottom-full mb-1 z-50 rounded-xl shadow-lg p-2 min-w-max pointer-events-none"
+      style={{ background: ..., backdropFilter: 'blur(12px)' }}
+    >
+      {/* Avatar circles */}
+    </div>
+  )}
+</div>
+```
+
+### Files Modified
+
+1. **`/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Expenses.jsx`**
+   - Lines 1332-1416: Added Y-axis labels to Spending Over Time chart
+   - Lines 1085-1102: Added filtered total display
+   - Lines 1141-1162: Fixed tooltip positioning to prevent flicker
+
+### User Experience Improvements
+
+**Before:**
+- Chart had no Y-axis scale reference
+- No indication of filtered totals
+- Last expense tooltip would flicker
+
+**After:**
+- ✅ Y-axis shows clear monetary values ($0 to max)
+- ✅ Filtered total displays when filters active
+- ✅ Tooltip appears smoothly above text without flicker
+- ✅ Better visual hierarchy and information architecture
+
+### Testing Status
+
+- ✅ Y-axis labels display correctly with proper scaling
+- ✅ Filtered total shows only when filters active
+- ✅ Tooltip no longer flickers on any expense
+- ✅ All features work in both light and dark modes
+- ✅ Mobile responsive
+
+### Technical Notes
+
+**Y-axis Calculation:**
+```javascript
+const value = maxSpendingAmount * (1 - i / 4);
+// i=0: max * 1 = max
+// i=1: max * 0.75 = 75%
+// i=2: max * 0.5 = 50%
+// i=3: max * 0.25 = 25%
+// i=4: max * 0 = 0
+```
+
+**Filter Detection:**
+The total displays when either condition is true:
+- `selectedCategory !== 'All'` (category filter active)
+- `selectedDateRange !== 'This Month'` (date filter active)
+
+---
+
+## Session 39: Fix Balance Calculation Currency Conversion ✅
+
+**Date**: 2025-11-08
+
+### Problem
+
+Balance calculations were showing incorrect individual expense amounts when dealing with multi-currency expenses.
+
+**Specific Issue:**
+- Groceries expense: €158 split between 5 people
+- Expected display for USD user: $36.56 per person ($182.80 ÷ 5)
+- Actual display: $31.60 per person
+
+**Root Cause:**
+The display fallback logic was using the original currency amount instead of the converted amount when calculating individual shares:
+
+```javascript
+// Problematic fallback
+{yourShare ? yourShare.toFixed(2) : (expense.amount / splitBetween.length).toFixed(2)}
+```
+
+This would divide the original €158 by 5 = €31.60, then display with USD symbol, showing "$31.60" instead of properly converting first.
+
+### Analysis
+
+**Expected Flow:**
+1. Expense stored: €158, split 5 ways
+2. For USD user viewing:
+   - Convert €158 → $182.80 first
+   - Then split: $182.80 ÷ 5 = $36.56 per person
+
+**What Was Happening:**
+The calculation logic at lines 238-244 was correct:
+```javascript
+// Convert first
+const convertedAmount = expenseCurrency === userCurrency
+  ? originalAmount
+  : convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates);
+
+// Then split
+const splitAmount = convertedAmount / splitBetween.length;
+```
+
+But the display logic had a fallback that would use unconverted amounts:
+```javascript
+{yourShare ? yourShare.toFixed(2) : (expense.amount / splitBetween.length).toFixed(2)}
+//                                      ↑ This is the original €158, not converted!
+```
+
+### Solution Implemented
+
+Updated the fallback logic in both Active Balances and Settlement History sections to use the pre-converted `expense.convertedAmount` instead of the original `expense.amount`.
+
+**Files Modified:** `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Balances.jsx`
+
+#### Active Balances Display (Line 821)
+
+**Before:**
+```javascript
+<p className="text-base font-bold" style={{ color: amountColor }}>
+  {getCurrencySymbol(userCurrency)}{yourShare ? yourShare.toFixed(2) : (expense.amount / (expense.split_between?.length || 1)).toFixed(2)}
+</p>
+```
+
+**After:**
+```javascript
+<p className="text-base font-bold" style={{ color: amountColor }}>
+  {getCurrencySymbol(userCurrency)}{(yourShare !== undefined && yourShare !== null) ? yourShare.toFixed(2) : (expense.convertedAmount / (expense.split_between?.length || 1)).toFixed(2)}
+</p>
+```
+
+#### Settlement History Display (Line 1221)
+
+**Before:**
+```javascript
+<p className="text-base font-bold" style={{ color: amountColor }}>
+  {getCurrencySymbol(userCurrency)}{yourShare ? yourShare.toFixed(2) : (expense.amount / expense.split_between.length).toFixed(2)}
+</p>
+```
+
+**After:**
+```javascript
+<p className="text-base font-bold" style={{ color: amountColor }}>
+  {getCurrencySymbol(userCurrency)}{(yourShare !== undefined && yourShare !== null) ? yourShare.toFixed(2) : (expense.convertedAmount / expense.split_between.length).toFixed(2)}
+</p>
+```
+
+### Key Changes
+
+1. **Improved Falsy Check:**
+   - Changed from `yourShare ?` to `(yourShare !== undefined && yourShare !== null)`
+   - Prevents legitimate $0.00 values from triggering the fallback
+
+2. **Use Converted Amount in Fallback:**
+   - Changed from `expense.amount` to `expense.convertedAmount`
+   - Ensures fallback also uses the already-converted currency amount
+
+### Example Calculation
+
+**Groceries Expense:**
+- Original: €158 EUR
+- Split between: 5 people
+- User currency: USD
+- Exchange rate: 1 EUR = 1.1570 USD (approximately)
+
+**Correct Calculation (after fix):**
+```
+€158 → $182.80 (converted)
+$182.80 ÷ 5 = $36.56 per person ✅
+```
+
+**Previous Incorrect Calculation:**
+```
+€158 ÷ 5 = €31.60 per person
+Display as "$31.60" ❌ (wrong - no conversion!)
+```
+
+### Testing
+
+**Test Cases:**
+- ✅ EUR expense viewed by USD user shows correct converted split amount
+- ✅ USD expense viewed by USD user (no conversion needed)
+- ✅ Multiple currency expenses all show properly converted amounts
+- ✅ Settlement history also shows correct converted amounts
+- ✅ Zero-value shares don't trigger fallback incorrectly
+
+**Example from Production:**
+- Expense: Groceries €158 split 5 ways
+- Santiago (USD user) now sees: **$36.56** (previously showed $31.60)
+- Balance total adjusted accordingly
+
+### Data Flow
+
+```
+Database
+  ↓
+expense.amount = 158
+expense.currency = 'EUR'
+  ↓
+Balance Calculation (lines 238-244)
+  ↓
+convertedAmount = 182.80 (EUR → USD conversion)
+splitAmount = 182.80 / 5 = 36.56
+  ↓
+Stored in expense object
+  ↓
+expense.yourShare = 36.56
+expense.convertedAmount = 182.80
+  ↓
+Display (line 821)
+  ↓
+Shows: $36.56 ✅
+```
+
+### Key Learnings
+
+1. **Always convert before splitting:** Currency conversion must happen before division to maintain accuracy
+2. **Fallback logic matters:** Even when primary calculation is correct, fallback paths can introduce bugs
+3. **Explicit null checks:** Use `!== undefined && !== null` instead of truthy checks when 0 is a valid value
+4. **Store converted amounts:** Storing `convertedAmount` in the expense object enables consistent display
+
+---
