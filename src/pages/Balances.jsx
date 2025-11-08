@@ -233,16 +233,23 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
       // Convert expense amount to user's currency
       const originalAmount = parseFloat(expense.amount);
       const expenseCurrency = expense.currency || 'USD';
-      const convertedAmount = Object.keys(exchangeRates).length > 0
-        ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
-        : originalAmount;
+
+      // Skip conversion if currencies are the same to avoid floating-point errors
+      const convertedAmount = expenseCurrency === userCurrency
+        ? originalAmount
+        : (Object.keys(exchangeRates).length > 0
+          ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+          : originalAmount);
 
       const splitAmount = convertedAmount / splitBetween.length;
       const expenseDate = new Date(expense.date);
 
       console.log('Processing expense:', {
         description: expense.description,
-        amount: expense.amount,
+        originalAmount: originalAmount,
+        expenseCurrency: expenseCurrency,
+        userCurrency: userCurrency,
+        convertedAmount: convertedAmount,
         paidBy,
         splitBetween,
         splitAmount,
@@ -307,7 +314,14 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
     });
 
     // No need to subtract settlements anymore - we're filtering expenses by timestamp
-    return Object.values(balances).filter(b => Math.abs(b.amount) > 0.01);
+    const finalBalances = Object.values(balances).filter(b => Math.abs(b.amount) > 0.01);
+
+    console.log('=== FINAL BALANCE CALCULATION ===');
+    finalBalances.forEach(balance => {
+      console.log(`${balance.name}: ${balance.amount > 0 ? 'You owe them' : 'They owe you'} $${Math.abs(balance.amount).toFixed(2)}`);
+    });
+
+    return finalBalances;
   };
 
   const balances = calculateBalances();
@@ -1110,9 +1124,13 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                     // Convert expense amount to user's currency
                     const originalAmount = parseFloat(expense.amount);
                     const expenseCurrency = expense.currency || 'USD';
-                    const convertedAmount = Object.keys(exchangeRates).length > 0
-                      ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
-                      : originalAmount;
+
+                    // Skip conversion if currencies are the same to avoid floating-point errors
+                    const convertedAmount = expenseCurrency === userCurrency
+                      ? originalAmount
+                      : (Object.keys(exchangeRates).length > 0
+                        ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+                        : originalAmount);
 
                     const splitAmount = convertedAmount / splitBetween.length;
                     const expenseDate = new Date(expense.date);

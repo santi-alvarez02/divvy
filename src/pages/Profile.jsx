@@ -691,27 +691,30 @@ const Profile = ({ isDarkMode, setIsDarkMode }) => {
                             paddingBottom: '80px'
                           }}
                         >
-                          {currencies.map((curr) => (
-                            <button
-                              key={curr}
-                              type="button"
-                              onClick={() => {
-                                setEditData({ ...editData, default_currency: curr });
-                                setShowCurrencyPicker(false);
-                              }}
-                              className="w-full flex items-center justify-center"
-                              style={{
-                                height: '40px',
-                                background: 'transparent',
-                                color: '#6b7280',
-                                fontSize: '15px',
-                                fontWeight: '400',
-                                transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
-                              }}
-                            >
-                              {curr}
-                            </button>
-                          ))}
+                          {currencies.map((curr) => {
+                            const isSelected = curr === editData.default_currency;
+                            return (
+                              <button
+                                key={curr}
+                                type="button"
+                                onClick={() => {
+                                  setEditData({ ...editData, default_currency: curr });
+                                  setShowCurrencyPicker(false);
+                                }}
+                                className="w-full flex items-center justify-center"
+                                style={{
+                                  height: '40px',
+                                  background: 'transparent',
+                                  color: isSelected ? (isDarkMode ? '#ffffff' : '#000000') : '#6b7280',
+                                  fontSize: '15px',
+                                  fontWeight: isSelected ? '700' : '400',
+                                  transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
+                                }}
+                              >
+                                {curr}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>

@@ -5,6 +5,7 @@ import Sidebar from '../components/Sidebar';
 import AddExpenseModal from '../components/AddExpenseModal';
 import EditExpenseModal from '../components/EditExpenseModal';
 import { getCurrencySymbol } from '../utils/currency';
+import { getAvatarColor } from '../utils/avatarColors';
 import {
   getExchangeRatesFromDB,
   convertCurrency,
@@ -24,6 +25,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const [settlementHistory, setSettlementHistory] = useState([]);
   const [userCurrency, setUserCurrency] = useState('USD'); // User's display currency
   const [exchangeRates, setExchangeRates] = useState({}); // Cached exchange rates
+  const [currentUserFullName, setCurrentUserFullName] = useState('');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -33,6 +35,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const [selectedDateRange, setSelectedDateRange] = useState('This Month');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [hoveredExpenseId, setHoveredExpenseId] = useState(null);
   const categoryScrollRef = React.useRef(null);
   const dateScrollRef = React.useRef(null);
 
@@ -92,9 +95,16 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             const transformedMembers = members.map(member => ({
               id: member.users.id,
               name: member.users.id === user.id ? 'You' : member.users.full_name,
+              full_name: member.users.full_name, // Store actual full name for all users
               email: member.users.email
             }));
             setRoommates(transformedMembers);
+
+            // Store current user's full name for avatar initials
+            const currentUserData = members.find(m => m.users.id === user.id);
+            if (currentUserData) {
+              setCurrentUserFullName(currentUserData.users.full_name);
+            }
           }
         }
       } catch (error) {
@@ -1086,7 +1096,15 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               filteredExpenses.map((expense) => (
               <div
                 key={expense.id}
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-2xl transition-all"
+                onClick={() => {
+                  // Only allow editing if current user paid for the expense
+                  if (expense.paidBy === user?.id) {
+                    handleEditExpense(expense);
+                  }
+                }}
+                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-2xl transition-all ${
+                  expense.paidBy === user?.id ? 'cursor-pointer' : ''
+                }`}
                 style={{
                   backgroundColor: 'transparent'
                 }}
@@ -1119,35 +1137,80 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                         {getRoommateName(expense.paidBy)} paid
                       </p>
                       <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>•</span>
-                      <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {getSplitInfo(expense)}
-                      </p>
+                      {expense.splitBetween.length > 2 || expense.splitBetween.length === roommates.length ? (
+                        <div className="relative inline-block">
+                          <p
+                            onMouseEnter={() => setHoveredExpenseId(expense.id)}
+                            onMouseLeave={() => setHoveredExpenseId(null)}
+                            className={`text-xs font-medium cursor-pointer transition-opacity hover:opacity-70 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+                          >
+                            {getSplitInfo(expense)}
+                          </p>
+
+                          {/* Hover Tooltip */}
+                          {hoveredExpenseId === expense.id && (
+                            <div
+                              className="absolute left-0 top-full mt-1 z-50 rounded-xl shadow-lg p-2 min-w-max"
+                              style={{
+                                background: isDarkMode ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                                backdropFilter: 'blur(12px)',
+                                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.1)'
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                {expense.splitBetween.map((userId) => {
+                                  const roommate = roommates.find(r => r.id === userId);
+                                  let initials = '';
+
+                                  // Use full_name for everyone (including current user)
+                                  const fullName = roommate?.full_name || '';
+
+                                  if (fullName) {
+                                    const nameParts = fullName.split(' ');
+                                    if (nameParts.length >= 2) {
+                                      initials = nameParts[0].charAt(0).toUpperCase() + nameParts[nameParts.length - 1].charAt(0).toUpperCase();
+                                    } else {
+                                      // If single name, take first 2 characters
+                                      initials = fullName.substring(0, Math.min(2, fullName.length)).toUpperCase();
+                                    }
+                                  } else {
+                                    // Fallback
+                                    initials = '??';
+                                  }
+
+                                  return (
+                                    <div
+                                      key={userId}
+                                      className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+                                      style={{
+                                        background: getAvatarColor(userId)
+                                      }}
+                                    >
+                                      {initials}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {getSplitInfo(expense)}
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   {/* Amount and Date - Mobile right side */}
                   <div className="text-right shrink-0">
                     <p className="text-base font-bold" style={{ color: '#FF5E00' }}>
-                      {getCurrencySymbol(userCurrency)}{expense.amount.toFixed(2)}
+                      {getCurrencySymbol(userCurrency)}{Number.isInteger(expense.amount) ? expense.amount : expense.amount.toFixed(2).replace(/\.00$/, '')}
                     </p>
                     <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                       {formatDate(expense.date)}
                     </p>
                   </div>
-                </div>
-
-                {/* Action Button */}
-                <div className="sm:ml-4 sm:shrink-0">
-                  <button
-                    onClick={() => handleEditExpense(expense)}
-                    className="w-full sm:w-auto px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all hover:opacity-80"
-                    style={{
-                      background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                      color: isDarkMode ? 'white' : '#1f2937'
-                    }}
-                  >
-                    Edit
-                  </button>
                 </div>
               </div>
               ))

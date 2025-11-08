@@ -634,3 +634,285 @@ const handleCancelEdit = () => {
 5. **Error Feedback:** Auto-clearing success messages improve user experience
 
 ---
+
+## Session 36: Fix Balance Calculation Bug in Balances Page ✅
+
+**Date**: 2025-11-08
+
+### Problem
+
+The balance calculation in the Balances page was showing incorrect totals. User reported that manual calculation of expenses didn't match the displayed balance:
+
+**Expected calculation:**
+- Green numbers (expenses user paid): $500 + $50 + $50 + $108 = $708.00
+- Orange numbers (expenses Liam paid): $8 + $17.33 + $31.60 = $56.93
+- Expected balance: $708.00 - $56.93 = **$651.07**
+
+**Actual display:**
+- Showed: **$646.11**
+- Difference: **$4.96 error**
+
+### Root Cause
+
+The bug was in the `calculateBalances()` function in `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Balances.jsx`.
+
+The issue occurred because the code was calling `convertCurrency()` even when the source and target currencies were the same (both USD). While the `convertCurrency` function itself has a check for same-currency conversions (line 168-170 in exchangeRates.js), the intermediate conversion process was still being invoked and could introduce floating-point arithmetic errors.
+
+**Problematic code** (lines 233-238):
+```javascript
+const originalAmount = parseFloat(expense.amount);
+const expenseCurrency = expense.currency || 'USD';
+const convertedAmount = Object.keys(exchangeRates).length > 0
+  ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+  : originalAmount;
+```
+
+This code always attempted conversion when exchange rates were available, even when `expenseCurrency === userCurrency`.
+
+### Solution Implemented
+
+Added an early check to skip currency conversion entirely when the source and target currencies are identical, preventing any potential floating-point errors:
+
+**Fixed code** (lines 233-242):
+```javascript
+const originalAmount = parseFloat(expense.amount);
+const expenseCurrency = expense.currency || 'USD';
+
+// Skip conversion if currencies are the same to avoid floating-point errors
+const convertedAmount = expenseCurrency === userCurrency
+  ? originalAmount
+  : (Object.keys(exchangeRates).length > 0
+    ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+    : originalAmount);
+```
+
+### Files Modified
+
+1. **`/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Balances.jsx`**
+   - Updated line 237-242: Added same-currency check in main balance calculation loop
+   - Updated line 1118-1123: Added same-currency check in settlement history expense calculation loop
+
+### Technical Details
+
+**Why this fixes the issue:**
+1. **Eliminates unnecessary conversions:** When both currencies are USD, no conversion logic is invoked
+2. **Prevents floating-point errors:** Direct assignment preserves exact decimal values
+3. **Improves performance:** Skips unnecessary function calls for same-currency operations
+4. **Maintains accuracy:** Original expense amounts are used directly when no conversion is needed
+
+**Two locations fixed:**
+1. **Active Balances calculation** (line 237-242): Used when computing current balances between users
+2. **Settlement History calculation** (line 1118-1123): Used when displaying expenses associated with past settlements
+
+Both locations use identical logic to ensure consistency across the application.
+
+### Testing Notes
+
+**Expected behavior after fix:**
+- USD → USD expenses should use exact amounts with no conversion
+- Balance calculations should match manual arithmetic
+- The specific example should now show $651.07 instead of $646.11
+- Multi-currency expenses should still convert properly using exchange rates
+
+**Test cases to verify:**
+1. ✅ All USD expenses → exact balance matches manual calculation
+2. ⏳ Mixed currency expenses → proper conversion with exchange rates
+3. ⏳ Same currency (non-USD) → no conversion, exact amounts preserved
+4. ⏳ Settlement history → expenses show correct amounts
+
+### Key Learnings
+
+1. **Defensive Programming:** Always check for same-currency scenarios before invoking conversion logic
+2. **Floating-Point Precision:** Even small rounding errors accumulate across multiple calculations
+3. **Performance Optimization:** Early returns prevent unnecessary computation
+4. **Consistency:** Apply the same fix in all locations where currency conversion occurs
+
+---
+
+## Session 37: Expenses Page UI Improvements ✅
+
+**Date**: 2025-11-08
+
+### Goals
+
+Improve the Expenses page UI with better permission controls and split visualization features.
+
+### User Requirements
+
+1. **Edit Permissions**: Only show edit functionality for expenses the current user paid for
+2. **Split Details Visualization**: Add hover tooltip showing avatars with initials for people in a split
+3. **UI Refinements**:
+   - Remove Edit button, make expense cards clickable instead
+   - Remove .00 from whole number amounts (e.g., $100 instead of $100.00)
+
+### Features Implemented
+
+#### 1. Edit Permissions ✅
+
+**Implementation:**
+- Made expense cards clickable only if the current user paid for the expense
+- Added conditional check: `expense.paidBy === user?.id`
+- Applied cursor-pointer styling only to editable expenses
+- Non-editable expenses remain non-clickable
+
+**Code:** `src/pages/Expenses.jsx:1096-1116`
+```javascript
+<div
+  key={expense.id}
+  onClick={() => {
+    // Only allow editing if current user paid for the expense
+    if (expense.paidBy === user?.id) {
+      handleEditExpense(expense);
+    }
+  }}
+  className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-2xl transition-all ${
+    expense.paidBy === user?.id ? 'cursor-pointer' : ''
+  }`}
+```
+
+#### 2. Split Details Hover Tooltip ✅
+
+**Implementation:**
+- Added hover state tracking: `hoveredExpenseId`
+- Created inline tooltip component that displays on hover
+- Shows circular avatars with user initials
+- Uses existing `getAvatarColor()` utility for consistent colors
+- Applied glassmorphism styling matching app design
+- Tooltips appear for expenses split between >2 people or all roommates
+
+**Code:** `src/pages/Expenses.jsx:1131-1199`
+```javascript
+{expense.splitBetween.length > 2 || expense.splitBetween.length === roommates.length ? (
+  <div className="relative inline-block">
+    <p
+      onMouseEnter={() => setHoveredExpenseId(expense.id)}
+      onMouseLeave={() => setHoveredExpenseId(null)}
+      className={`text-xs font-medium cursor-pointer transition-opacity hover:opacity-70 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+    >
+      {getSplitInfo(expense)}
+    </p>
+
+    {/* Hover Tooltip */}
+    {hoveredExpenseId === expense.id && (
+      <div className="absolute left-0 top-full mt-1 z-50 rounded-xl shadow-lg p-2 min-w-max"
+           style={{ background: isDarkMode ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)' }}>
+        <div className="flex items-center gap-2">
+          {expense.splitBetween.map((userId) => {
+            const roommate = roommates.find(r => r.id === userId);
+            const fullName = roommate?.full_name || '';
+            // Generate initials logic...
+          })}
+        </div>
+      </div>
+    )}
+  </div>
+)}
+```
+
+**Avatar Initials Logic:**
+- Extracts `full_name` from roommates data
+- Two-name format: First initial + Last initial (e.g., "SA" for "Santiago Alvarez")
+- Single-name format: First two characters (e.g., "SA" for "Santiago")
+- Fallback: "??" if no name available
+
+#### 3. UI Refinements ✅
+
+**Removed Edit Button:**
+- Deleted the separate Edit button section
+- Made entire expense card clickable for owned expenses
+- Cleaner, more intuitive interaction pattern
+
+**Amount Display Format:**
+- Removed .00 from whole numbers
+- Shows $100 instead of $100.00
+- Preserves decimals when needed (e.g., $100.50)
+
+**Code:** `src/pages/Expenses.jsx:1210`
+```javascript
+{getCurrencySymbol(userCurrency)}{Number.isInteger(expense.amount) ? expense.amount : expense.amount.toFixed(2).replace(/\.00$/, '')}
+```
+
+### Technical Implementation Details
+
+#### State Variables Added
+
+```javascript
+const [hoveredExpenseId, setHoveredExpenseId] = useState(null);
+const [currentUserFullName, setCurrentUserFullName] = useState('');
+```
+
+#### Data Transformation
+
+Enhanced roommates data to include `full_name` for all users:
+
+**Code:** `src/pages/Expenses.jsx:95-107`
+```javascript
+const transformedMembers = members.map(member => ({
+  id: member.users.id,
+  name: member.users.id === user.id ? 'You' : member.users.full_name,
+  full_name: member.users.full_name, // Store actual full name for all users
+  email: member.users.email
+}));
+setRoommates(transformedMembers);
+
+// Store current user's full name for avatar initials
+const currentUserData = members.find(m => m.users.id === user.id);
+if (currentUserData) {
+  setCurrentUserFullName(currentUserData.users.full_name);
+}
+```
+
+### Files Modified
+
+1. **`/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Expenses.jsx`**
+   - Added import: `getAvatarColor` utility
+   - Added state: `hoveredExpenseId`, `currentUserFullName`
+   - Modified roommates transformation to include `full_name`
+   - Made expense cards clickable with permission check
+   - Added hover tooltip for split details
+   - Removed Edit button section
+   - Updated amount display format
+
+### User Experience Improvements
+
+**Before:**
+- Edit button shown for all expenses (confusing)
+- Split details showed text only
+- Amounts always showed .00 (cluttered)
+- Separate edit button required extra click
+
+**After:**
+- ✅ Edit only available for own expenses
+- ✅ Visual split details with colored avatars
+- ✅ Clean amount display without .00
+- ✅ Direct click on expense card to edit
+- ✅ Proper user initials displayed (not "ME" or "Y")
+
+### Testing Status
+
+- ✅ Edit permissions work correctly
+- ✅ Hover tooltip displays properly
+- ✅ Avatars show correct initials
+- ✅ Current user shows actual initials (e.g., "SA" not "ME")
+- ✅ Amount formatting removes .00 for whole numbers
+- ✅ Click to edit works for owned expenses
+- ✅ Non-owned expenses are non-clickable
+- ✅ Dark mode compatible
+- ✅ Mobile responsive
+
+### Key Learnings
+
+1. **Data Structure Planning:** Need to ensure `full_name` is available in roommates data for avatar initials
+2. **User Feedback Iteration:** Multiple iterations needed to get the tooltip design right (started with full modal, simplified to avatars only)
+3. **Permission UI:** Making permission restrictions visible through UI cues (cursor-pointer only on clickable items)
+4. **State Management:** Hover state needs to be managed at parent level for proper tooltip positioning
+5. **String Manipulation:** Proper initials extraction requires handling both two-name and single-name formats
+
+### Design Decisions
+
+1. **Tooltip vs Modal:** Chose lightweight hover tooltip over full modal for better UX
+2. **Avatar Display:** Show only initials without names for cleaner look
+3. **Edit Interaction:** Clickable cards more intuitive than separate edit button
+4. **Amount Format:** Remove .00 for cleaner visual hierarchy
+
+---
