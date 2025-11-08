@@ -1082,9 +1082,24 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
           }}
         >
-          <h3 className={`text-lg sm:text-xl font-bold font-serif mb-3 sm:mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-            {getDisplayTitle()}
-          </h3>
+          <div className="flex justify-between items-center mb-3 sm:mb-4">
+            <h3 className={`text-lg sm:text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              {getDisplayTitle()}
+            </h3>
+            {(selectedCategory !== 'All' || selectedDateRange !== 'This Month') && filteredExpenses.length > 0 && (
+              <div className="text-right">
+                <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Total:{' '}
+                </span>
+                <span className="text-lg font-bold" style={{ color: '#FF5E00' }}>
+                  {getCurrencySymbol(userCurrency)}
+                  {Number.isInteger(filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0))
+                    ? filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0)
+                    : filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2).replace(/\.00$/, '')}
+                </span>
+              </div>
+            )}
+          </div>
           <div className="space-y-2 sm:space-y-3 overflow-y-auto" style={{ maxHeight: '600px' }}>
             {filteredExpenses.length === 0 ? (
               <div className="text-center py-12">
@@ -1138,10 +1153,13 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                       </p>
                       <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>•</span>
                       {expense.splitBetween.length > 2 || expense.splitBetween.length === roommates.length ? (
-                        <div className="relative inline-block">
+                        <div
+                          className="relative"
+                          style={{ display: 'inline-block', lineHeight: '1' }}
+                          onMouseEnter={() => setHoveredExpenseId(expense.id)}
+                          onMouseLeave={() => setHoveredExpenseId(null)}
+                        >
                           <p
-                            onMouseEnter={() => setHoveredExpenseId(expense.id)}
-                            onMouseLeave={() => setHoveredExpenseId(null)}
                             className={`text-xs font-medium cursor-pointer transition-opacity hover:opacity-70 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
                           >
                             {getSplitInfo(expense)}
@@ -1150,7 +1168,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                           {/* Hover Tooltip */}
                           {hoveredExpenseId === expense.id && (
                             <div
-                              className="absolute left-0 top-full mt-1 z-50 rounded-xl shadow-lg p-2 min-w-max"
+                              className="absolute left-0 bottom-full mb-1 z-50 rounded-xl shadow-lg p-2 min-w-max pointer-events-none"
                               style={{
                                 background: isDarkMode ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
                                 backdropFilter: 'blur(12px)',
@@ -1326,21 +1344,39 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                 </div>
               ) : (
                 <>
-                  <div className="h-64">
-                    <svg width="100%" height="100%" viewBox="0 0 800 256" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                          <stop offset="0%" stopColor="#FF5E00" stopOpacity="0.3" />
-                          <stop offset="100%" stopColor="#FF5E00" stopOpacity="0.05" />
-                        </linearGradient>
-                      </defs>
+                  <div className="h-64 flex">
+                    {/* Y-axis labels */}
+                    <div className="flex flex-col justify-between pr-2" style={{ width: '60px' }}>
+                      {[...Array(5)].map((_, i) => {
+                        const value = maxSpendingAmount * (1 - i / 4);
+                        return (
+                          <span
+                            key={i}
+                            className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
+                            style={{ lineHeight: '1' }}
+                          >
+                            {getCurrencySymbol(userCurrency)}{Math.round(value)}
+                          </span>
+                        );
+                      })}
+                    </div>
 
-                      {/* Create path for line and area */}
-                      {(() => {
-                        const padding = 20;
-                        const chartWidth = 800 - (padding * 2);
-                        const chartHeight = 256 - (padding * 2);
-                        const stepX = chartWidth / (spendingOverTimeData.length - 1 || 1);
+                    {/* Chart */}
+                    <div className="flex-1">
+                      <svg width="100%" height="100%" viewBox="0 0 800 256" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stopColor="#FF5E00" stopOpacity="0.3" />
+                            <stop offset="100%" stopColor="#FF5E00" stopOpacity="0.05" />
+                          </linearGradient>
+                        </defs>
+
+                        {/* Create path for line and area */}
+                        {(() => {
+                          const padding = 20;
+                          const chartWidth = 800 - (padding * 2);
+                          const chartHeight = 256 - (padding * 2);
+                          const stepX = chartWidth / (spendingOverTimeData.length - 1 || 1);
 
                         // Create points for the line
                         const points = spendingOverTimeData.map((data, index) => {
@@ -1390,11 +1426,12 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                           </>
                         );
                       })()}
-                    </svg>
+                      </svg>
+                    </div>
                   </div>
 
                   {/* X-axis labels inside card */}
-                  <div className="flex justify-between px-4 pb-2">
+                  <div className="flex justify-between pb-2" style={{ marginLeft: '60px' }}>
                     {spendingOverTimeData.map((data, index) => (
                       <span
                         key={index}
