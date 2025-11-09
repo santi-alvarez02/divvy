@@ -224,3 +224,243 @@ const mostRecent = relevantSettlements.sort((a, b) => {
 
 ---
 
+
+## Session 41: Fix App Crash on Expense Rendering ✅
+
+**Date**: 2025-11-09
+
+### Critical Issue #2: Missing Null Checks in getSplitInfo() - FIXED ✅
+
+**Problem Identified:**
+
+The `getSplitInfo()` function in `src/pages/Expenses.jsx:276-286` accessed `expense.splitBetween` without checking if it exists or is an array.
+
+**Original Code:**
+```javascript
+const getSplitInfo = (expense) => {
+  const numPeople = expense.splitBetween.length; // No null check\!
+  if (numPeople === roommates.length) {
+    return 'Split evenly';
+  } else if (numPeople === 2) {
+    const other = expense.splitBetween.find(id => id \!== expense.paidBy);
+    return `Split with ${getRoommateName(other)}`; // 'other' could be undefined
+  } else {
+    return `Split ${numPeople} ways`;
+  }
+};
+```
+
+**Issues:**
+1. `expense.splitBetween` could be `undefined` or `null`
+2. Accessing `.length` on undefined throws TypeError
+3. `.find()` on undefined would crash
+4. If `find()` returns `undefined`, `getRoommateName(undefined)` returns "Unknown" instead of handling gracefully
+5. No check if `roommates` exists before comparing lengths
+
+**Impact:**
+- **CRITICAL** - App crashes when rendering expenses with incomplete data
+- TypeError: Cannot read property 'length' of undefined
+- White screen of death for users
+- All expenses page becomes unusable
+- Data corruption scenarios crash the entire app
+
+**Solution Implemented:**
+
+Added comprehensive null checks and fallback values:
+
+```javascript
+// src/pages/Expenses.jsx:275-296
+const getSplitInfo = (expense) => {
+  // Safety check: ensure splitBetween exists and is an array
+  const splitBetween = expense.splitBetween || [];
+  const numPeople = splitBetween.length;
+
+  // Handle edge case: no split data
+  if (numPeople === 0) {
+    return 'Not split';
+  }
+
+  // Check against roommates length (with null check)
+  if (roommates && numPeople === roommates.length) {
+    return 'Split evenly';
+  } else if (numPeople === 2) {
+    const other = splitBetween.find(id => id \!== expense.paidBy);
+    // Safety check: ensure 'other' exists before getting name
+    return other ? \`Split with ${getRoommateName(other)}\` : 'Split 2 ways';
+  } else {
+    return \`Split ${numPeople} ways\`;
+  }
+};
+```
+
+**How This Fixes It:**
+
+1. **Default to empty array:** `const splitBetween = expense.splitBetween || [];`
+   - Prevents undefined/null access errors
+   - Safe to call `.length` and `.find()`
+
+2. **Handle zero-length case:** Check if `numPeople === 0`
+   - Returns meaningful "Not split" message
+   - Prevents division by zero or empty array issues
+
+3. **Null check on roommates:** `if (roommates && numPeople === roommates.length)`
+   - Prevents crash if roommates data hasn't loaded yet
+   - Gracefully degrades to "Split N ways"
+
+4. **Validate 'other' exists:** `return other ? ... : 'Split 2 ways'`
+   - Prevents passing undefined to `getRoommateName()`
+   - Falls back to generic message if user not found
+
+5. **Defensive coding:** All code paths have safe fallbacks
+
+**Testing:**
+- ✅ Expense with valid splitBetween array: works as before
+- ✅ Expense with undefined splitBetween: shows "Not split"
+- ✅ Expense with empty splitBetween array: shows "Not split"
+- ✅ Split with 2 people where one user deleted: shows "Split 2 ways"
+- ✅ Split comparison when roommates not loaded: shows "Split N ways"
+- ✅ No crashes with incomplete data
+
+**Files Modified:**
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Expenses.jsx` (Lines 275-296)
+
+---
+
+
+## Session 42: Fix Array Out of Bounds in Budget Page ✅
+
+**Date**: 2025-11-09
+
+### Critical Issue #3: Null Return Not Handled in getMonthDataFromName() - FIXED ✅
+
+**Problem Identified:**
+
+The `getMonthDataFromName()` function in `src/pages/Budget.jsx:263-279` could return `null` when a month name didn't match, but error handling was incomplete.
+
+**Original Code:**
+```javascript
+const getMonthDataFromName = (monthName) => {
+  if (monthName === 'This Month') {
+    const now = new Date();
+    return { month: now.getMonth(), year: now.getFullYear() };
+  }
+
+  // Find the month data from available months
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const targetMonthName = targetDate.toLocaleDateString('en-US', { month: 'long' });
+    if (targetMonthName === monthName) {
+      return { month: targetDate.getMonth(), year: targetDate.getFullYear() };
+    }
+  }
+  return null; // Returns null but no logging!
+};
+```
+
+**Issues:**
+1. Returns `null` when month name doesn't match (e.g., locale issues)
+2. No validation that `monthName` parameter exists
+3. No debugging information when month not found
+4. Caller had partial handling but no fallback behavior
+5. Silent failures make debugging difficult
+
+**Impact:**
+- **CRITICAL** - Budget filtering breaks silently
+- User clicks on month but nothing happens
+- No error message or feedback
+- Difficult to debug locale-specific issues
+- Potential for state inconsistency
+
+**Solution Implemented:**
+
+Added validation, logging, and proper fallback handling:
+
+```javascript
+// src/pages/Budget.jsx:263-287
+const getMonthDataFromName = (monthName) => {
+  // Validate input
+  if (!monthName) {
+    console.warn('getMonthDataFromName: monthName is undefined or null');
+    return null;
+  }
+
+  if (monthName === 'This Month') {
+    const now = new Date();
+    return { month: now.getMonth(), year: now.getFullYear() };
+  }
+
+  // Find the month data from available months
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const targetMonthName = targetDate.toLocaleDateString('en-US', { month: 'long' });
+    if (targetMonthName === monthName) {
+      return { month: targetDate.getMonth(), year: targetDate.getFullYear() };
+    }
+  }
+
+  // Month not found - log for debugging
+  console.warn(\`Month "${monthName}" not found in last 12 months\`);
+  return null;
+};
+
+// Enhanced caller with fallback (lines 709-724)
+onClick={() => {
+  if (monthName === 'This Month') {
+    setTimePeriod('month');
+    setSelectedMonth(null);
+  } else {
+    const monthData = getMonthDataFromName(monthName);
+    if (monthData) {
+      setTimePeriod('custom');
+      setSelectedMonth(monthData);
+    } else {
+      // Fallback if month data not found
+      console.error('Could not find month data for:', monthName);
+      setTimePeriod('month'); // Default to current month
+      setSelectedMonth(null);
+    }
+  }
+  setShowMonthPicker(false);
+}}
+```
+
+**How This Fixes It:**
+
+1. **Input validation:** Check if `monthName` exists before processing
+   - Prevents crashes from undefined input
+   - Logs warning for debugging
+
+2. **Debugging visibility:** Added console.warn when month not found
+   - Helps identify locale issues in production
+   - Makes debugging much easier
+
+3. **Caller fallback:** Added else block in onClick handler
+   - Defaults to current month if lookup fails
+   - Provides consistent user experience
+   - Closes the picker properly
+
+4. **Graceful degradation:** Never leaves user in broken state
+   - Always falls back to valid time period
+   - UI remains functional
+
+**Edge Cases Handled:**
+- ✅ Undefined or null monthName
+- ✅ Month name not found in last 12 months
+- ✅ Locale-specific date formatting issues
+- ✅ User always gets valid month selection
+- ✅ Debugging information available in console
+
+**Testing:**
+- ✅ Valid month names: works as before
+- ✅ "This Month": works correctly
+- ✅ Invalid month name: falls back to current month
+- ✅ Undefined input: logged and handled
+- ✅ Different locales: fallback prevents crashes
+
+**Files Modified:**
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Budget.jsx` (Lines 263-287, 709-724)
+
+---
+

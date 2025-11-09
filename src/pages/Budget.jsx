@@ -261,6 +261,11 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
 
   // Helper to get month data from month name
   const getMonthDataFromName = (monthName) => {
+    if (!monthName) {
+      console.warn('getMonthDataFromName: monthName is undefined or null');
+      return null;
+    }
+
     if (monthName === 'This Month') {
       const now = new Date();
       return { month: now.getMonth(), year: now.getFullYear() };
@@ -275,6 +280,9 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
         return { month: targetDate.getMonth(), year: targetDate.getFullYear() };
       }
     }
+
+    // Month not found - log for debugging
+    console.warn(`Month "${monthName}" not found in last 12 months`);
     return null;
   };
 
@@ -707,6 +715,11 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
                                 if (monthData) {
                                   setTimePeriod('custom');
                                   setSelectedMonth(monthData);
+                                } else {
+                                  // Fallback if month data not found
+                                  console.error('Could not find month data for:', monthName);
+                                  setTimePeriod('month'); // Default to current month
+                                  setSelectedMonth(null);
                                 }
                               }
                               setShowMonthPicker(false);

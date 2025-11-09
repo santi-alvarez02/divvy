@@ -274,12 +274,22 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
 
   // Get split info
   const getSplitInfo = (expense) => {
-    const numPeople = expense.splitBetween.length;
-    if (numPeople === roommates.length) {
+    // Safety check: ensure splitBetween exists and is an array
+    const splitBetween = expense.splitBetween || [];
+    const numPeople = splitBetween.length;
+
+    // Handle edge case: no split data
+    if (numPeople === 0) {
+      return 'Not split';
+    }
+
+    // Check against roommates length (with null check)
+    if (roommates && numPeople === roommates.length) {
       return 'Split evenly';
     } else if (numPeople === 2) {
-      const other = expense.splitBetween.find(id => id !== expense.paidBy);
-      return `Split with ${getRoommateName(other)}`;
+      const other = splitBetween.find(id => id !== expense.paidBy);
+      // Safety check: ensure 'other' exists before getting name
+      return other ? `Split with ${getRoommateName(other)}` : 'Split 2 ways';
     } else {
       return `Split ${numPeople} ways`;
     }
