@@ -26,6 +26,8 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
   const [selectedBalance, setSelectedBalance] = useState(null);
   const [selectedSettlement, setSelectedSettlement] = useState(null);
   const [showSettleUpModal, setShowSettleUpModal] = useState(false);
+  const [showPaymentMethodAlert, setShowPaymentMethodAlert] = useState(false);
+  const [paymentAlertMessage, setPaymentAlertMessage] = useState('');
 
   const currentUserId = user?.id;
 
@@ -221,10 +223,13 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
       if (relevantSettlements.length === 0) return null;
 
       // Sort by settled_up_to_timestamp or completed_at, get the most recent
+      // Use ID as secondary sort for deterministic ordering when timestamps match
       const mostRecent = relevantSettlements.sort((a, b) => {
         const dateA = new Date(a.settled_up_to_timestamp || a.completed_at);
         const dateB = new Date(b.settled_up_to_timestamp || b.completed_at);
-        return dateB - dateA;
+        const dateDiff = dateB - dateA;
+        // If timestamps are equal, use ID for consistent ordering
+        return dateDiff !== 0 ? dateDiff : b.id.localeCompare(a.id);
       })[0];
 
       return mostRecent.settled_up_to_timestamp || mostRecent.completed_at;
@@ -1049,8 +1054,8 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                     className="w-12 h-12 rounded-3xl flex items-center justify-center font-bold text-xl shadow-lg"
                     style={{
                       background: selectedSettlement.from_user_id === currentUserId
-                        ? 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)'
-                        : 'linear-gradient(135deg, #4ECDC4 0%, #44A08D 100%)',
+                        ? getAvatarColor(selectedSettlement.to_user_id)
+                        : getAvatarColor(selectedSettlement.from_user_id),
                       color: 'white'
                     }}
                   >
@@ -1306,7 +1311,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               {balances.filter(b => b.amount > 0).length === 0 ? (
                 <div className="text-center py-12">
                   <p className={`text-lg font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    You don't owe anyone! 🎉
+                    You don't owe anyone!
                   </p>
                 </div>
               ) : (
@@ -1354,19 +1359,20 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                           <button
                             onClick={() => {
                               const venmoUsername = getPaymentUsername(balance.id, 'venmo');
-                              if (!venmoUsername) {
-                                alert('Please add your Venmo username in Settings first!');
-                                return;
-                              }
-                              // Try to open Venmo app, fallback to web
-                              const venmoUrl = `venmo://paycharge?txn=pay&recipients=${venmoUsername}&amount=${balance.amount.toFixed(2)}&note=Divvy%20payment`;
-                              const venmoWebUrl = `https://venmo.com/${venmoUsername}?txn=pay&amount=${balance.amount.toFixed(2)}&note=Divvy%20payment`;
+                              if (venmoUsername) {
+                                // If username exists, try to open Venmo app, fallback to web
+                                const venmoUrl = `venmo://paycharge?txn=pay&recipients=${venmoUsername}&amount=${balance.amount.toFixed(2)}&note=Divvy%20payment`;
+                                const venmoWebUrl = `https://venmo.com/${venmoUsername}?txn=pay&amount=${balance.amount.toFixed(2)}&note=Divvy%20payment`;
 
-                              // Try app first, fallback to web after a short delay
-                              window.location.href = venmoUrl;
-                              setTimeout(() => {
-                                window.open(venmoWebUrl, '_blank');
-                              }, 500);
+                                // Try app first, fallback to web after a short delay
+                                window.location.href = venmoUrl;
+                                setTimeout(() => {
+                                  window.open(venmoWebUrl, '_blank');
+                                }, 500);
+                              } else {
+                                // If no username, just open Venmo homepage
+                                window.open('https://venmo.com', '_blank');
+                              }
                             }}
                             className="px-4 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 shadow-sm"
                             style={{ backgroundColor: '#008CFF' }}
@@ -1376,12 +1382,11 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                           <button
                             onClick={() => {
                               const paypalUsername = getPaymentUsername(balance.id, 'paypal');
-                              if (!paypalUsername) {
-                                alert('Please add your PayPal username in Settings first!');
-                                return;
-                              }
-                              // Open PayPal.me link (works for both mobile and web)
-                              const paypalUrl = `https://paypal.me/${paypalUsername}/${balance.amount.toFixed(2)}`;
+                              // If username exists, use PayPal.me link with amount
+                              // Otherwise, just open PayPal.com so user can search and pay manually
+                              const paypalUrl = paypalUsername
+                                ? `https://paypal.me/${paypalUsername}/${balance.amount.toFixed(2)}`
+                                : 'https://www.paypal.com';
                               window.open(paypalUrl, '_blank');
                             }}
                             className="px-4 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 shadow-sm"
@@ -1392,16 +1397,17 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                           <button
                             onClick={() => {
                               const zelleEmail = getPaymentUsername(balance.id, 'zelle');
-                              if (!zelleEmail) {
-                                alert('Please add your Zelle email/phone in Settings first!');
-                                return;
+                              if (zelleEmail) {
+                                // Copy Zelle info to clipboard and show instructions
+                                navigator.clipboard.writeText(zelleEmail).then(() => {
+                                  alert(`Zelle info copied!\n\nSend ${getCurrencySymbol(userCurrency)}${balance.amount.toFixed(2)} to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
+                                }).catch(() => {
+                                  alert(`Send ${getCurrencySymbol(userCurrency)}${balance.amount.toFixed(2)} via Zelle to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
+                                });
+                              } else {
+                                // If no Zelle info, open Zelle website
+                                window.open('https://www.zelle.com', '_blank');
                               }
-                              // Copy Zelle info to clipboard and show instructions
-                              navigator.clipboard.writeText(zelleEmail).then(() => {
-                                alert(`Zelle info copied!\n\nSend ${getCurrencySymbol(userCurrency)}${balance.amount.toFixed(2)} to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
-                              }).catch(() => {
-                                alert(`Send ${getCurrencySymbol(userCurrency)}${balance.amount.toFixed(2)} via Zelle to:\n${zelleEmail}\n\nOpen your banking app to complete the payment.`);
-                              });
                             }}
                             className="px-4 py-3 rounded-xl text-sm font-semibold text-white transition-all hover:scale-105 shadow-sm"
                             style={{ backgroundColor: '#6D1ED4' }}
@@ -1458,6 +1464,39 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment Method Alert Modal */}
+      {showPaymentMethodAlert && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-[60] flex items-center justify-center p-4"
+          style={{ backdropFilter: 'blur(8px)' }}
+          onClick={() => setShowPaymentMethodAlert(false)}
+        >
+          <div
+            className="rounded-3xl shadow-2xl max-w-sm w-full p-6"
+            style={{
+              background: isDarkMode ? '#2d2d2d' : '#F5F5F5'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-center">
+              <h3 className={`text-xl font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Setup Required
+              </h3>
+              <p className={`text-base mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                {paymentAlertMessage}
+              </p>
+              <button
+                onClick={() => setShowPaymentMethodAlert(false)}
+                className="w-full px-6 py-3 rounded-xl text-base font-semibold text-white transition-all hover:opacity-90"
+                style={{ backgroundColor: '#FF5E00' }}
+              >
+                OK
+              </button>
             </div>
           </div>
         </div>

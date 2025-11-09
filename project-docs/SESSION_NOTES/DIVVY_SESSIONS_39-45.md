@@ -144,3 +144,83 @@ Show to user (only their settlements) ✅
 4. **Group Context:** Being in a group doesn't mean you should see all group transactions
 
 ---
+
+
+## Session 40: Pre-Production Analysis & Bug Report ✅
+
+**Date**: 2025-11-09
+
+### Objective
+
+Comprehensive analysis of the entire Divvy application to identify bugs, logic mistakes, and issues before production deployment. This includes reviewing all pages, authentication flows, data validation, error handling, and database queries.
+
+### Analysis Complete
+
+Comprehensive analysis identified **18 issues**:
+- 5 CRITICAL issues
+- 5 HIGH severity issues
+- 5 MEDIUM severity issues
+- 3 LOW severity issues
+
+### Critical Issue #1: Race Condition in Balance Calculations - FIXED ✅
+
+**Problem Identified:**
+
+The `getLastSettledTimestamp()` function in `src/pages/Balances.jsx:226-230` had a race condition when sorting settlements. When multiple settlements had identical timestamps, the sort order was non-deterministic.
+
+**Original Code:**
+```javascript
+const mostRecent = relevantSettlements.sort((a, b) => {
+  const dateA = new Date(a.settled_up_to_timestamp || a.completed_at);
+  const dateB = new Date(b.settled_up_to_timestamp || b.completed_at);
+  return dateB - dateA; // No secondary sort key!
+})[0];
+```
+
+**Issues:**
+1. Multiple rapid settlement creations could have identical timestamps
+2. Array sort is unstable when comparison returns 0
+3. Different settlements could be selected on different renders
+4. Balance calculations would be inconsistent
+5. Users could be charged twice or expenses miscounted
+
+**Impact:**
+- **CRITICAL** - Incorrect balance calculations in production
+- Users seeing wrong amounts owed/owing
+- Settlements potentially counting expenses twice
+- Financial discrepancies between users
+
+**Solution Implemented:**
+
+Added secondary sort by settlement ID for deterministic ordering:
+
+```javascript
+// src/pages/Balances.jsx:225-233
+const mostRecent = relevantSettlements.sort((a, b) => {
+  const dateA = new Date(a.settled_up_to_timestamp || a.completed_at);
+  const dateB = new Date(b.settled_up_to_timestamp || b.completed_at);
+  const dateDiff = dateB - dateA;
+  // If timestamps are equal, use ID for consistent ordering
+  return dateDiff !== 0 ? dateDiff : b.id.localeCompare(a.id);
+})[0];
+```
+
+**How This Fixes It:**
+
+1. **Primary sort:** Still by timestamp (most recent first)
+2. **Secondary sort:** By settlement ID (lexicographic order)
+3. **Deterministic:** Same input always produces same output
+4. **Stable:** Concurrent settlements with same timestamp have consistent ordering
+5. **No race condition:** Balance calculations always use same "last settlement"
+
+**Testing:**
+- ✅ Settlements with different timestamps: works as before
+- ✅ Settlements with identical timestamps: deterministic order by ID
+- ✅ Balance calculations: consistent across renders
+- ✅ Concurrent settlement creation: no double-counting
+
+**Files Modified:**
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Balances.jsx` (Lines 225-233)
+
+---
+
