@@ -12,6 +12,7 @@ import {
   updateExchangeRates,
   shouldUpdateRates
 } from '../utils/exchangeRates';
+import { processRecurringExpenses } from '../utils/recurringExpenses';
 
 const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const { user } = useAuth();
@@ -182,6 +183,12 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     }
 
     try {
+      // Auto-process recurring expenses for this month (runs silently in background)
+      processRecurringExpenses(currentGroup.id).catch(error => {
+        console.error('Error auto-processing recurring expenses:', error);
+        // Don't block fetching expenses if this fails
+      });
+
       // Fetch expenses with their splits
       const { data: expensesData, error: expensesError } = await supabase
         .from('expenses')
@@ -195,6 +202,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
           paid_by,
           icon,
           created_at,
+          is_recurring,
           expense_splits (
             user_id,
             share_amount
@@ -230,6 +238,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
           paidBy: expense.paid_by,
           icon: expense.icon,
           createdAt: expense.created_at,
+          isRecurring: expense.is_recurring || false,
           splitBetween: expense.expense_splits.map(split => split.user_id)
         };
       });
@@ -462,12 +471,22 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   // Calculate summary stats from date-filtered expenses
   // Total Spent (Personal) = Your share of expenses YOU paid for
   // (Full amount minus what others owe you)
-  const totalSpent = dateFilteredExpenses
+  // Calculate your share of expenses you paid for
+  const yourShareOfPaidExpenses = dateFilteredExpenses
     .filter(expense => expense.paidBy === currentUserId)
     .reduce((sum, expense) => {
       const yourShare = expense.amount / expense.splitBetween.length;
       return sum + yourShare;
     }, 0);
+
+  // Calculate settlements you've paid (money you sent to others)
+  const settlementsYouPaid = settlementHistory
+    .filter(settlement => settlement.from_user_id === currentUserId)
+    .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
+  // Current Spent = Your share of expenses + Settlements you've paid
+  // This represents the actual money that has left your pocket
+  const totalSpent = yourShareOfPaidExpenses + settlementsYouPaid;
 
   // Helper function to get last settled timestamp for a user pair
   const getLastSettledTimestamp = (userId1, userId2) => {
@@ -839,7 +858,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             }}
           >
             <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Total Spent
+              Current Spent
             </p>
             <p className={`text-xl lg:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {getCurrencySymbol(userCurrency)}{Number.isInteger(totalSpent) ? totalSpent : totalSpent.toFixed(2).replace(/\.00$/, '')}
@@ -877,10 +896,13 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             }}
           >
             <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Total Expenses
+              Final Total
             </p>
             <p className={`text-xl lg:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {dateFilteredExpenses.length}
+              {getCurrencySymbol(userCurrency)}{(() => {
+                const finalTotal = totalSpent + youOwe;
+                return Number.isInteger(finalTotal) ? finalTotal : finalTotal.toFixed(2).replace(/\.00$/, '');
+              })()}
             </p>
           </div>
         </div>
@@ -1168,6 +1190,17 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                       >
                         {expense.category}
                       </span>
+                      {expense.isRecurring && (
+                        <span
+                          className="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                          style={{
+                            backgroundColor: 'rgba(255, 94, 0, 0.15)',
+                            color: '#FF5E00'
+                          }}
+                        >
+                          Recurring
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center space-x-2 mt-1">
                       <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>

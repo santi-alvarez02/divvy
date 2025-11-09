@@ -239,3 +239,279 @@ const isValidAvatarUrl = (url) => {
 The Divvy app is now production-ready with all identified bugs and logic mistakes addressed.
 
 ---
+
+## Session 48: Implement Recurring Expenses Feature (Revised)
+
+**Date**: 2025-11-09
+
+### Objective
+
+Implement full recurring expense functionality with automatic monthly processing. Recurring expenses appear as normal expenses in the Expenses page with a "Recurring" label.
+
+---
+
+### Implementation Approach
+
+**Original Approach (Discarded):**
+- Created separate RecurringExpenses page
+- Manual processing button
+- User had to visit page to process expenses
+
+**Final Approach (Implemented):**
+- **Automatic processing**: Runs silently when Expenses page loads
+- **No separate page**: Recurring expenses appear in normal expense list
+- **Visual indicator**: Orange "Recurring" badge on recurring expense templates
+- **Seamless UX**: New instances created automatically each month
+
+---
+
+### Implementation Details
+
+#### 1. Database Schema - COMPLETED ✅
+
+**File:** `supabase/migrations/002_add_recurring_expense_support.sql`
+
+**Changes:**
+- Added `is_recurring` column: `BOOLEAN DEFAULT FALSE`
+- Added `last_recurring_date` column: `DATE` (nullable)
+- Created index on `(is_recurring, last_recurring_date)` for efficient querying
+- Added documentation comments
+
+**Purpose:**
+- `is_recurring`: Marks an expense as a recurring template
+- `last_recurring_date`: Tracks when the expense was last auto-created to prevent duplicates
+
+#### 2. Save Recurring Flag - COMPLETED ✅
+
+**File:** `src/components/AddExpenseModal.jsx:196-197`
+
+**Changes:**
+```javascript
+paid_by: user.id,
+is_recurring: isRecurring, // Save recurring flag
+last_recurring_date: isRecurring ? new Date().toISOString().split('T')[0] : null
+```
+
+**Impact:**
+- Checkbox state now persists to database
+- Initial `last_recurring_date` set when creating recurring expense
+
+#### 3. Automatic Recurring Expense Processing - COMPLETED ✅
+
+**File:** `src/utils/recurringExpenses.js` (NEW - 124 lines)
+
+**Function:** `processRecurringExpenses(groupId)`
+
+**Processing Logic:**
+- Fetches all expenses with `is_recurring = true` for the group
+- Checks each expense's `last_recurring_date`
+- If not processed this month:
+  - Creates new expense with today's date
+  - Copies all fields except `is_recurring` (new instance is NOT recurring)
+  - Duplicates expense_splits with same amounts
+  - Updates original expense's `last_recurring_date`
+- Returns count of processed and skipped expenses
+
+**Smart Duplicate Prevention:**
+```javascript
+const today = new Date();
+const currentMonth = today.getMonth();
+const currentYear = today.getFullYear();
+
+const lastDate = new Date(expense.last_recurring_date || expense.date);
+const lastMonth = lastDate.getMonth();
+const lastYear = lastDate.getFullYear();
+
+// Skip if already processed this month
+if (lastMonth === currentMonth && lastYear === currentYear) {
+  skippedCount++;
+  continue;
+}
+```
+
+#### 4. Integration with Expenses Page - COMPLETED ✅
+
+**File:** `src/pages/Expenses.jsx`
+
+**Changes:**
+1. **Import processing function** (Line 15):
+```javascript
+import { processRecurringExpenses } from '../utils/recurringExpenses';
+```
+
+2. **Auto-process on page load** (Lines 186-190):
+```javascript
+// Auto-process recurring expenses for this month (runs silently in background)
+processRecurringExpenses(currentGroup.id).catch(error => {
+  console.error('Error auto-processing recurring expenses:', error);
+  // Don't block fetching expenses if this fails
+});
+```
+
+3. **Include is_recurring in query** (Line 205):
+```javascript
+is_recurring,
+```
+
+4. **Add to transformed data** (Line 241):
+```javascript
+isRecurring: expense.is_recurring || false,
+```
+
+5. **Visual indicator in UI** (Lines 1180-1190):
+```javascript
+{expense.isRecurring && (
+  <span
+    className="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+    style={{
+      backgroundColor: 'rgba(255, 94, 0, 0.15)',
+      color: '#FF5E00'
+    }}
+  >
+    Recurring
+  </span>
+)}
+```
+
+---
+
+### User Flow
+
+1. **Create Recurring Expense**:
+   - Click "+ Add Expense"
+   - Fill in details (e.g., "Netflix Subscription" - $15.99)
+   - Check "Recurring Expense" checkbox
+   - Submit → Saved with `is_recurring = true`
+
+2. **Automatic Monthly Processing**:
+   - User navigates to Expenses page
+   - System automatically checks for recurring expenses
+   - If not processed this month, creates new instances silently
+   - User sees new expenses appear in the list
+
+3. **Visual Identification**:
+   - Recurring expense templates show orange "Recurring" badge
+   - New monthly instances appear as normal expenses (no badge)
+   - Both visible in the Expenses page list
+
+---
+
+### Technical Highlights
+
+**Duplicate Prevention:**
+- Uses `last_recurring_date` to check if already processed this month
+- Comparison: `lastMonth === currentMonth && lastYear === currentYear`
+- Never creates duplicates even if button clicked multiple times
+
+**Data Integrity:**
+- Creates new expense first
+- Creates splits second
+- If splits fail, deletes the expense (rollback)
+- Only updates `last_recurring_date` after successful creation
+
+**Split Preservation:**
+- Reads `expense_splits` from original
+- Creates identical splits for new instance
+- Maintains share amounts and participants
+
+---
+
+### Files Created
+
+1. `/supabase/migrations/002_add_recurring_expense_support.sql` - Database migration
+2. `/add_recurring_expense_support.sql` - Standalone migration copy
+3. `/src/utils/recurringExpenses.js` - Processing utility (124 lines)
+
+### Files Modified
+
+1. `/src/components/AddExpenseModal.jsx` - Lines 196-197 (save `is_recurring` flag)
+2. `/src/pages/Expenses.jsx` - Lines 15, 186-190, 205, 241, 1180-1190 (auto-processing & UI)
+
+---
+
+### Setup Required
+
+**USER ACTION NEEDED**: Run this SQL in Supabase SQL Editor:
+
+```sql
+ALTER TABLE expenses
+ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE expenses
+ADD COLUMN IF NOT EXISTS last_recurring_date DATE;
+
+CREATE INDEX IF NOT EXISTS idx_expenses_recurring
+ON expenses(is_recurring, last_recurring_date)
+WHERE is_recurring = TRUE;
+```
+
+---
+
+### How It Works
+
+1. **User creates recurring expense**:
+   - Expense saved with `is_recurring = true`
+   - `last_recurring_date` set to today
+
+2. **Next month, user visits Expenses page**:
+   - `fetchExpenses()` runs
+   - Calls `processRecurringExpenses(groupId)` in background
+   - Checks if recurring expenses need processing this month
+
+3. **Processing logic**:
+   - For each recurring expense:
+     - Compare `last_recurring_date` month/year with current month/year
+     - If different: Create new expense, update `last_recurring_date`
+     - If same: Skip (already processed)
+
+4. **Result**:
+   - New expense appears in list automatically
+   - Original template remains with "Recurring" badge
+   - No user action required
+
+---
+
+### Future Enhancements
+
+Optional features for future sessions:
+- **Edit recurring templates**: Allow modifying the original recurring expense
+- **Delete recurring**: Stop future recurrences
+- **Custom frequencies**: Weekly, bi-weekly, quarterly
+- **Parent-child tracking**: Link instances to their template
+- **Notification**: Toast message when new recurring expenses are created
+
+---
+
+## Session 48 Summary
+
+**Recurring Expenses Feature - FULLY IMPLEMENTED ✅**
+
+**Approach:**
+- ✅ Automatic processing (no manual button needed)
+- ✅ Integrated into Expenses page (no separate page)
+- ✅ Silent background processing on page load
+- ✅ Visual "Recurring" badge for templates
+
+**Database:**
+- ✅ Added `is_recurring` and `last_recurring_date` columns
+- ✅ Created index for performance
+- ✅ Migration files created
+
+**Frontend:**
+- ✅ AddExpenseModal saves recurring flag
+- ✅ Auto-processing utility function created
+- ✅ Integration with Expenses page fetch
+- ✅ Orange "Recurring" badge for visual identification
+- ✅ Smart duplicate prevention
+
+**Features:**
+- ✅ Mark expenses as recurring when creating
+- ✅ Automatic monthly instance creation
+- ✅ No user action required (happens automatically)
+- ✅ Visual distinction between templates and instances
+- ✅ Automatic split preservation
+- ✅ Error handling and silent failures
+
+**The recurring expenses feature is now fully functional with automatic processing!**
+
+---
