@@ -171,6 +171,26 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
         return;
       }
 
+      // Verify splits were actually deleted
+      const { data: remainingSplits, error: verifyError } = await supabase
+        .from('expense_splits')
+        .select('id')
+        .eq('expense_id', expense.id);
+
+      if (verifyError) {
+        console.error('Error verifying split deletion:', verifyError);
+        setError('Failed to verify expense splits deletion. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      if (remainingSplits && remainingSplits.length > 0) {
+        console.error('Old splits still exist after deletion:', remainingSplits);
+        setError('Failed to delete old expense splits. Please try again.');
+        setLoading(false);
+        return;
+      }
+
       // Create new splits
       const splits = splitBetweenIds.map(userId => ({
         expense_id: expense.id,

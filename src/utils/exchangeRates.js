@@ -169,25 +169,52 @@ export const convertCurrency = (amount, fromCurrency, toCurrency, rates) => {
     return amount;
   }
 
+  // Validate rates object exists
+  if (!rates || typeof rates !== 'object') {
+    console.warn('convertCurrency: Invalid rates object, returning original amount');
+    return amount;
+  }
+
+  // Get exchange rates with validation
+  const fromRate = rates[fromCurrency];
+  const toRate = rates[toCurrency];
+
+  // Validate exchange rates exist and are valid numbers
+  if (fromCurrency !== 'USD' && (!fromRate || fromRate === 0 || isNaN(fromRate))) {
+    console.warn(`convertCurrency: Missing or invalid exchange rate for ${fromCurrency}, returning original amount`);
+    return amount;
+  }
+
+  if (toCurrency !== 'USD' && (!toRate || toRate === 0 || isNaN(toRate))) {
+    console.warn(`convertCurrency: Missing or invalid exchange rate for ${toCurrency}, returning original amount`);
+    return amount;
+  }
+
   // Log the conversion details
   console.log('💱 Converting:', {
     amount,
     from: fromCurrency,
     to: toCurrency,
-    rateFrom: rates[fromCurrency],
-    rateTo: rates[toCurrency]
+    rateFrom: fromRate,
+    rateTo: toRate
   });
 
   // All rates are relative to USD, so we convert through USD
   // Step 1: Convert from source currency to USD
   const amountInUSD = fromCurrency === 'USD'
     ? amount
-    : amount / rates[fromCurrency];
+    : amount / fromRate;
 
   // Step 2: Convert from USD to target currency
   const convertedAmount = toCurrency === 'USD'
     ? amountInUSD
-    : amountInUSD * rates[toCurrency];
+    : amountInUSD * toRate;
+
+  // Validate result is a valid number
+  if (isNaN(convertedAmount) || !isFinite(convertedAmount)) {
+    console.error('convertCurrency: Conversion resulted in invalid number, returning original amount');
+    return amount;
+  }
 
   console.log('💱 Conversion result:', {
     amountInUSD,

@@ -261,7 +261,11 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   // Get roommate name by ID
   const getRoommateName = (id) => {
     const roommate = roommates.find(r => r.id === id);
-    return roommate ? roommate.name : 'Unknown';
+    if (!roommate) return 'Unknown';
+
+    // Sanitize name to prevent XSS - remove potentially dangerous characters
+    const name = String(roommate.name || 'Unknown');
+    return name.replace(/[<>'"]/g, '');
   };
 
   // Handle edit expense

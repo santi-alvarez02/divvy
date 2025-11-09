@@ -121,24 +121,38 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
     setError('');
 
     // Validation: Check all required fields
+    // Validate description
     if (!description.trim()) {
-      setError('Please complete the form to add an expense');
+      setError('Please enter a description');
       return;
     }
 
-    if (!amount || parseFloat(amount) <= 0) {
-      setError('Please complete the form to add an expense');
+    if (description.trim().length > 200) {
+      setError('Description must be 200 characters or less');
       return;
     }
 
+    // Validate amount
+    const parsedAmount = parseFloat(amount);
+    if (!amount || isNaN(parsedAmount) || parsedAmount <= 0) {
+      setError('Please enter a valid amount greater than 0');
+      return;
+    }
+
+    if (parsedAmount > 999999) {
+      setError('Amount must be less than 999,999');
+      return;
+    }
+
+    // Validate category
     if (!category || category === 'Select a category') {
-      setError('Please complete the form to add an expense');
+      setError('Please select a category');
       return;
     }
 
     // Validation: For split expenses, at least one roommate must be selected
     if (!isPersonal && Object.keys(splitWith).filter(key => splitWith[key]).length === 0) {
-      setError('Please complete the form to add an expense');
+      setError('Please select at least one person to split with');
       return;
     }
 

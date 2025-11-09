@@ -363,6 +363,15 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
         );
       });
 
+      // Validate settlement data before insertion
+      if (!amount || amount <= 0) {
+        throw new Error('Invalid settlement amount');
+      }
+
+      if (!roommateId) {
+        throw new Error('Invalid recipient user');
+      }
+
       // Get the most recent expense date (expenses are already sorted by date DESC)
       const mostRecentExpenseDate = relevantExpenses.length > 0
         ? relevantExpenses[0].date
@@ -383,12 +392,15 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
 
       if (error) {
         console.error('Error creating settlement:', error);
-        alert('Failed to create settlement. Please try again.');
-        return;
+        throw new Error(error.message || 'Failed to create settlement');
       }
 
-      // Add to local state
-      setPendingSettlements([...pendingSettlements, data]);
+      if (!data) {
+        throw new Error('Settlement created but no data returned');
+      }
+
+      // Only update UI state after successful DB operation
+      setPendingSettlements(prev => [...prev, data]);
     } catch (error) {
       console.error('Error in handleMarkAsPaid:', error);
       alert('Failed to create settlement. Please try again.');

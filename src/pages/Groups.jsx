@@ -41,6 +41,11 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
       setLoading(true);
       setError('');
 
+      // Validate user is authenticated
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+
       // Fetch groups the user is a member of
       const { data: groupMemberships, error: memberError} = await supabase
         .from('group_members')
