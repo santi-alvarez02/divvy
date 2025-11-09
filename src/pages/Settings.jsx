@@ -14,6 +14,7 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
   // Sign out confirmation state
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   // Payment modal state
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [currentPaymentType, setCurrentPaymentType] = useState('');
@@ -69,7 +70,7 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
 
   // Handle delete account
   const handleDeleteAccount = async () => {
-    setShowDeleteConfirm(false);
+    setDeletingAccount(true);
 
     try {
       // First, get the user's avatar_url before deleting
@@ -104,13 +105,16 @@ const Settings = ({ isDarkMode, setIsDarkMode }) => {
       // Sign out the user
       await signOut();
 
-      // Redirect to home page
+      // Close modal and redirect to home page
+      setShowDeleteConfirm(false);
       navigate('/');
 
     } catch (error) {
       console.error('Error deleting account:', error);
       alert(`Failed to delete account: ${error.message}. Please try again or contact support.`);
       setShowDeleteConfirm(false);
+    } finally {
+      setDeletingAccount(false);
     }
   };
 

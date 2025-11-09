@@ -336,82 +336,86 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
 
   // Category picker scroll effect
   React.useEffect(() => {
-    if (showCategoryPicker && categoryScrollRef.current) {
-      const selectedIndex = categories.indexOf(selectedCategory);
-      const itemHeight = 40;
-      const scrollTop = selectedIndex * itemHeight;
-      const scrollContainer = categoryScrollRef.current;
-
-      scrollContainer.scrollTop = scrollTop;
-
-      const handleScroll = () => {
-        const currentScrollTop = scrollContainer.scrollTop;
-        const highlightedIndex = Math.round(currentScrollTop / itemHeight);
-
-        const buttons = scrollContainer.querySelectorAll('.category-filter-item');
-        buttons.forEach((button, btnIndex) => {
-          if (btnIndex === highlightedIndex) {
-            button.style.color = isDarkMode ? 'white' : '#000000';
-            button.style.fontSize = '17px';
-            button.style.fontWeight = '700';
-          } else {
-            button.style.color = isDarkMode ? '#d1d5db' : '#6b7280';
-            button.style.fontSize = '15px';
-            button.style.fontWeight = '400';
-          }
-        });
-      };
-
-      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-
-      requestAnimationFrame(() => {
-        handleScroll();
-      });
-
-      return () => {
-        scrollContainer.removeEventListener('scroll', handleScroll);
-      };
+    if (!showCategoryPicker || !categoryScrollRef.current) {
+      return; // Early return still allows cleanup
     }
+
+    const selectedIndex = categories.indexOf(selectedCategory);
+    const itemHeight = 40;
+    const scrollTop = selectedIndex * itemHeight;
+    const scrollContainer = categoryScrollRef.current;
+
+    scrollContainer.scrollTop = scrollTop;
+
+    const handleScroll = () => {
+      const currentScrollTop = scrollContainer.scrollTop;
+      const highlightedIndex = Math.round(currentScrollTop / itemHeight);
+
+      const buttons = scrollContainer.querySelectorAll('.category-filter-item');
+      buttons.forEach((button, btnIndex) => {
+        if (btnIndex === highlightedIndex) {
+          button.style.color = isDarkMode ? 'white' : '#000000';
+          button.style.fontSize = '17px';
+          button.style.fontWeight = '700';
+        } else {
+          button.style.color = isDarkMode ? '#d1d5db' : '#6b7280';
+          button.style.fontSize = '15px';
+          button.style.fontWeight = '400';
+        }
+      });
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+
+    requestAnimationFrame(() => {
+      handleScroll();
+    });
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+    };
   }, [showCategoryPicker, selectedCategory, categories, isDarkMode]);
 
   // Date picker scroll effect
   React.useEffect(() => {
-    if (showDatePicker && dateScrollRef.current) {
-      const selectedIndex = dateRanges.indexOf(selectedDateRange);
-      const itemHeight = 40;
-      const scrollTop = selectedIndex * itemHeight;
-      const scrollContainer = dateScrollRef.current;
-
-      scrollContainer.scrollTop = scrollTop;
-
-      const handleScroll = () => {
-        const currentScrollTop = scrollContainer.scrollTop;
-        const highlightedIndex = Math.round(currentScrollTop / itemHeight);
-
-        const buttons = scrollContainer.querySelectorAll('.date-filter-item');
-        buttons.forEach((button, btnIndex) => {
-          if (btnIndex === highlightedIndex) {
-            button.style.color = isDarkMode ? 'white' : '#000000';
-            button.style.fontSize = '17px';
-            button.style.fontWeight = '700';
-          } else {
-            button.style.color = isDarkMode ? '#d1d5db' : '#6b7280';
-            button.style.fontSize = '15px';
-            button.style.fontWeight = '400';
-          }
-        });
-      };
-
-      scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
-
-      requestAnimationFrame(() => {
-        handleScroll();
-      });
-
-      return () => {
-        scrollContainer.removeEventListener('scroll', handleScroll);
-      };
+    if (!showDatePicker || !dateScrollRef.current) {
+      return; // Early return still allows cleanup
     }
+
+    const selectedIndex = dateRanges.indexOf(selectedDateRange);
+    const itemHeight = 40;
+    const scrollTop = selectedIndex * itemHeight;
+    const scrollContainer = dateScrollRef.current;
+
+    scrollContainer.scrollTop = scrollTop;
+
+    const handleScroll = () => {
+      const currentScrollTop = scrollContainer.scrollTop;
+      const highlightedIndex = Math.round(currentScrollTop / itemHeight);
+
+      const buttons = scrollContainer.querySelectorAll('.date-filter-item');
+      buttons.forEach((button, btnIndex) => {
+        if (btnIndex === highlightedIndex) {
+          button.style.color = isDarkMode ? 'white' : '#000000';
+          button.style.fontSize = '17px';
+          button.style.fontWeight = '700';
+        } else {
+          button.style.color = isDarkMode ? '#d1d5db' : '#6b7280';
+          button.style.fontSize = '15px';
+          button.style.fontWeight = '400';
+        }
+      });
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+
+    requestAnimationFrame(() => {
+      handleScroll();
+    });
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+    };
   }, [showDatePicker, selectedDateRange, dateRanges, isDarkMode]);
 
   // Date filter helper

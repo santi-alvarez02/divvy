@@ -35,28 +35,6 @@ export const fetchExchangeRates = async () => {
       usdBasedRates[currency] = eurRate / eurToUsd;
     });
 
-    // Log the conversion for debugging
-    console.log('📊 API Response (EUR-based):', {
-      base: data.base,
-      timestamp: new Date(data.timestamp * 1000).toLocaleString(),
-      eurToUsd: eurToUsd,
-      sampleEURRates: {
-        USD: data.rates.USD,
-        EUR: data.rates.EUR,
-        GBP: data.rates.GBP,
-        JPY: data.rates.JPY
-      }
-    });
-
-    console.log('📊 Converted to USD-based:', {
-      sampleUSDRates: {
-        USD: usdBasedRates.USD,
-        EUR: usdBasedRates.EUR,
-        GBP: usdBasedRates.GBP,
-        JPY: usdBasedRates.JPY
-      }
-    });
-
     return {
       rates: usdBasedRates,
       timestamp: data.timestamp,
@@ -141,13 +119,8 @@ export const getExchangeRatesFromDB = async () => {
  */
 export const updateExchangeRates = async () => {
   try {
-    console.log('📊 Fetching latest exchange rates from API...');
     const { rates } = await fetchExchangeRates();
-
-    console.log('💾 Saving rates to database...');
     await saveExchangeRatesToDB(rates);
-
-    console.log('✅ Exchange rates updated successfully');
     return rates;
   } catch (error) {
     console.error('Error updating exchange rates:', error);
@@ -190,15 +163,6 @@ export const convertCurrency = (amount, fromCurrency, toCurrency, rates) => {
     return amount;
   }
 
-  // Log the conversion details
-  console.log('💱 Converting:', {
-    amount,
-    from: fromCurrency,
-    to: toCurrency,
-    rateFrom: fromRate,
-    rateTo: toRate
-  });
-
   // All rates are relative to USD, so we convert through USD
   // Step 1: Convert from source currency to USD
   const amountInUSD = fromCurrency === 'USD'
@@ -215,11 +179,6 @@ export const convertCurrency = (amount, fromCurrency, toCurrency, rates) => {
     console.error('convertCurrency: Conversion resulted in invalid number, returning original amount');
     return amount;
   }
-
-  console.log('💱 Conversion result:', {
-    amountInUSD,
-    convertedAmount
-  });
 
   return convertedAmount;
 };

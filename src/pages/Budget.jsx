@@ -329,18 +329,29 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
 
   // Convert expenses to user's currency
   const convertedExpenses = filteredExpenses.map(expense => {
-    const originalAmount = expense.originalAmount || parseFloat(expense.amount);
+    // Ensure consistent number type and handle invalid amounts
+    const originalAmount = parseFloat(expense.originalAmount ?? expense.amount) || 0;
+
+    // Skip invalid expenses
+    if (isNaN(originalAmount) || originalAmount === 0) {
+      console.warn('Invalid expense amount:', expense);
+      return null;
+    }
+
     const expenseCurrency = expense.expenseCurrency || expense.currency || 'USD';
     const convertedAmount = Object.keys(exchangeRates).length > 0
       ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
       : originalAmount;
 
+    // Round to 2 decimal places to avoid floating point issues
+    const roundedAmount = Math.round(convertedAmount * 100) / 100;
+
     return {
       ...expense,
-      amount: convertedAmount,
+      amount: roundedAmount,
       displayCurrency: userCurrency
     };
-  });
+  }).filter(expense => expense !== null); // Remove invalid expenses
 
   // Calculate total spent (user's share) - using converted amounts
   const totalSpent = convertedExpenses.reduce((sum, expense) => {

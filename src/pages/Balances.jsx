@@ -18,6 +18,31 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
   const [roommates, setRoommates] = useState([]);
   const [currentGroup, setCurrentGroup] = useState(null);
   const [groupCurrency, setGroupCurrency] = useState('USD');
+
+  // Helper function to validate avatar URLs
+  const isValidAvatarUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+      const urlObj = new URL(url);
+      return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+    } catch (e) {
+      return false;
+    }
+  };
+
+  // Helper function to display balance amounts consistently
+  const displayBalance = (amount) => {
+    // Round to 2 decimal places
+    const rounded = Math.round(amount * 100) / 100;
+
+    // Hide amounts less than 1 cent
+    if (Math.abs(rounded) < 0.01) {
+      return '0';
+    }
+
+    // Format to 2 decimals and remove trailing .00
+    return rounded.toFixed(2).replace(/\.00$/, '');
+  };
   const [userCurrency, setUserCurrency] = useState('USD');
   const [exchangeRates, setExchangeRates] = useState({});
   const [pendingSettlements, setPendingSettlements] = useState([]);
@@ -683,7 +708,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               You Owe
             </p>
             <p className="text-xl lg:text-3xl font-bold" style={{ color: '#FF5E00' }}>
-              {getCurrencySymbol(userCurrency)}{Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(userCurrency)}{displayBalance(youOwe)}
             </p>
           </div>
 
@@ -702,7 +727,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               You're Owed
             </p>
             <p className="text-xl lg:text-3xl font-bold" style={{ color: '#10b981' }}>
-              {getCurrencySymbol(userCurrency)}{Number.isInteger(youreOwed) ? youreOwed : youreOwed.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(userCurrency)}{displayBalance(youreOwed)}
             </p>
           </div>
 
@@ -721,7 +746,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               Net Balance
             </p>
             <p className={`text-xl lg:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {netBalance >= 0 ? '+' : ''}{getCurrencySymbol(userCurrency)}{Number.isInteger(Math.abs(netBalance)) ? Math.abs(netBalance) : Math.abs(netBalance).toFixed(2).replace(/\.00$/, '')}
+              {netBalance >= 0 ? '+' : ''}{getCurrencySymbol(userCurrency)}{displayBalance(Math.abs(netBalance))}
             </p>
           </div>
         </div>
@@ -774,7 +799,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                   }}
                 >
                   <div className="flex items-center gap-3">
-                    {selectedBalance.avatar_url ? (
+                    {isValidAvatarUrl(selectedBalance.avatar_url) ? (
                       <img
                         src={selectedBalance.avatar_url}
                         alt={selectedBalance.name}
@@ -873,7 +898,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                       }}
                     >
                       <div className="flex items-center gap-3">
-                        {balance.avatar_url ? (
+                        {isValidAvatarUrl(balance.avatar_url) ? (
                           <img
                             src={balance.avatar_url}
                             alt={balance.name}

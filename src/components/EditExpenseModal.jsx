@@ -37,6 +37,7 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
       setDescription(expense.description || '');
       setAmount(expense.amount?.toString() || '');
       setCategory(expense.category || 'Select a category');
+      setCurrency(expense.currency || expense.displayCurrency || 'USD');
 
       // Determine if personal or split
       const isPersonalExpense = expense.splitBetween?.length === 1;
