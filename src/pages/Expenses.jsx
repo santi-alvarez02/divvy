@@ -149,20 +149,24 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         });
 
         // Check if we need to update rates (do this in background, don't wait)
-        shouldUpdateRates().then(needsUpdate => {
-          if (needsUpdate) {
-            console.log('📊 Updating exchange rates in background...');
-            updateExchangeRates().then(() => {
-              // Refresh rates after update
-              getExchangeRatesFromDB().then(({ rates }) => {
-                if (rates) {
-                  setExchangeRates(rates);
-                  console.log('✅ Exchange rates refreshed');
-                }
-              });
-            });
-          }
-        });
+        shouldUpdateRates()
+          .then(needsUpdate => {
+            if (needsUpdate) {
+              console.log('📊 Updating exchange rates in background...');
+              return updateExchangeRates()
+                .then(() => getExchangeRatesFromDB())
+                .then(({ rates }) => {
+                  if (rates) {
+                    setExchangeRates(rates);
+                    console.log('✅ Exchange rates refreshed');
+                  }
+                });
+            }
+          })
+          .catch(error => {
+            console.error('Failed to update exchange rates:', error);
+            // Continue with existing rates - don't break the app
+          });
       } catch (error) {
         console.error('Error fetching currency data:', error);
       }

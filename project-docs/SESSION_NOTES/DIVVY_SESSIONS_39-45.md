@@ -464,3 +464,136 @@ onClick={() => {
 
 ---
 
+
+## Session 43: Fix Unhandled Promise Rejections in Exchange Rates ✅
+
+**Date**: 2025-11-09
+
+### Critical Issue #4: Unhandled Promise Rejections in Currency Updates - FIXED ✅
+
+**Problem Identified:**
+
+Multiple pages had nested promise chains for background exchange rate updates without `.catch()` handlers. This occurred in:
+- `src/pages/Expenses.jsx:152-165`
+- `src/pages/Budget.jsx:169-177`
+- `src/pages/Balances.jsx:173-181`
+
+**Original Code Pattern (in all 3 files):**
+```javascript
+shouldUpdateRates().then(needsUpdate => {
+  if (needsUpdate) {
+    console.log('📊 Updating exchange rates in background...');
+    updateExchangeRates().then(() => {
+      getExchangeRatesFromDB().then(({ rates }) => {
+        if (rates) {
+          setExchangeRates(rates);
+          console.log('✅ Exchange rates refreshed');
+        }
+      }); // No .catch()!
+    }); // No .catch()!
+  }
+}); // No .catch()!
+```
+
+**Issues:**
+1. Three levels of nested promises without error handling
+2. If `shouldUpdateRates()` fails → unhandled rejection
+3. If `updateExchangeRates()` fails (API error) → unhandled rejection
+4. If `getExchangeRatesFromDB()` fails (DB error) → unhandled rejection
+5. No visibility into failures (silent errors)
+6. No fallback behavior when updates fail
+7. Users continue with stale/incorrect exchange rates
+
+**Impact:**
+- **CRITICAL** - Unhandled promise rejections in production
+- Silent failures when exchange rate API is down
+- Users see incorrect currency conversions
+- No retry mechanism or fallback
+- Browser console filled with unhandled rejection warnings
+- Potential memory leaks from uncaught errors
+
+**Solution Implemented:**
+
+Properly chained promises with single `.catch()` handler in all three files:
+
+```javascript
+// Fixed pattern applied to Expenses.jsx, Budget.jsx, and Balances.jsx
+shouldUpdateRates()
+  .then(needsUpdate => {
+    if (needsUpdate) {
+      console.log('📊 Updating exchange rates in background...');
+      return updateExchangeRates()
+        .then(() => getExchangeRatesFromDB())
+        .then(({ rates }) => {
+          if (rates) {
+            setExchangeRates(rates);
+            console.log('✅ Exchange rates refreshed');
+          }
+        });
+    }
+  })
+  .catch(error => {
+    console.error('Failed to update exchange rates:', error);
+    // Continue with existing rates - don't break the app
+  });
+```
+
+**How This Fixes It:**
+
+1. **Proper promise chaining:** Use `return` to chain promises
+   - Single promise chain instead of nested callbacks
+   - Easier to read and maintain
+   - All errors bubble to single catch handler
+
+2. **Comprehensive error handling:** Single `.catch()` at the end
+   - Catches errors from ANY promise in the chain
+   - Logs error for debugging
+   - Gracefully continues with existing rates
+
+3. **Graceful degradation:** App doesn't break on API failure
+   - Users continue with cached exchange rates
+   - Better than crashing or showing NaN values
+   - Silent fallback maintains user experience
+
+4. **Improved debugging:** Clear error logging
+   - Know exactly when and why updates fail
+   - Can monitor API health in production
+   - Track failure patterns
+
+**Key Improvements:**
+
+**Before:**
+```
+Promise 1 → Promise 2 → Promise 3
+   ❌          ❌          ❌
+  (no catch)  (no catch)  (no catch)
+```
+
+**After:**
+```
+Promise 1 → Promise 2 → Promise 3 → .catch()
+                                        ✅
+                              (handles all errors)
+```
+
+**Edge Cases Handled:**
+- ✅ API down/unreachable: continues with cached rates
+- ✅ Network timeout: logged and handled
+- ✅ Database query failure: logged and handled
+- ✅ Invalid API response: caught and logged
+- ✅ Rate limiting from API: gracefully handled
+
+**Testing:**
+- ✅ Successful rate update: works as before
+- ✅ API failure: error logged, app continues
+- ✅ Database failure: error logged, uses existing rates
+- ✅ Network offline: gracefully degrades
+- ✅ No unhandled promise rejections in console
+
+**Files Modified:**
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Expenses.jsx` (Lines 152-169)
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Budget.jsx` (Lines 169-182)
+- `/Users/santiagoalvarez/Documents/ai_projects/Divvy/src/pages/Balances.jsx` (Lines 173-186)
+
+---
+

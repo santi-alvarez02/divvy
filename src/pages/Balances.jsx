@@ -170,15 +170,20 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
       }
 
       // Background rate update (non-blocking)
-      shouldUpdateRates().then(needsUpdate => {
-        if (needsUpdate) {
-          updateExchangeRates().then(() => {
-            getExchangeRatesFromDB().then(({ rates }) => {
-              if (rates) setExchangeRates(rates);
-            });
-          });
-        }
-      });
+      shouldUpdateRates()
+        .then(needsUpdate => {
+          if (needsUpdate) {
+            return updateExchangeRates()
+              .then(() => getExchangeRatesFromDB())
+              .then(({ rates }) => {
+                if (rates) setExchangeRates(rates);
+              });
+          }
+        })
+        .catch(error => {
+          console.error('Failed to update exchange rates:', error);
+          // Continue with existing rates - don't break the app
+        });
     };
 
     fetchCurrencyData();
