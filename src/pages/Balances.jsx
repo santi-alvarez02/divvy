@@ -1430,15 +1430,23 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                       {/* Debt info */}
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <div
-                            className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl shadow-md"
-                            style={{
-                              background: 'linear-gradient(135deg, #FF6B6B 0%, #FF8E53 100%)',
-                              color: 'white'
-                            }}
-                          >
-                            {balance.name.charAt(0)}
-                          </div>
+                          {isValidAvatarUrl(balance.avatar_url) ? (
+                            <img
+                              src={balance.avatar_url}
+                              alt={balance.name}
+                              className="w-14 h-14 rounded-full object-cover shadow-md"
+                            />
+                          ) : (
+                            <div
+                              className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl shadow-md"
+                              style={{
+                                background: getAvatarColor(balance.id),
+                                color: 'white'
+                              }}
+                            >
+                              {balance.name.charAt(0)}
+                            </div>
+                          )}
                           <div>
                             <p className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                               {balance.name}

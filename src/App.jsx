@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -13,13 +13,25 @@ import Budget from './pages/Budget';
 import Groups from './pages/Groups';
 import Settings from './pages/Settings';
 import Profile from './pages/Profile';
+import OfflineBanner from './components/OfflineBanner';
+import InstallPrompt from './components/InstallPrompt';
+import { registerServiceWorker } from './utils/registerServiceWorker';
 
 function App() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
+  // Register service worker on mount
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
   return (
     <AuthProvider>
       <Router>
+        {/* PWA Components */}
+        <OfflineBanner />
+        <InstallPrompt />
+
         <Routes>
           {/* Public Routes */}
           <Route
