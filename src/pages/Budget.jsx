@@ -999,7 +999,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
               minHeight: '450px'
             }}
           >
-            <h2 className={`text-2xl sm:text-3xl font-bold font-serif mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h2 className={`text-xl sm:text-2xl md:text-3xl font-bold font-serif mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Budget vs Actual
             </h2>
 
@@ -1053,7 +1053,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
                 </div>
 
                 {/* Columns */}
-                <div className="relative h-full flex items-end justify-start gap-16 px-4">
+                <div className="relative h-full flex items-end justify-start gap-4 sm:gap-8 md:gap-16 px-4">
                   {monthlyData.map((month, index) => {
                     const maxValue = Math.max(...monthlyData.map(m => Math.max(m.budget, m.spent)));
                     const chartHeight = 280;

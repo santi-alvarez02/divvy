@@ -405,7 +405,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
       </nav>
 
       {/* User Profile Section */}
-      <div className="p-4 lg:p-6 mt-auto">
+      <div className="p-4 lg:p-6 pb-8 mt-auto">
         <button
           onClick={(e) => {
             e.stopPropagation();
@@ -423,13 +423,12 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
               key={userData.avatar_url}
               src={userData.avatar_url}
               alt="Profile"
-              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover shadow-lg transition-opacity duration-150"
+              className="w-10 h-10 lg:w-12 lg:h-12 rounded-full object-cover shadow-lg"
               loading="eager"
-              style={{ opacity: userData ? 1 : 0 }}
             />
           ) : (
-            <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center font-bold text-base lg:text-lg bg-gradient-to-br ${getAvatarColor(user?.id)} shadow-lg transition-opacity duration-150`} style={{ color: 'white', opacity: userData ? 1 : 0 }}>
-              {getInitials(userData?.full_name || user?.user_metadata?.full_name)}
+            <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center font-bold text-base lg:text-lg bg-gradient-to-br ${getAvatarColor(user?.id)} shadow-lg`} style={{ color: 'white' }}>
+              {getInitials(userData?.full_name || user?.user_metadata?.full_name || 'User')}
             </div>
           )}
           <div className={`${isMobileExpanded ? 'block' : 'hidden'} lg:block`}>
