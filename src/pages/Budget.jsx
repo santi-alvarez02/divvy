@@ -382,6 +382,11 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
     .filter(settlement => settlement.from_user_id === currentUserId)
     .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
 
+  // Calculate settlements you've received (ALL settlements, not filtered by month)
+  const settlementsYouReceived = settlementHistory
+    .filter(settlement => settlement.to_user_id === currentUserId)
+    .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
   // Calculate "You Owe" from all expenses (not filtered by month)
   const calculateYouOwe = () => {
     const balances = {};
@@ -456,8 +461,8 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
 
   const youOwe = calculateYouOwe();
 
-  // Total Spent = Your share of paid expenses + Settlements + You Owe
-  const totalSpent = yourShareOfPaidExpenses + settlementsYouPaid + youOwe;
+  // Total Spent = Your share of paid expenses + Settlements paid - Settlements received + You Owe
+  const totalSpent = yourShareOfPaidExpenses + settlementsYouPaid - settlementsYouReceived + youOwe;
 
   const remaining = budgetLimit - totalSpent;
   const percentageUsed = Math.min((totalSpent / budgetLimit) * 100, 100);

@@ -240,11 +240,16 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
               .filter(settlement => settlement.from_user_id === currentUserId)
               .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
 
+            // Calculate settlements you've received (ALL time)
+            const settlementsYouReceived = settlementHistory
+              .filter(settlement => settlement.to_user_id === currentUserId)
+              .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
             // Set budget data (will add youOwe later)
             const monthName = now.toLocaleDateString('en-US', { month: 'long' });
             setBudget({
               limit: userData?.monthly_budget || 0,
-              spent: yourShareOfPaidExpenses + settlementsYouPaid,
+              spent: yourShareOfPaidExpenses + settlementsYouPaid - settlementsYouReceived,
               month: monthName,
               year: now.getFullYear()
             });

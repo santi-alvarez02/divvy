@@ -824,3 +824,184 @@ Both Dashboard and Budget pages now show your total monthly spending including w
 **Result**: Dashboard and Budget pages now accurately display your total monthly spending, including all expenses you're part of.
 
 ---
+
+## Session 51 (Continued): Refine Total Spent Formula
+
+**Date**: 2025-11-11
+
+### Objective
+
+Update the Total Spent calculation to subtract settlements received (money paid back to you) from the total, providing a more accurate representation of net spending.
+
+---
+
+### Issue Description
+
+**Problem**: The Total Spent formula was not accounting for money received from settlements. When someone paid you back, the Total Spent stayed the same, even though money came back to you.
+
+**Example Scenario**:
+- You paid €100 for groceries split between 2 people
+- Your share: €50
+- Roommate owes you: €50
+- Roommate pays you back: €50
+- **Old Formula**: Total Spent = €50 (didn't decrease when paid back)
+- **New Formula**: Total Spent = €50 - €50 = €0 (correctly shows net spending)
+
+---
+
+### Implementation - COMPLETED ✅
+
+#### Updated Formula
+
+**Old Formula**:
+```
+Total Spent = Your share of expenses you paid + Settlements you paid + You Owe
+```
+
+**New Formula**:
+```
+Total Spent = Your share of expenses you paid + Settlements you paid - Settlements you received + You Owe
+```
+
+---
+
+#### 1. Update Expenses Page (Lines 487-494)
+
+**File:** `src/pages/Expenses.jsx`
+
+Added calculation for settlements received:
+
+```javascript
+// Calculate settlements you've paid (money you sent to others)
+const settlementsYouPaid = settlementHistory
+  .filter(settlement => settlement.from_user_id === currentUserId)
+  .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
+// Calculate settlements you've received (money others sent to you)
+const settlementsYouReceived = settlementHistory
+  .filter(settlement => settlement.to_user_id === currentUserId)
+  .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
+// Current Spent = Your share of expenses + Settlements you've paid - Settlements you've received
+// This represents the actual money that has left your pocket (minus money that came back)
+const totalSpent = yourShareOfPaidExpenses + settlementsYouPaid - settlementsYouReceived;
+```
+
+---
+
+#### 2. Update Dashboard Page (Lines 243-255)
+
+**File:** `src/components/Dashboard.jsx`
+
+Added settlements received calculation:
+
+```javascript
+// Calculate settlements you've paid (ALL time)
+const settlementsYouPaid = settlementHistory
+  .filter(settlement => settlement.from_user_id === currentUserId)
+  .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
+// Calculate settlements you've received (ALL time)
+const settlementsYouReceived = settlementHistory
+  .filter(settlement => settlement.to_user_id === currentUserId)
+  .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
+// Set budget data (will add youOwe later)
+const monthName = now.toLocaleDateString('en-US', { month: 'long' });
+setBudget({
+  limit: userData?.monthly_budget || 0,
+  spent: yourShareOfPaidExpenses + settlementsYouPaid - settlementsYouReceived,
+  month: monthName,
+  year: now.getFullYear()
+});
+```
+
+---
+
+#### 3. Update Budget Page (Lines 385-465)
+
+**File:** `src/pages/Budget.jsx`
+
+Added settlements received calculation:
+
+```javascript
+// Calculate settlements you've received (ALL settlements, not filtered by month)
+const settlementsYouReceived = settlementHistory
+  .filter(settlement => settlement.to_user_id === currentUserId)
+  .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
+const youOwe = calculateYouOwe();
+
+// Total Spent = Your share of paid expenses + Settlements paid - Settlements received + You Owe
+const totalSpent = yourShareOfPaidExpenses + settlementsYouPaid - settlementsYouReceived + youOwe;
+```
+
+---
+
+### How It Works
+
+**Breakdown of Total Spent Calculation**:
+
+1. **Your share of expenses you paid**: Money you spent on expenses (your portion)
+2. **+ Settlements you paid**: Money you sent to others to settle debts
+3. **- Settlements you received**: Money others sent you (paid you back)
+4. **+ You Owe**: Outstanding debts you still need to pay
+
+**Example**:
+- Your share of expenses: €200
+- Settlements you paid: €100
+- Settlements you received: €50 (someone paid you back)
+- You Owe: €30
+- **Total Spent** = €200 + €100 - €50 + €30 = **€280**
+
+---
+
+### Files Modified
+
+1. **`src/pages/Expenses.jsx`** (Lines 487-494)
+   - Added `settlementsYouReceived` calculation
+   - Updated `totalSpent` formula to subtract settlements received
+
+2. **`src/components/Dashboard.jsx`** (Lines 243-255)
+   - Added `settlementsYouReceived` calculation
+   - Updated budget spent to subtract settlements received
+
+3. **`src/pages/Budget.jsx`** (Lines 385-465)
+   - Added `settlementsYouReceived` calculation
+   - Updated `totalSpent` formula to subtract settlements received
+
+---
+
+### Benefits
+
+1. ✅ **Accurate Net Spending**: Shows true out-of-pocket cost after receiving payments
+2. ✅ **Reflects Cash Flow**: Total decreases when you receive money back
+3. ✅ **Better Budget Tracking**: More realistic view of your financial position
+4. ✅ **Consistent Across Pages**: All pages use the same refined formula
+
+---
+
+## Session 51 Final Summary
+
+**Dashboard and Budget Total Spent Improvements - FULLY IMPLEMENTED ✅**
+
+**Changes**:
+1. ✅ Updated label from "Spent" to "Total Spent"
+2. ✅ Updated calculation to match Expenses page "Final Total"
+3. ✅ Refined formula to subtract settlements received
+4. ✅ Applied consistent calculation across Dashboard, Budget, and Expenses pages
+
+**Final Formula**:
+```
+Total Spent = Your share of expenses paid + Settlements paid - Settlements received + You Owe
+```
+
+**Files Modified**:
+- `src/components/BudgetOverview.jsx` (Line 93)
+- `src/components/Dashboard.jsx` (Lines 229-255, 328-337)
+- `src/pages/Budget.jsx` (Lines 138-150, 371-465)
+- `src/pages/Expenses.jsx` (Lines 482-494)
+
+**Result**: All pages now accurately display total spending with proper accounting for settlements received.
+
+---

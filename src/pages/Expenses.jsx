@@ -484,9 +484,14 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     .filter(settlement => settlement.from_user_id === currentUserId)
     .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
 
-  // Current Spent = Your share of expenses + Settlements you've paid
-  // This represents the actual money that has left your pocket
-  const totalSpent = yourShareOfPaidExpenses + settlementsYouPaid;
+  // Calculate settlements you've received (money others sent to you)
+  const settlementsYouReceived = settlementHistory
+    .filter(settlement => settlement.to_user_id === currentUserId)
+    .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
+  // Current Spent = Your share of expenses + Settlements you've paid - Settlements you've received
+  // This represents the actual money that has left your pocket (minus money that came back)
+  const totalSpent = yourShareOfPaidExpenses + settlementsYouPaid - settlementsYouReceived;
 
   // Helper function to get last settled timestamp for a user pair
   const getLastSettledTimestamp = (userId1, userId2) => {
