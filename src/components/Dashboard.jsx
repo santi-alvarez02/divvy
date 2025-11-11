@@ -226,19 +226,25 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
             console.log('Dashboard: Current month expenses:', currentMonthExpenses);
             console.log('Dashboard: Current user ID:', currentUserId);
 
-            // Calculate budget spent (user's share of current month expenses)
-            const totalSpent = currentMonthExpenses
-              .filter(expense => expense.splitBetween.includes(currentUserId))
+            // Calculate Total Spent the SAME way as Expenses page
+            // Your share of expenses YOU paid for (current month)
+            const yourShareOfPaidExpenses = currentMonthExpenses
+              .filter(expense => expense.paidBy === currentUserId)
               .reduce((sum, expense) => {
                 const userShare = expense.amount / expense.splitBetween.length;
                 return sum + userShare;
               }, 0);
 
-            // Set budget data
+            // Calculate settlements you've paid (ALL time)
+            const settlementsYouPaid = settlementHistory
+              .filter(settlement => settlement.from_user_id === currentUserId)
+              .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
+            // Set budget data (will add youOwe later)
             const monthName = now.toLocaleDateString('en-US', { month: 'long' });
             setBudget({
               limit: userData?.monthly_budget || 0,
-              spent: totalSpent,
+              spent: yourShareOfPaidExpenses + settlementsYouPaid,
               month: monthName,
               year: now.getFullYear()
             });
@@ -318,6 +324,17 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
 
             console.log('Dashboard: Final balance array:', balanceArray);
             setBalances(balanceArray);
+
+            // Calculate "You Owe" and add to budget spent
+            const youOwe = balanceArray
+              .filter(b => b.type === 'you_owe')
+              .reduce((sum, b) => sum + b.amount, 0);
+
+            // Update budget: Total Spent = Your share + Settlements + You Owe
+            setBudget(prev => ({
+              ...prev,
+              spent: prev.spent + youOwe
+            }));
           }
         }
       } catch (error) {

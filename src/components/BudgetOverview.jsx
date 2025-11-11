@@ -90,7 +90,7 @@ const BudgetOverview = ({ budget, currency = 'USD', isDarkMode, onClick }) => {
           </div>
           <div className="flex justify-between items-center">
             <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Spent
+              Total Spent
             </span>
             <span className="text-lg font-bold" style={{ color: '#FF5E00' }}>
               {getCurrencySymbol(currency)}{spent.toFixed(2)}

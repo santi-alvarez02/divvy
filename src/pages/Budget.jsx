@@ -26,6 +26,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
   const [currency, setCurrency] = useState('USD');
   const [userCurrency, setUserCurrency] = useState('USD');
   const [exchangeRates, setExchangeRates] = useState({});
+  const [settlementHistory, setSettlementHistory] = useState([]);
   const monthScrollRef = React.useRef(null);
 
   const currentUserId = user?.id;
@@ -132,6 +133,20 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
               };
             }) || [];
             setExpenses(transformedExpenses);
+          }
+
+          // Fetch settlement history for this group
+          const { data: settlementsData, error: settlementsError } = await supabase
+            .from('settlements')
+            .select('*')
+            .eq('group_id', groupMemberships.groups.id)
+            .eq('status', 'completed')
+            .order('completed_at', { ascending: false });
+
+          if (settlementsError) {
+            console.error('Error fetching settlements:', settlementsError);
+          } else {
+            setSettlementHistory(settlementsData || []);
           }
         }
       } catch (error) {
@@ -353,11 +368,96 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
     };
   }).filter(expense => expense !== null); // Remove invalid expenses
 
-  // Calculate total spent (user's share) - using converted amounts
-  const totalSpent = convertedExpenses.reduce((sum, expense) => {
-    const userShare = expense.amount / expense.splitBetween.length;
-    return sum + userShare;
-  }, 0);
+  // Calculate total spent the SAME way as Expenses page
+  // Your share of expenses YOU paid for
+  const yourShareOfPaidExpenses = convertedExpenses
+    .filter(expense => expense.paidBy === currentUserId)
+    .reduce((sum, expense) => {
+      const yourShare = expense.amount / expense.splitBetween.length;
+      return sum + yourShare;
+    }, 0);
+
+  // Calculate settlements you've paid (ALL settlements, not filtered by month)
+  const settlementsYouPaid = settlementHistory
+    .filter(settlement => settlement.from_user_id === currentUserId)
+    .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+
+  // Calculate "You Owe" from all expenses (not filtered by month)
+  const calculateYouOwe = () => {
+    const balances = {};
+
+    // Helper to get last settled timestamp
+    const getLastSettledTimestamp = (userId1, userId2) => {
+      const relevantSettlements = settlementHistory.filter(s =>
+        ((s.from_user_id === userId1 && s.to_user_id === userId2) ||
+         (s.from_user_id === userId2 && s.to_user_id === userId1))
+      );
+
+      if (relevantSettlements.length === 0) return null;
+
+      const mostRecent = relevantSettlements.sort((a, b) => {
+        const dateA = new Date(a.settled_up_to_timestamp || a.completed_at);
+        const dateB = new Date(b.settled_up_to_timestamp || b.completed_at);
+        return dateB - dateA;
+      })[0];
+
+      return mostRecent.settled_up_to_timestamp || mostRecent.completed_at;
+    };
+
+    // Calculate balances from ALL expenses (not just filtered)
+    expenses.forEach(expense => {
+      const splitBetween = expense.splitBetween || [];
+      const paidBy = expense.paidBy;
+
+      // Convert to user currency
+      const originalAmount = parseFloat(expense.originalAmount ?? expense.amount) || 0;
+      const expenseCurrency = expense.expenseCurrency || expense.currency || 'USD';
+      const convertedAmount = Object.keys(exchangeRates).length > 0
+        ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+        : originalAmount;
+
+      const splitAmount = convertedAmount / splitBetween.length;
+      const expenseDate = new Date(expense.date);
+
+      // If someone else paid and you're in the split - you owe them
+      if (paidBy !== currentUserId && splitBetween.includes(currentUserId)) {
+        const lastSettled = getLastSettledTimestamp(currentUserId, paidBy);
+
+        if (!lastSettled || expenseDate > new Date(lastSettled)) {
+          if (!balances[paidBy]) {
+            balances[paidBy] = { amount: 0 };
+          }
+          balances[paidBy].amount += splitAmount;
+        }
+      }
+
+      // If you paid and others are in the split - they owe you
+      if (paidBy === currentUserId) {
+        splitBetween.forEach(personId => {
+          if (personId !== currentUserId) {
+            const lastSettled = getLastSettledTimestamp(currentUserId, personId);
+
+            if (!lastSettled || expenseDate > new Date(lastSettled)) {
+              if (!balances[personId]) {
+                balances[personId] = { amount: 0 };
+              }
+              balances[personId].amount -= splitAmount;
+            }
+          }
+        });
+      }
+    });
+
+    // Sum up "you_owe" balances
+    return Object.values(balances)
+      .filter(b => b.amount > 0)
+      .reduce((sum, b) => sum + b.amount, 0);
+  };
+
+  const youOwe = calculateYouOwe();
+
+  // Total Spent = Your share of paid expenses + Settlements + You Owe
+  const totalSpent = yourShareOfPaidExpenses + settlementsYouPaid + youOwe;
 
   const remaining = budgetLimit - totalSpent;
   const percentageUsed = Math.min((totalSpent / budgetLimit) * 100, 100);
