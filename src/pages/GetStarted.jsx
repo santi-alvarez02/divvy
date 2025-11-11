@@ -109,7 +109,7 @@ const GetStarted = ({ isDarkMode }) => {
           </button>
 
           {/* Install Button (only shows if PWA is installable) */}
-          <InstallButton />
+          <InstallButton isDarkMode={isDarkMode} />
         </div>
       </div>
     </div>

@@ -55,7 +55,7 @@ export function usePWAInstall() {
 }
 
 // Standalone install button component (used in GetStarted page)
-export function InstallButton({ className = '', style = {} }) {
+export function InstallButton({ className = '', style = {}, isDarkMode = false }) {
   const { canInstall, install } = usePWAInstall();
 
   if (!canInstall) return null;
@@ -63,10 +63,18 @@ export function InstallButton({ className = '', style = {} }) {
   return (
     <button
       onClick={install}
-      className={`px-12 py-4 rounded-full text-xl font-semibold text-white transition-all hover:scale-105 active:scale-95 shadow-2xl flex items-center gap-3 justify-center ${className}`}
+      className={`px-12 py-4 rounded-full text-xl font-semibold transition-all hover:scale-105 active:scale-95 shadow-2xl flex items-center gap-3 justify-center backdrop-blur-md border ${className}`}
       style={{
-        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-        boxShadow: '0 10px 30px rgba(16, 185, 129, 0.4)',
+        background: isDarkMode
+          ? 'rgba(255, 255, 255, 0.1)'
+          : 'rgba(255, 255, 255, 0.4)',
+        border: isDarkMode
+          ? '2px solid rgba(255, 255, 255, 0.2)'
+          : '2px solid rgba(255, 94, 0, 0.2)',
+        color: isDarkMode ? '#fff' : '#FF5E00',
+        boxShadow: isDarkMode
+          ? '0 10px 30px rgba(0, 0, 0, 0.3)'
+          : '0 10px 30px rgba(255, 94, 0, 0.15)',
         ...style
       }}
     >
