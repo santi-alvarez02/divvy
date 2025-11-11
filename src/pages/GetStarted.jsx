@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { InstallButton } from '../components/InstallPrompt';
 
 const GetStarted = ({ isDarkMode }) => {
   const navigate = useNavigate();
@@ -93,17 +94,23 @@ const GetStarted = ({ isDarkMode }) => {
           Track shared expenses with roommates and friends effortlessly.
         </p>
 
-        {/* Get Started Button */}
-        <button
-          onClick={() => navigate('/login')}
-          className="px-12 py-4 rounded-full text-xl font-semibold text-white transition-all hover:scale-105 active:scale-95 shadow-2xl"
-          style={{
-            background: 'linear-gradient(135deg, #FF5E00 0%, #FF8C42 100%)',
-            boxShadow: '0 10px 30px rgba(255, 94, 0, 0.4)'
-          }}
-        >
-          Get Started
-        </button>
+        {/* Buttons */}
+        <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+          {/* Get Started Button */}
+          <button
+            onClick={() => navigate('/login')}
+            className="px-12 py-4 rounded-full text-xl font-semibold text-white transition-all hover:scale-105 active:scale-95 shadow-2xl"
+            style={{
+              background: 'linear-gradient(135deg, #FF5E00 0%, #FF8C42 100%)',
+              boxShadow: '0 10px 30px rgba(255, 94, 0, 0.4)'
+            }}
+          >
+            Get Started
+          </button>
+
+          {/* Install Button (only shows if PWA is installable) */}
+          <InstallButton />
+        </div>
       </div>
     </div>
   );
