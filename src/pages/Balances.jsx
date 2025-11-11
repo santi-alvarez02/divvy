@@ -402,13 +402,42 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
         ? relevantExpenses[0].date
         : new Date().toISOString();
 
+      // Calculate the amount in receiver's currency
+      // The 'amount' parameter is already in the current user's currency (payer)
+      // We need to calculate what it is in the receiver's currency
+
+      // Get receiver's currency
+      const { data: receiverData, error: receiverError } = await supabase
+        .from('users')
+        .select('default_currency')
+        .eq('id', roommateId)
+        .single();
+
+      if (receiverError) {
+        console.error('Error fetching receiver currency:', receiverError);
+        throw new Error('Failed to fetch receiver currency');
+      }
+
+      const receiverCurrency = receiverData?.default_currency || 'USD';
+
+      // Convert amount from payer's currency to receiver's currency
+      const receiverAmount = userCurrency === receiverCurrency
+        ? amount
+        : (Object.keys(exchangeRates).length > 0
+          ? convertCurrency(amount, userCurrency, receiverCurrency, exchangeRates)
+          : amount);
+
       const { data, error } = await supabase
         .from('settlements')
         .insert({
           group_id: currentGroup.id,
           from_user_id: currentUserId,
           to_user_id: roommateId,
-          amount: amount,
+          amount: amount, // Keep for backwards compatibility
+          from_amount: amount,
+          from_currency: userCurrency,
+          to_amount: receiverAmount,
+          to_currency: receiverCurrency,
           status: 'pending',
           settled_up_to_timestamp: mostRecentExpenseDate
         })
@@ -957,71 +986,83 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
             ) : (
               <div className="space-y-3">
                 {/* Payments to confirm (received) */}
-                {receivedSettlements.map((settlement) => (
-                  <div
-                    key={settlement.id}
-                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-2xl"
-                    style={{
-                      background: isDarkMode ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.05)'
-                    }}
-                  >
-                    <div className="flex-1 mb-3 sm:mb-0">
-                      <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {getUserName(settlement.from_user_id)} paid you
-                      </p>
-                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {formatDate(settlement.created_at)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <p className="text-xl font-bold" style={{ color: '#10b981' }}>
-                        {getCurrencySymbol(userCurrency)}{settlement.amount.toFixed(2)}
-                      </p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleAcceptPayment(settlement.id)}
-                          className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
-                          style={{ backgroundColor: '#10b981' }}
-                        >
-                          Accept
-                        </button>
-                        <button
-                          onClick={() => handleRejectPayment(settlement.id)}
-                          className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
-                          style={{
-                            background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                            color: isDarkMode ? 'white' : '#1f2937'
-                          }}
-                        >
-                          Reject
-                        </button>
+                {receivedSettlements.map((settlement) => {
+                  // Use receiver's perspective (to_amount and to_currency)
+                  const displayAmount = settlement.to_amount || settlement.amount;
+                  const displayCurrency = settlement.to_currency || userCurrency;
+
+                  return (
+                    <div
+                      key={settlement.id}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-2xl"
+                      style={{
+                        background: isDarkMode ? 'rgba(16, 185, 129, 0.1)' : 'rgba(16, 185, 129, 0.05)'
+                      }}
+                    >
+                      <div className="flex-1 mb-3 sm:mb-0">
+                        <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {getUserName(settlement.from_user_id)} paid you
+                        </p>
+                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {formatDate(settlement.created_at)}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <p className="text-xl font-bold" style={{ color: '#10b981' }}>
+                          {getCurrencySymbol(displayCurrency)}{displayAmount.toFixed(2)}
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleAcceptPayment(settlement.id)}
+                            className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90"
+                            style={{ backgroundColor: '#10b981' }}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            onClick={() => handleRejectPayment(settlement.id)}
+                            className="px-4 py-2 rounded-xl text-sm font-semibold transition-all"
+                            style={{
+                              background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
+                              color: isDarkMode ? 'white' : '#1f2937'
+                            }}
+                          >
+                            Reject
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
 
                 {/* Payments sent (waiting for confirmation) */}
-                {sentSettlements.map((settlement) => (
-                  <div
-                    key={settlement.id}
-                    className="flex items-center justify-between p-4 rounded-2xl"
-                    style={{
-                      background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)'
-                    }}
-                  >
-                    <div>
-                      <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        Waiting for {getUserName(settlement.to_user_id)} to confirm
-                      </p>
-                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {formatDate(settlement.created_at)}
+                {sentSettlements.map((settlement) => {
+                  // Use payer's perspective (from_amount and from_currency)
+                  const displayAmount = settlement.from_amount || settlement.amount;
+                  const displayCurrency = settlement.from_currency || userCurrency;
+
+                  return (
+                    <div
+                      key={settlement.id}
+                      className="flex items-center justify-between p-4 rounded-2xl"
+                      style={{
+                        background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)'
+                      }}
+                    >
+                      <div>
+                        <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          Waiting for {getUserName(settlement.to_user_id)} to confirm
+                        </p>
+                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {formatDate(settlement.created_at)}
+                        </p>
+                      </div>
+                      <p className="text-xl font-bold" style={{ color: '#FF5E00' }}>
+                        {getCurrencySymbol(displayCurrency)}{displayAmount.toFixed(2)}
                       </p>
                     </div>
-                    <p className="text-xl font-bold" style={{ color: '#FF5E00' }}>
-                      {getCurrencySymbol(userCurrency)}{settlement.amount.toFixed(2)}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1117,7 +1158,16 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                   <p className="text-xl sm:text-2xl font-bold" style={{
                     color: selectedSettlement.from_user_id === currentUserId ? '#FF5E00' : '#10b981'
                   }}>
-                    {getCurrencySymbol(userCurrency)}{selectedSettlement.amount.toFixed(2)}
+                    {(() => {
+                      const isPayer = selectedSettlement.from_user_id === currentUserId;
+                      const displayAmount = isPayer
+                        ? (selectedSettlement.from_amount || selectedSettlement.amount)
+                        : (selectedSettlement.to_amount || selectedSettlement.amount);
+                      const displayCurrency = isPayer
+                        ? (selectedSettlement.from_currency || userCurrency)
+                        : (selectedSettlement.to_currency || userCurrency);
+                      return `${getCurrencySymbol(displayCurrency)}${displayAmount.toFixed(2)}`;
+                    })()}
                   </p>
                 </div>
               </div>
@@ -1285,37 +1335,48 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
             </div>
           ) : (
             <div className="space-y-3">
-              {filteredHistory.slice().reverse().map((settlement) => (
-                <div
-                  key={settlement.id}
-                  onClick={() => setSelectedSettlement(settlement)}
-                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-2xl cursor-pointer transition-all hover:scale-[1.01]"
-                  style={{
-                    background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)'
-                  }}
-                >
-                  <div className="flex-1 mb-2 sm:mb-0">
-                    <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                      {settlement.from_user_id === currentUserId
-                        ? `You paid ${getUserName(settlement.to_user_id)}`
-                        : `${getUserName(settlement.from_user_id)} paid you`}
-                    </p>
-                    <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {formatDate(settlement.completed_at || settlement.created_at)}
-                    </p>
+              {filteredHistory.slice().reverse().map((settlement) => {
+                // Determine which amount and currency to display based on user perspective
+                const isPayer = settlement.from_user_id === currentUserId;
+                const displayAmount = isPayer
+                  ? (settlement.from_amount || settlement.amount)
+                  : (settlement.to_amount || settlement.amount);
+                const displayCurrency = isPayer
+                  ? (settlement.from_currency || userCurrency)
+                  : (settlement.to_currency || userCurrency);
+
+                return (
+                  <div
+                    key={settlement.id}
+                    onClick={() => setSelectedSettlement(settlement)}
+                    className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 rounded-2xl cursor-pointer transition-all hover:scale-[1.01]"
+                    style={{
+                      background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)'
+                    }}
+                  >
+                    <div className="flex-1 mb-2 sm:mb-0">
+                      <p className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        {isPayer
+                          ? `You paid ${getUserName(settlement.to_user_id)}`
+                          : `${getUserName(settlement.from_user_id)} paid you`}
+                      </p>
+                      <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {formatDate(settlement.completed_at || settlement.created_at)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="text-lg font-bold" style={{
+                        color: isPayer ? '#FF5E00' : '#10b981'
+                      }}>
+                        {getCurrencySymbol(displayCurrency)}{displayAmount.toFixed(2)}
+                      </p>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${isDarkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'}`}>
+                        Completed
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <p className="text-lg font-bold" style={{
-                      color: settlement.from_user_id === currentUserId ? '#FF5E00' : '#10b981'
-                    }}>
-                      {getCurrencySymbol(userCurrency)}{settlement.amount.toFixed(2)}
-                    </p>
-                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${isDarkMode ? 'bg-green-900/30 text-green-400' : 'bg-green-100 text-green-700'}`}>
-                      Completed
-                    </span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
