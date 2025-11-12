@@ -10,7 +10,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Make sure VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY are set in .env.local');
 }
 
-// Create Supabase client with optimized settings
+// Create Supabase client with optimized settings for persistent sessions
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
@@ -18,6 +18,21 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     storage: window.localStorage, // Explicitly use localStorage for persistence
     storageKey: 'divvy-auth-token', // Custom key for auth storage
-    flowType: 'pkce' // More secure auth flow
+    flowType: 'pkce', // More secure auth flow
+    debug: false // Set to true for debugging auth issues
+  },
+  global: {
+    headers: {
+      'X-Client-Info': 'divvy-pwa'
+    }
+  },
+  db: {
+    schema: 'public'
+  },
+  // Ensure proper session handling on app resume/reload
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   }
 });

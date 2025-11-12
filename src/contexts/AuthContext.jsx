@@ -31,17 +31,66 @@ export const AuthProvider = ({ children }) => {
       }
     );
 
+    // Handle app resume/visibility change (important for PWA)
+    const handleVisibilityChange = async () => {
+      if (!document.hidden) {
+        console.log('App resumed, checking session...');
+        // When app becomes visible again, refresh the session
+        try {
+          const { data: { session }, error } = await supabase.auth.getSession();
+          if (error) throw error;
+
+          if (session) {
+            setUser(session.user);
+            console.log('Session restored on app resume');
+          } else {
+            console.log('No session found on app resume');
+            setUser(null);
+          }
+        } catch (error) {
+          console.error('Error refreshing session on app resume:', error);
+        }
+      }
+    };
+
+    // Handle page unload/beforeunload (save session state)
+    const handleBeforeUnload = () => {
+      console.log('App closing, session should persist in localStorage');
+    };
+
+    // Add event listeners for PWA lifecycle
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // For iOS PWA - also listen to pageshow event
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) {
+        console.log('Page restored from cache, checking session...');
+        checkUser();
+      }
+    });
+
     // Cleanup subscription on unmount
     return () => {
       authListener?.subscription?.unsubscribe();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
     };
   }, []);
 
   // Check for existing session
   const checkUser = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
+      // First, try to get the session from storage
+      const { data: { session }, error } = await supabase.auth.getSession();
+
+      if (error) throw error;
+
+      if (session) {
+        setUser(session.user);
+      } else {
+        setUser(null);
+      }
     } catch (error) {
       console.error('Error checking user:', error);
       setUser(null);
