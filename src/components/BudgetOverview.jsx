@@ -3,7 +3,7 @@ import { getCurrencySymbol } from '../utils/currency';
 
 const BudgetOverview = ({ budget, currency = 'USD', isDarkMode, onClick }) => {
   const { limit, spent, month, year } = budget;
-  const percentage = Math.min((spent / limit) * 100, 100);
+  const percentage = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
   const remaining = limit - spent;
 
   // Donut chart calculations
