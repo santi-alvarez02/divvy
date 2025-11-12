@@ -621,7 +621,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
         ) : (
           /* Solo Mode - No Group */
           <div
-            className="rounded-3xl shadow-xl p-12 max-w-2xl mx-auto text-center"
+            className="rounded-3xl shadow-xl p-8 sm:p-12 max-w-2xl mx-auto text-center"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -630,24 +630,23 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <div className="text-6xl mb-6">👥</div>
-            <h2 className={`text-3xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <h2 className={`text-2xl sm:text-3xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               You're Tracking Expenses Solo
             </h2>
-            <p className={`text-lg mb-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+            <p className={`text-base sm:text-lg mb-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Create a group to split expenses with roommates or join an existing one
             </p>
-            <div className="flex gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
                 onClick={() => setShowCreateModal(true)}
-                className="px-8 py-4 rounded-2xl text-lg font-semibold text-white transition-all hover:opacity-90"
+                className="px-6 sm:px-8 py-3 sm:py-4 rounded-2xl text-base sm:text-lg font-semibold text-white transition-all hover:opacity-90"
                 style={{ backgroundColor: '#FF5E00' }}
               >
                 Create a Group
               </button>
               <button
                 onClick={() => setShowJoinModal(true)}
-                className="px-8 py-4 rounded-2xl text-lg font-semibold transition-all"
+                className="px-6 sm:px-8 py-3 sm:py-4 rounded-2xl text-base sm:text-lg font-semibold transition-all"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                   backdropFilter: 'blur(16px)',
@@ -672,7 +671,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             onClick={() => setShowLeaveConfirm(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-8 max-w-md w-full"
+              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -682,10 +681,10 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Leave Group?
               </h3>
-              <p className={`text-base mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className={`text-sm sm:text-base mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Are you sure you want to leave "{groupName}"? You won't be able to see shared expenses anymore.
               </p>
               <div className="flex space-x-4">
@@ -724,7 +723,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             onClick={() => setShowInviteCode(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-8 max-w-md w-full"
+              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -734,20 +733,20 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Invite Code
               </h3>
               <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Share this code with someone to add them to your group
               </p>
               <div
-                className="text-center p-6 rounded-2xl mb-6"
+                className="text-center p-4 sm:p-6 rounded-2xl mb-6"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                   border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
                 }}
               >
-                <p className="text-4xl font-bold tracking-widest" style={{ color: '#FF5E00' }}>
+                <p className="text-3xl sm:text-4xl font-bold tracking-widest" style={{ color: '#FF5E00' }}>
                   {inviteCode}
                 </p>
               </div>
@@ -787,7 +786,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             onClick={() => setShowJoinModal(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-8 max-w-md w-full"
+              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -797,7 +796,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Join a Group
               </h3>
               <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -856,7 +855,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             onClick={() => setShowCreateModal(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-8 max-w-md w-full"
+              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -866,7 +865,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Create a Group
               </h3>
               <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
