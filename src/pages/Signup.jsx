@@ -14,6 +14,7 @@ const Signup = ({ isDarkMode }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [signupSuccess, setSignupSuccess] = useState(false);
 
   // Password requirements state
   const [passwordRequirements, setPasswordRequirements] = useState({
@@ -78,8 +79,8 @@ const Signup = ({ isDarkMode }) => {
       setError(signUpError.message || 'Failed to create account. Please try again.');
     } else if (data) {
       console.log('Signup successful! User data:', data);
-      // Redirect to onboarding immediately
-      navigate('/onboarding');
+      // Show success message about checking email
+      setSignupSuccess(true);
     }
   };
 
@@ -121,8 +122,50 @@ const Signup = ({ isDarkMode }) => {
           </p>
         </div>
 
-        {/* Signup Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Success Message */}
+        {signupSuccess ? (
+          <div className="text-center py-8">
+            <div className="mb-6">
+              <svg
+                className="w-20 h-20 mx-auto"
+                style={{ color: '#FF5E00' }}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76"
+                />
+              </svg>
+            </div>
+            <h2 className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Check your email!
+            </h2>
+            <p className={`text-lg mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              We've sent a confirmation link to <span className="font-semibold" style={{ color: '#FF5E00' }}>{email}</span>
+            </p>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Click the link in the email to confirm your account and get started with Divvy.
+            </p>
+            <div className={`mt-6 pt-6 border-t ${isDarkMode ? 'border-gray-600' : 'border-gray-300'}`}>
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Didn't receive the email?{' '}
+                <button
+                  onClick={() => setSignupSuccess(false)}
+                  className="font-semibold"
+                  style={{ color: '#FF5E00' }}
+                >
+                  Try again
+                </button>
+              </p>
+            </div>
+          </div>
+        ) : (
+          // Signup Form
+          <form onSubmit={handleSubmit} className="space-y-5">
           {/* Error Message */}
           {error && (
             <div
@@ -337,8 +380,10 @@ const Signup = ({ isDarkMode }) => {
             {loading ? 'Creating account...' : 'Sign Up'}
           </button>
         </form>
+        )}
 
         {/* Login Link */}
+        {!signupSuccess && (
         <div className={`mt-6 text-center text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
           Already have an account?{' '}
           <Link
@@ -350,6 +395,7 @@ const Signup = ({ isDarkMode }) => {
             Sign in
           </Link>
         </div>
+        )}
       </div>
     </div>
   );

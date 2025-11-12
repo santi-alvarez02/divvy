@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import GetStarted from './pages/GetStarted';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import AuthCallback from './pages/AuthCallback';
 import Onboarding from './pages/Onboarding';
 import Dashboard from './components/Dashboard';
 import Expenses from './pages/Expenses';
@@ -45,6 +46,10 @@ function App() {
           <Route
             path="/signup"
             element={<Signup isDarkMode={isDarkMode} />}
+          />
+          <Route
+            path="/auth/callback"
+            element={<AuthCallback isDarkMode={isDarkMode} />}
           />
           <Route
             path="/onboarding"
