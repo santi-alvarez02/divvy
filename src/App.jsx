@@ -26,6 +26,14 @@ function App() {
     registerServiceWorker();
   }, []);
 
+  // Update theme-color meta tag when dark mode changes
+  useEffect(() => {
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', isDarkMode ? '#1a1a1a' : '#f5f5f5');
+    }
+  }, [isDarkMode]);
+
   return (
     <AuthProvider>
       <Router>

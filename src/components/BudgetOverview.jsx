@@ -35,9 +35,11 @@ const BudgetOverview = ({ budget, currency = 'USD', isDarkMode, onClick }) => {
         <h2 className={`text-2xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
           Monthly Budget
         </h2>
-        <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-          {month} {year}
-        </span>
+        {month && year > 0 && (
+          <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            {month} {year}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-col items-center">
