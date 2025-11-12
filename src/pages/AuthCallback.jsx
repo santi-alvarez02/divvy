@@ -9,7 +9,64 @@ const AuthCallback = ({ isDarkMode }) => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Get the session from URL hash params (email confirmation)
+        // Check for hash params (email confirmation tokens)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const access_token = hashParams.get('access_token');
+        const refresh_token = hashParams.get('refresh_token');
+        const type = hashParams.get('type');
+
+        console.log('Auth callback - Hash params:', { access_token: !!access_token, refresh_token: !!refresh_token, type });
+
+        // If we have tokens in the hash, exchange them for a session
+        if (access_token && type === 'signup') {
+          console.log('Email confirmation detected, setting session...');
+
+          const { data: { session }, error: sessionError } = await supabase.auth.setSession({
+            access_token,
+            refresh_token
+          });
+
+          if (sessionError) {
+            console.error('Error setting session:', sessionError);
+            setStatus('error');
+            setTimeout(() => navigate('/login'), 3000);
+            return;
+          }
+
+          if (session) {
+            console.log('Email confirmed! Session set:', session);
+            setStatus('success');
+
+            // Check if user has completed onboarding by checking for a group
+            const { data: groupData, error: groupError } = await supabase
+              .from('group_members')
+              .select('group_id')
+              .eq('user_id', session.user.id)
+              .limit(1)
+              .maybeSingle();
+
+            if (groupError) {
+              console.error('Error checking groups:', groupError);
+            }
+
+            console.log('Group check result:', groupData);
+
+            // If user has no group, redirect to onboarding
+            // Otherwise, redirect to dashboard
+            setTimeout(() => {
+              if (!groupData) {
+                console.log('No group found, redirecting to onboarding');
+                navigate('/onboarding');
+              } else {
+                console.log('Group found, redirecting to dashboard');
+                navigate('/dashboard');
+              }
+            }, 2000);
+            return;
+          }
+        }
+
+        // Fallback: try to get existing session
         const { data: { session }, error } = await supabase.auth.getSession();
 
         if (error) {
@@ -20,7 +77,7 @@ const AuthCallback = ({ isDarkMode }) => {
         }
 
         if (session) {
-          console.log('Email confirmed! Session:', session);
+          console.log('Existing session found:', session);
           setStatus('success');
 
           // Check if user has completed onboarding by checking for a group
