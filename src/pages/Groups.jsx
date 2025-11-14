@@ -17,6 +17,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
   const [groupName, setGroupName] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showInviteCode, setShowInviteCode] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -266,6 +267,16 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
     try {
       setError('');
 
+      // Check if this is the last member in the group
+      const { data: memberCount, error: countError } = await supabase
+        .from('group_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('group_id', currentGroup.id);
+
+      if (countError) throw countError;
+
+      const isLastMember = memberCount === null || members.length <= 1;
+
       // Delete the user's membership from the group
       const { error: deleteError } = await supabase
         .from('group_members')
@@ -274,6 +285,19 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
         .eq('group_id', currentGroup.id);
 
       if (deleteError) throw deleteError;
+
+      // If this was the last member, delete the group entirely
+      if (isLastMember) {
+        const { error: groupDeleteError } = await supabase
+          .from('groups')
+          .delete()
+          .eq('id', currentGroup.id);
+
+        if (groupDeleteError) {
+          console.error('Error deleting group:', groupDeleteError);
+          // Don't throw - user has already left successfully
+        }
+      }
 
       // Close the modal
       setShowLeaveConfirm(false);
@@ -287,6 +311,41 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
       console.error('Error leaving group:', err);
       setError('Failed to leave group. Please try again.');
       setShowLeaveConfirm(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    try {
+      setError('');
+
+      // Delete all members first
+      const { error: membersError } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('group_id', currentGroup.id);
+
+      if (membersError) throw membersError;
+
+      // Delete the group
+      const { error: groupError } = await supabase
+        .from('groups')
+        .delete()
+        .eq('id', currentGroup.id);
+
+      if (groupError) throw groupError;
+
+      // Close the modal
+      setShowDeleteConfirm(false);
+
+      // Reset state
+      setGroups([]);
+      setCurrentGroup(null);
+      setMembers([]);
+      setGroupName('');
+    } catch (err) {
+      console.error('Error deleting group:', err);
+      setError('Failed to delete group. Please try again.');
+      setShowDeleteConfirm(false);
     }
   };
 
@@ -608,14 +667,22 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
               </div>
             </div>
 
-            {/* Leave Group */}
-            <div className="pt-4 border-t" style={{ borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }}>
+            {/* Leave Group / Delete Group */}
+            <div className="pt-4 border-t flex gap-4" style={{ borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }}>
               <button
                 onClick={() => setShowLeaveConfirm(true)}
                 className="text-red-500 font-semibold hover:opacity-80 transition-opacity"
               >
                 Leave Group
               </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="text-red-600 font-semibold hover:opacity-80 transition-opacity"
+                >
+                  Delete Group
+                </button>
+              )}
             </div>
           </div>
         ) : (
@@ -660,6 +727,58 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
           </div>
         )}
 
+        {/* Delete Group Confirmation Modal */}
+        {showDeleteConfirm && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{
+              backgroundColor: 'rgba(0, 0, 0, 0.5)',
+              backdropFilter: 'blur(4px)'
+            }}
+            onClick={() => setShowDeleteConfirm(false)}
+          >
+            <div
+              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              style={{
+                background: isDarkMode
+                  ? 'rgba(0, 0, 0, 0.4)'
+                  : 'rgba(255, 255, 255, 0.5)',
+                backdropFilter: 'blur(16px)',
+                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Delete Group?
+              </h3>
+              <p className={`text-sm sm:text-base mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Are you sure you want to delete "{groupName}"? This will remove all members and cannot be undone.
+              </p>
+              <div className="flex space-x-4">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
+                  style={{
+                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                    backdropFilter: 'blur(16px)',
+                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                    color: isDarkMode ? 'white' : '#1f2937'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteGroup}
+                  className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90"
+                  style={{ backgroundColor: '#ef4444' }}
+                >
+                  Delete Group
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Leave Group Confirmation Modal */}
         {showLeaveConfirm && (
           <div
@@ -671,7 +790,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             onClick={() => setShowLeaveConfirm(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4"
+              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -723,7 +842,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             onClick={() => setShowInviteCode(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4"
+              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -786,7 +905,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             onClick={() => setShowJoinModal(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4"
+              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -855,7 +974,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             onClick={() => setShowCreateModal(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full mx-4"
+              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
