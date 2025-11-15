@@ -732,318 +732,318 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             </div>
           </div>
         )}
+      </main>
 
-        {/* Delete Group Confirmation Modal */}
-        {showDeleteConfirm && (
+      {/* Delete Group Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(8px)'
+          }}
+          onClick={() => setShowDeleteConfirm(false)}
+        >
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
             style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(8px)'
+              background: isDarkMode
+                ? 'rgba(0, 0, 0, 0.4)'
+                : 'rgba(255, 255, 255, 0.5)',
+              backdropFilter: 'blur(16px)',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
             }}
-            onClick={() => setShowDeleteConfirm(false)}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
-              style={{
-                background: isDarkMode
-                  ? 'rgba(0, 0, 0, 0.4)'
-                  : 'rgba(255, 255, 255, 0.5)',
-                backdropFilter: 'blur(16px)',
-                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Delete Group?
-              </h3>
-              <p className={`text-sm sm:text-base mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Are you sure you want to delete "{groupName}"? This will remove all members and cannot be undone.
-              </p>
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => setShowDeleteConfirm(false)}
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
-                  style={{
-                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
-                    backdropFilter: 'blur(16px)',
-                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                    color: isDarkMode ? 'white' : '#1f2937'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDeleteGroup}
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90"
-                  style={{ backgroundColor: '#ef4444' }}
-                >
-                  Delete Group
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Leave Group Confirmation Modal */}
-        {showLeaveConfirm && (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(8px)'
-            }}
-            onClick={() => setShowLeaveConfirm(false)}
-          >
-            <div
-              className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
-              style={{
-                background: isDarkMode
-                  ? 'rgba(0, 0, 0, 0.4)'
-                  : 'rgba(255, 255, 255, 0.5)',
-                backdropFilter: 'blur(16px)',
-                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className={`text-lg sm:text-2xl font-bold mb-3 sm:mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Leave Group?
-              </h3>
-              <p className={`text-sm mb-5 sm:mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Are you sure you want to leave "{groupName}"? You won't be able to see shared expenses anymore.
-              </p>
-              <div className="flex space-x-3 sm:space-x-4">
-                <button
-                  onClick={() => setShowLeaveConfirm(false)}
-                  className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all text-sm sm:text-base"
-                  style={{
-                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
-                    backdropFilter: 'blur(16px)',
-                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                    color: isDarkMode ? 'white' : '#1f2937'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleLeaveGroup}
-                  className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 text-sm sm:text-base"
-                  style={{ backgroundColor: '#ef4444' }}
-                >
-                  Leave Group
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Invite Code Modal */}
-        {showInviteCode && (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(8px)'
-            }}
-            onClick={() => setShowInviteCode(false)}
-          >
-            <div
-              className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
-              style={{
-                background: isDarkMode
-                  ? 'rgba(0, 0, 0, 0.4)'
-                  : 'rgba(255, 255, 255, 0.5)',
-                backdropFilter: 'blur(16px)',
-                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className={`text-lg sm:text-2xl font-bold mb-3 sm:mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Invite Code
-              </h3>
-              <p className={`text-sm mb-5 sm:mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Share this code with someone to add them to your group
-              </p>
-              <div
-                className="text-center p-4 sm:p-6 rounded-2xl mb-5 sm:mb-6"
+            <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Delete Group?
+            </h3>
+            <p className={`text-sm sm:text-base mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Are you sure you want to delete "{groupName}"? This will remove all members and cannot be undone.
+            </p>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
-                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                  backdropFilter: 'blur(16px)',
+                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                  color: isDarkMode ? 'white' : '#1f2937'
                 }}
               >
-                <p className="text-2xl sm:text-4xl font-bold tracking-widest" style={{ color: '#FF5E00' }}>
-                  {inviteCode}
-                </p>
-              </div>
-              <div className="flex space-x-3 sm:space-x-4">
-                <button
-                  onClick={() => setShowInviteCode(false)}
-                  className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all text-sm sm:text-base"
-                  style={{
-                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
-                    backdropFilter: 'blur(16px)',
-                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                    color: isDarkMode ? 'white' : '#1f2937'
-                  }}
-                >
-                  Close
-                </button>
-                <button
-                  onClick={handleCopyCode}
-                  className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 text-sm sm:text-base"
-                  style={{ backgroundColor: '#FF5E00' }}
-                >
-                  Copy Code
-                </button>
-              </div>
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteGroup}
+                className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90"
+                style={{ backgroundColor: '#ef4444' }}
+              >
+                Delete Group
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* Join Group Modal */}
-        {showJoinModal && (
+      {/* Leave Group Confirmation Modal */}
+      {showLeaveConfirm && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(8px)'
+          }}
+          onClick={() => setShowLeaveConfirm(false)}
+        >
           <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
             style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(8px)'
+              background: isDarkMode
+                ? 'rgba(0, 0, 0, 0.4)'
+                : 'rgba(255, 255, 255, 0.5)',
+              backdropFilter: 'blur(16px)',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
             }}
-            onClick={() => setShowJoinModal(false)}
+            onClick={(e) => e.stopPropagation()}
           >
+            <h3 className={`text-lg sm:text-2xl font-bold mb-3 sm:mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Leave Group?
+            </h3>
+            <p className={`text-sm mb-5 sm:mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Are you sure you want to leave "{groupName}"? You won't be able to see shared expenses anymore.
+            </p>
+            <div className="flex space-x-3 sm:space-x-4">
+              <button
+                onClick={() => setShowLeaveConfirm(false)}
+                className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all text-sm sm:text-base"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(16px)',
+                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                  color: isDarkMode ? 'white' : '#1f2937'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLeaveGroup}
+                className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 text-sm sm:text-base"
+                style={{ backgroundColor: '#ef4444' }}
+              >
+                Leave Group
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Code Modal */}
+      {showInviteCode && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(8px)'
+          }}
+          onClick={() => setShowInviteCode(false)}
+        >
+          <div
+            className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
+            style={{
+              background: isDarkMode
+                ? 'rgba(0, 0, 0, 0.4)'
+                : 'rgba(255, 255, 255, 0.5)',
+              backdropFilter: 'blur(16px)',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className={`text-lg sm:text-2xl font-bold mb-3 sm:mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Invite Code
+            </h3>
+            <p className={`text-sm mb-5 sm:mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Share this code with someone to add them to your group
+            </p>
             <div
-              className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="text-center p-4 sm:p-6 rounded-2xl mb-5 sm:mb-6"
               style={{
-                background: isDarkMode
-                  ? 'rgba(0, 0, 0, 0.4)'
-                  : 'rgba(255, 255, 255, 0.5)',
-                backdropFilter: 'blur(16px)',
-                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
+                background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
               }}
-              onClick={(e) => e.stopPropagation()}
             >
-              <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Join a Group
-              </h3>
-              <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Enter the invite code to join an existing group
+              <p className="text-2xl sm:text-4xl font-bold tracking-widest" style={{ color: '#FF5E00' }}>
+                {inviteCode}
               </p>
+            </div>
+            <div className="flex space-x-3 sm:space-x-4">
+              <button
+                onClick={() => setShowInviteCode(false)}
+                className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all text-sm sm:text-base"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(16px)',
+                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                  color: isDarkMode ? 'white' : '#1f2937'
+                }}
+              >
+                Close
+              </button>
+              <button
+                onClick={handleCopyCode}
+                className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 text-sm sm:text-base"
+                style={{ backgroundColor: '#FF5E00' }}
+              >
+                Copy Code
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Join Group Modal */}
+      {showJoinModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(8px)'
+          }}
+          onClick={() => setShowJoinModal(false)}
+        >
+          <div
+            className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
+            style={{
+              background: isDarkMode
+                ? 'rgba(0, 0, 0, 0.4)'
+                : 'rgba(255, 255, 255, 0.5)',
+              backdropFilter: 'blur(16px)',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Join a Group
+            </h3>
+            <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Enter the invite code to join an existing group
+            </p>
+            <input
+              type="text"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              placeholder="Enter code"
+              className="w-full px-4 py-3 rounded-xl font-bold text-center text-2xl tracking-widest mb-6 outline-none"
+              style={{
+                background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                color: isDarkMode ? 'white' : '#1f2937'
+              }}
+              maxLength={6}
+            />
+            <div className="flex space-x-4">
+              <button
+                onClick={() => {
+                  setShowJoinModal(false);
+                  setJoinCode('');
+                }}
+                className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(16px)',
+                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                  color: isDarkMode ? 'white' : '#1f2937'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleJoinGroup}
+                disabled={joinCode.length === 0}
+                className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: '#FF5E00' }}
+              >
+                Join Group
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Group Modal */}
+      {showCreateModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+          style={{
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            backdropFilter: 'blur(8px)'
+          }}
+          onClick={() => setShowCreateModal(false)}
+        >
+          <div
+            className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
+            style={{
+              background: isDarkMode
+                ? 'rgba(0, 0, 0, 0.4)'
+                : 'rgba(255, 255, 255, 0.5)',
+              backdropFilter: 'blur(16px)',
+              border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              Create a Group
+            </h3>
+            <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Choose a name for your group
+            </p>
+
+            {/* Group Name */}
+            <div className="mb-6">
+              <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                Group Name
+              </label>
               <input
                 type="text"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                placeholder="Enter code"
-                className="w-full px-4 py-3 rounded-xl font-bold text-center text-2xl tracking-widest mb-6 outline-none"
+                value={newGroupName}
+                onChange={(e) => setNewGroupName(e.target.value)}
+                placeholder="e.g., My Household"
+                className="w-full px-4 py-3 rounded-xl font-medium outline-none"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                   border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
                   color: isDarkMode ? 'white' : '#1f2937'
                 }}
-                maxLength={6}
               />
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => {
-                    setShowJoinModal(false);
-                    setJoinCode('');
-                  }}
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
-                  style={{
-                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
-                    backdropFilter: 'blur(16px)',
-                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                    color: isDarkMode ? 'white' : '#1f2937'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleJoinGroup}
-                  disabled={joinCode.length === 0}
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                  style={{ backgroundColor: '#FF5E00' }}
-                >
-                  Join Group
-                </button>
-              </div>
+            </div>
+            <div className="flex space-x-4">
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  setNewGroupName('');
+                }}
+                className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                  backdropFilter: 'blur(16px)',
+                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                  color: isDarkMode ? 'white' : '#1f2937'
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateGroup}
+                disabled={newGroupName.trim().length === 0}
+                className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                style={{ backgroundColor: '#FF5E00' }}
+              >
+                Create Group
+              </button>
             </div>
           </div>
-        )}
-
-        {/* Create Group Modal */}
-        {showCreateModal && (
-          <div
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-            style={{
-              backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(8px)'
-            }}
-            onClick={() => setShowCreateModal(false)}
-          >
-            <div
-              className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
-              style={{
-                background: isDarkMode
-                  ? 'rgba(0, 0, 0, 0.4)'
-                  : 'rgba(255, 255, 255, 0.5)',
-                backdropFilter: 'blur(16px)',
-                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.3)'
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                Create a Group
-              </h3>
-              <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Choose a name for your group
-              </p>
-
-              {/* Group Name */}
-              <div className="mb-6">
-                <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Group Name
-                </label>
-                <input
-                  type="text"
-                  value={newGroupName}
-                  onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder="e.g., My Household"
-                  className="w-full px-4 py-3 rounded-xl font-medium outline-none"
-                  style={{
-                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
-                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                    color: isDarkMode ? 'white' : '#1f2937'
-                  }}
-                />
-              </div>
-              <div className="flex space-x-4">
-                <button
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setNewGroupName('');
-                  }}
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
-                  style={{
-                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
-                    backdropFilter: 'blur(16px)',
-                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                    color: isDarkMode ? 'white' : '#1f2937'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleCreateGroup}
-                  disabled={newGroupName.trim().length === 0}
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
-                  style={{ backgroundColor: '#FF5E00' }}
-                >
-                  Create Group
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 };
