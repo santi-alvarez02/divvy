@@ -668,17 +668,23 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             </div>
 
             {/* Leave Group / Delete Group */}
-            <div className="pt-4 border-t flex gap-4" style={{ borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }}>
+            <div className="pt-6 border-t flex gap-4" style={{ borderColor: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' }}>
               <button
                 onClick={() => setShowLeaveConfirm(true)}
-                className="text-red-500 font-semibold hover:opacity-80 transition-opacity"
+                className="flex-1 py-4 rounded-2xl font-bold text-lg text-white transition-all hover:opacity-90"
+                style={{ backgroundColor: '#dc2626' }}
               >
                 Leave Group
               </button>
               {isAdmin && (
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
-                  className="text-red-600 font-semibold hover:opacity-80 transition-opacity"
+                  className="flex-1 py-4 rounded-2xl font-bold text-lg transition-all hover:opacity-90"
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: '2px solid #dc2626',
+                    color: '#dc2626'
+                  }}
                 >
                   Delete Group
                 </button>
