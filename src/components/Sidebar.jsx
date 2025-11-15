@@ -405,7 +405,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
       </nav>
 
       {/* User Profile Section */}
-      <div className="p-4 lg:p-6 pb-8 mt-auto">
+      <div className="p-4 lg:p-6 pb-12 lg:pb-8 mt-auto">
         <button
           onClick={(e) => {
             e.stopPropagation();
