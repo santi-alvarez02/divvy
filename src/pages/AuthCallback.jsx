@@ -179,104 +179,18 @@ const AuthCallback = ({ isDarkMode }) => {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
+      className="min-h-screen flex items-center justify-center"
       style={{
         background: isDarkMode ? '#0f0f0f' : '#f5f5f5'
       }}
     >
-      {/* Orange gradient bubble */}
       <div
-        className="absolute top-1/2 left-[55%] w-[700px] h-[700px] rounded-full blur-3xl"
+        className="animate-spin rounded-full h-12 w-12 border-4"
         style={{
-          background: isDarkMode
-            ? 'radial-gradient(circle, rgba(255, 94, 0, 0.3) 0%, rgba(255, 94, 0, 0) 70%)'
-            : 'radial-gradient(circle, rgba(255, 94, 0, 0.4) 0%, rgba(255, 94, 0, 0) 70%)',
-          transform: 'translate(-50%, -50%)'
+          borderColor: 'rgba(255, 94, 0, 0.2)',
+          borderTopColor: '#FF5E00'
         }}
       />
-
-      <div
-        className="w-full max-w-md p-8 rounded-3xl shadow-xl relative z-10 text-center"
-        style={{
-          background: isDarkMode
-            ? 'rgba(31, 41, 55, 0.4)'
-            : 'rgba(255, 255, 255, 0.7)',
-          backdropFilter: 'blur(24px)',
-          border: `1px solid ${isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(255, 255, 255, 0.4)'}`
-        }}
-      >
-        <h1 className="text-5xl font-bold mb-6" style={{ color: '#FF5E00' }}>
-          Divvy
-        </h1>
-
-        {status === 'processing' && (
-          <>
-            <div
-              className="inline-block animate-spin rounded-full h-16 w-16 border-4 mb-6"
-              style={{
-                borderColor: 'rgba(255, 94, 0, 0.2)',
-                borderTopColor: '#FF5E00'
-              }}
-            />
-            <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Confirming your email...
-            </p>
-          </>
-        )}
-
-        {status === 'success' && (
-          <>
-            <div className="mb-6">
-              <svg
-                className="w-16 h-16 mx-auto"
-                style={{ color: '#FF5E00' }}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
-            <h2 className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Email Confirmed!
-            </h2>
-            <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Redirecting you to your account...
-            </p>
-          </>
-        )}
-
-        {status === 'error' && (
-          <>
-            <div className="mb-6">
-              <svg
-                className="w-16 h-16 mx-auto text-red-500"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </div>
-            <h2 className={`text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Something went wrong
-            </h2>
-            <p className={`text-lg ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-              Redirecting you to login...
-            </p>
-          </>
-        )}
-      </div>
     </div>
   );
 };

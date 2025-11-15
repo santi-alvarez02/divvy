@@ -236,7 +236,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
             setIsMobileExpanded(!isMobileExpanded);
           }
         }}
-        className={`${isMobileExpanded ? 'w-48' : 'w-20'} lg:w-64 h-screen fixed left-0 top-0 shadow-2xl flex flex-col z-40 transition-all duration-300`}
+        className={`${isMobileExpanded ? 'w-48' : 'w-20'} lg:w-64 fixed left-0 top-0 bottom-0 shadow-2xl flex flex-col z-40 transition-all duration-300`}
         style={{
           background: isDarkMode
             ? 'rgba(0, 0, 0, 0.3)'
