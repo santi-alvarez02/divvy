@@ -23,13 +23,18 @@ const AuthCallback = ({ isDarkMode }) => {
         console.log('Auth callback - Hash params:', { access_token: !!access_token, refresh_token: !!refresh_token, type });
 
         // Handle PKCE flow (code parameter)
+        // Let Supabase handle the code exchange automatically via detectSessionInUrl
         if (code) {
-          console.log('PKCE code detected, exchanging for session...');
+          console.log('PKCE code detected, letting Supabase handle exchange...');
 
-          const { data: { session }, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+          // Wait a moment for Supabase to process the URL automatically
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Now check if session was established
+          const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
           if (sessionError) {
-            console.error('Error exchanging code for session:', sessionError);
+            console.error('Error getting session after code exchange:', sessionError);
             setStatus('error');
             setTimeout(() => navigate('/login'), 3000);
             return;
@@ -64,6 +69,11 @@ const AuthCallback = ({ isDarkMode }) => {
                 navigate('/dashboard');
               }
             }, 2000);
+            return;
+          } else {
+            console.error('No session after code exchange - code may be invalid or expired');
+            setStatus('error');
+            setTimeout(() => navigate('/login'), 3000);
             return;
           }
         }

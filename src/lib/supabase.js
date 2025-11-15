@@ -18,7 +18,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     storage: window.localStorage, // Explicitly use localStorage for persistence
     storageKey: 'divvy-auth-token', // Custom key for auth storage
-    flowType: 'pkce', // More secure auth flow
+    flowType: 'implicit', // Use implicit flow for email confirmations (works across devices)
     debug: false // Set to true for debugging auth issues
   },
   global: {
