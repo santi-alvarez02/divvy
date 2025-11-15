@@ -736,15 +736,15 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
         {/* Delete Group Confirmation Modal */}
         {showDeleteConfirm && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(4px)'
+              backdropFilter: 'blur(8px)'
             }}
             onClick={() => setShowDeleteConfirm(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -788,10 +788,10 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
         {/* Leave Group Confirmation Modal */}
         {showLeaveConfirm && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(4px)'
+              backdropFilter: 'blur(8px)'
             }}
             onClick={() => setShowLeaveConfirm(false)}
           >
@@ -840,10 +840,10 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
         {/* Invite Code Modal */}
         {showInviteCode && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(4px)'
+              backdropFilter: 'blur(8px)'
             }}
             onClick={() => setShowInviteCode(false)}
           >
@@ -903,15 +903,15 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
         {/* Join Group Modal */}
         {showJoinModal && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(4px)'
+              backdropFilter: 'blur(8px)'
             }}
             onClick={() => setShowJoinModal(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -972,15 +972,15 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
         {/* Create Group Modal */}
         {showCreateModal && (
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
             style={{
               backgroundColor: 'rgba(0, 0, 0, 0.5)',
-              backdropFilter: 'blur(4px)'
+              backdropFilter: 'blur(8px)'
             }}
             onClick={() => setShowCreateModal(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
