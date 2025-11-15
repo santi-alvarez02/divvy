@@ -76,7 +76,7 @@ const BudgetOverview = ({ budget, currency = 'USD', isDarkMode, onClick }) => {
               {percentageLeft.toFixed(0)}%
             </span>
             <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              left
+              Left
             </span>
           </div>
         </div>
