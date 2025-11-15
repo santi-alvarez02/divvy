@@ -796,7 +796,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             onClick={() => setShowLeaveConfirm(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -806,16 +806,16 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-lg sm:text-2xl font-bold mb-3 sm:mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Leave Group?
               </h3>
-              <p className={`text-sm sm:text-base mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className={`text-sm mb-5 sm:mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Are you sure you want to leave "{groupName}"? You won't be able to see shared expenses anymore.
               </p>
-              <div className="flex space-x-4">
+              <div className="flex space-x-3 sm:space-x-4">
                 <button
                   onClick={() => setShowLeaveConfirm(false)}
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
+                  className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all text-sm sm:text-base"
                   style={{
                     background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                     backdropFilter: 'blur(16px)',
@@ -827,7 +827,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
                 </button>
                 <button
                   onClick={handleLeaveGroup}
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90"
+                  className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 text-sm sm:text-base"
                   style={{ backgroundColor: '#ef4444' }}
                 >
                   Leave Group
@@ -848,7 +848,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
             onClick={() => setShowInviteCode(false)}
           >
             <div
-              className="rounded-3xl shadow-2xl p-6 sm:p-8 max-w-md w-full max-h-[90vh] overflow-y-auto"
+              className="rounded-3xl shadow-2xl p-5 sm:p-8 max-w-sm sm:max-w-md w-full max-h-[90vh] overflow-y-auto"
               style={{
                 background: isDarkMode
                   ? 'rgba(0, 0, 0, 0.4)'
@@ -858,27 +858,27 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className={`text-xl sm:text-2xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h3 className={`text-lg sm:text-2xl font-bold mb-3 sm:mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Invite Code
               </h3>
-              <p className={`text-sm mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className={`text-sm mb-5 sm:mb-6 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Share this code with someone to add them to your group
               </p>
               <div
-                className="text-center p-4 sm:p-6 rounded-2xl mb-6"
+                className="text-center p-4 sm:p-6 rounded-2xl mb-5 sm:mb-6"
                 style={{
                   background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                   border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
                 }}
               >
-                <p className="text-3xl sm:text-4xl font-bold tracking-widest" style={{ color: '#FF5E00' }}>
+                <p className="text-2xl sm:text-4xl font-bold tracking-widest" style={{ color: '#FF5E00' }}>
                   {inviteCode}
                 </p>
               </div>
-              <div className="flex space-x-4">
+              <div className="flex space-x-3 sm:space-x-4">
                 <button
                   onClick={() => setShowInviteCode(false)}
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
+                  className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold transition-all text-sm sm:text-base"
                   style={{
                     background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                     backdropFilter: 'blur(16px)',
@@ -890,7 +890,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
                 </button>
                 <button
                   onClick={handleCopyCode}
-                  className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90"
+                  className="flex-1 px-4 sm:px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 text-sm sm:text-base"
                   style={{ backgroundColor: '#FF5E00' }}
                 >
                   Copy Code
