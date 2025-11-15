@@ -976,7 +976,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                         top: '45px',
                         left: '0',
                         right: '0',
-                        height: '120px',
+                        height: categories.length === 1 ? '40px' : `${Math.min(categories.length * 40, 120)}px`,
                         background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
                         backdropFilter: 'blur(16px)',
                         zIndex: 1001
