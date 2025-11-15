@@ -3,7 +3,8 @@ import { getCurrencySymbol } from '../utils/currency';
 
 const BudgetOverview = ({ budget, currency = 'USD', isDarkMode, onClick }) => {
   const { limit, spent, month, year } = budget;
-  const percentage = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+  const percentageUsed = limit > 0 ? Math.min((spent / limit) * 100, 100) : 0;
+  const percentageLeft = 100 - percentageUsed;
   const remaining = limit - spent;
 
   // Donut chart calculations
@@ -11,7 +12,7 @@ const BudgetOverview = ({ budget, currency = 'USD', isDarkMode, onClick }) => {
   const strokeWidth = 20;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (percentage / 100) * circumference;
+  const offset = circumference - (percentageLeft / 100) * circumference;
 
   // Always use orange color for consistency
   const getProgressColor = () => {
@@ -72,10 +73,10 @@ const BudgetOverview = ({ budget, currency = 'USD', isDarkMode, onClick }) => {
           {/* Center text */}
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <span className={`text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {percentage.toFixed(0)}%
+              {percentageLeft.toFixed(0)}%
             </span>
             <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              used
+              left
             </span>
           </div>
         </div>
