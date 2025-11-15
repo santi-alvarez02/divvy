@@ -9,15 +9,66 @@ const AuthCallback = ({ isDarkMode }) => {
   useEffect(() => {
     const handleAuthCallback = async () => {
       try {
-        // Check for hash params (email confirmation tokens)
+        // Check for code parameter (PKCE flow - email confirmation)
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+
+        // Check for hash params (implicit flow - email confirmation tokens)
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const access_token = hashParams.get('access_token');
         const refresh_token = hashParams.get('refresh_token');
         const type = hashParams.get('type');
 
+        console.log('Auth callback - URL params:', { code: !!code });
         console.log('Auth callback - Hash params:', { access_token: !!access_token, refresh_token: !!refresh_token, type });
 
-        // If we have tokens in the hash, exchange them for a session
+        // Handle PKCE flow (code parameter)
+        if (code) {
+          console.log('PKCE code detected, exchanging for session...');
+
+          const { data: { session }, error: sessionError } = await supabase.auth.exchangeCodeForSession(code);
+
+          if (sessionError) {
+            console.error('Error exchanging code for session:', sessionError);
+            setStatus('error');
+            setTimeout(() => navigate('/login'), 3000);
+            return;
+          }
+
+          if (session) {
+            console.log('Email confirmed! Session set:', session);
+            setStatus('success');
+
+            // Check if user has completed onboarding by checking for a group
+            const { data: groupData, error: groupError } = await supabase
+              .from('group_members')
+              .select('group_id')
+              .eq('user_id', session.user.id)
+              .limit(1)
+              .maybeSingle();
+
+            if (groupError) {
+              console.error('Error checking groups:', groupError);
+            }
+
+            console.log('Group check result:', groupData);
+
+            // If user has no group, redirect to onboarding
+            // Otherwise, redirect to dashboard
+            setTimeout(() => {
+              if (!groupData) {
+                console.log('No group found, redirecting to onboarding');
+                navigate('/onboarding');
+              } else {
+                console.log('Group found, redirecting to dashboard');
+                navigate('/dashboard');
+              }
+            }, 2000);
+            return;
+          }
+        }
+
+        // Handle implicit flow (hash tokens)
         if (access_token && type === 'signup') {
           console.log('Email confirmation detected, setting session...');
 
