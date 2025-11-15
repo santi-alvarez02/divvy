@@ -902,7 +902,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
               </button>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
+            <div className="flex flex-col lg:flex-row items-center gap-6 lg:gap-8">
               {/* Circular Progress */}
               <div className="flex flex-col items-center">
                 <div className="relative" style={{ width: '200px', height: '200px' }}>
@@ -942,7 +942,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
               </div>
 
               {/* Budget Details - Below on mobile, to the right on desktop */}
-              <div className="flex-1 space-y-6 sm:space-y-8 text-center sm:text-left w-full sm:w-auto">
+              <div className="flex-1 space-y-6 lg:space-y-8 text-center lg:text-left w-full lg:w-auto">
                 {/* Monthly Budget */}
                 <div>
                   <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -960,12 +960,12 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
                         }
                       }}
                       autoFocus
-                      className="text-2xl sm:text-3xl font-bold bg-transparent border-b-2 border-orange-500 outline-none w-full text-center sm:text-left"
+                      className="text-2xl lg:text-3xl font-bold bg-transparent border-b-2 border-orange-500 outline-none w-full text-center lg:text-left"
                       style={{ color: isDarkMode ? 'white' : '#1f2937' }}
                     />
                   ) : (
                     <p
-                      className="text-2xl sm:text-3xl font-bold cursor-pointer hover:opacity-80"
+                      className="text-2xl lg:text-3xl font-bold cursor-pointer hover:opacity-80"
                       style={{ color: isDarkMode ? 'white' : '#1f2937' }}
                       onClick={() => setIsEditingBudget(true)}
                     >
@@ -979,7 +979,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
                   <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     Total Spent
                   </p>
-                  <p className="text-2xl sm:text-3xl font-bold" style={{ color: '#FF5E00' }}>
+                  <p className="text-2xl lg:text-3xl font-bold" style={{ color: '#FF5E00' }}>
                     {getCurrencySymbol(userCurrency)}{totalSpent.toFixed(2)}
                   </p>
                 </div>
