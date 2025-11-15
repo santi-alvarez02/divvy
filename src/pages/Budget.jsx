@@ -942,46 +942,48 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
               </div>
 
               {/* Budget Details - Below on mobile, to the right on desktop */}
-              <div className="flex-1 space-y-6 lg:space-y-8 text-center lg:text-left w-full lg:w-auto">
-                {/* Monthly Budget */}
-                <div>
-                  <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Monthly Budget
-                  </p>
-                  {isEditingBudget ? (
-                    <input
-                      type="number"
-                      value={budgetLimit}
-                      onChange={(e) => setBudgetLimit(Number(e.target.value))}
-                      onBlur={() => handleBudgetUpdate(budgetLimit)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleBudgetUpdate(budgetLimit);
-                        }
-                      }}
-                      autoFocus
-                      className="text-2xl lg:text-3xl font-bold bg-transparent border-b-2 border-orange-500 outline-none w-full text-center lg:text-left"
-                      style={{ color: isDarkMode ? 'white' : '#1f2937' }}
-                    />
-                  ) : (
-                    <p
-                      className="text-2xl lg:text-3xl font-bold cursor-pointer hover:opacity-80"
-                      style={{ color: isDarkMode ? 'white' : '#1f2937' }}
-                      onClick={() => setIsEditingBudget(true)}
-                    >
-                      {getCurrencySymbol(userCurrency)}{budgetLimit.toFixed(2)}
+              <div className="flex-1 w-full lg:w-auto">
+                <div className="flex flex-row justify-center gap-8 lg:flex-col lg:gap-0 lg:space-y-8 text-center lg:text-left">
+                  {/* Monthly Budget */}
+                  <div>
+                    <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Monthly Budget
                     </p>
-                  )}
-                </div>
+                    {isEditingBudget ? (
+                      <input
+                        type="number"
+                        value={budgetLimit}
+                        onChange={(e) => setBudgetLimit(Number(e.target.value))}
+                        onBlur={() => handleBudgetUpdate(budgetLimit)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            handleBudgetUpdate(budgetLimit);
+                          }
+                        }}
+                        autoFocus
+                        className="text-xl lg:text-3xl font-bold bg-transparent border-b-2 border-orange-500 outline-none w-full text-center lg:text-left"
+                        style={{ color: isDarkMode ? 'white' : '#1f2937' }}
+                      />
+                    ) : (
+                      <p
+                        className="text-xl lg:text-3xl font-bold cursor-pointer hover:opacity-80"
+                        style={{ color: isDarkMode ? 'white' : '#1f2937' }}
+                        onClick={() => setIsEditingBudget(true)}
+                      >
+                        {getCurrencySymbol(userCurrency)}{budgetLimit.toFixed(2)}
+                      </p>
+                    )}
+                  </div>
 
-                {/* Total Spent */}
-                <div>
-                  <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    Total Spent
-                  </p>
-                  <p className="text-2xl lg:text-3xl font-bold" style={{ color: '#FF5E00' }}>
-                    {getCurrencySymbol(userCurrency)}{totalSpent.toFixed(2)}
-                  </p>
+                  {/* Total Spent */}
+                  <div>
+                    <p className={`text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                      Total Spent
+                    </p>
+                    <p className="text-xl lg:text-3xl font-bold" style={{ color: '#FF5E00' }}>
+                      {getCurrencySymbol(userCurrency)}{totalSpent.toFixed(2)}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
