@@ -80,7 +80,7 @@ const RecentExpenses = ({ expenses, roommates, currency = 'USD', isDarkMode, onC
         )}
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 max-h-[400px] overflow-hidden">
         {expenses.slice(0, 8).map((expense) => (
           <div
             key={expense.id}
