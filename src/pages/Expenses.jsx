@@ -229,16 +229,23 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       const transformedExpenses = filteredExpenses.map(expense => {
         const originalAmount = parseFloat(expense.amount);
         const expenseCurrency = expense.currency || 'USD';
+        const splitBetweenUsers = expense.expense_splits.map(split => split.user_id);
 
-        // Convert amount to user's display currency
+        // Calculate user's share of the expense
+        const userShare = splitBetweenUsers.includes(user.id)
+          ? originalAmount / splitBetweenUsers.length
+          : originalAmount; // If user not in split, show full amount (shouldn't happen)
+
+        // Convert user's share to user's display currency
         const convertedAmount = Object.keys(exchangeRates).length > 0
-          ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
-          : originalAmount;
+          ? convertCurrency(userShare, expenseCurrency, userCurrency, exchangeRates)
+          : userShare;
 
         return {
           id: expense.id,
-          amount: convertedAmount, // Converted amount
-          originalAmount: originalAmount, // Store original for reference
+          amount: convertedAmount, // Converted user's share
+          originalAmount: originalAmount, // Store original full amount for reference
+          originalUserShare: userShare, // User's share in original currency
           currency: expenseCurrency, // Original currency
           displayCurrency: userCurrency, // Currency being displayed
           category: expense.category,
@@ -249,7 +256,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
           createdAt: expense.created_at,
           isRecurring: expense.is_recurring || false,
           isPersonal: expense.is_personal || false,
-          splitBetween: expense.expense_splits.map(split => split.user_id)
+          splitBetween: splitBetweenUsers
         };
       });
 
@@ -854,7 +861,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         {/* Header with Add Expense Button */}
         <div className="mb-4 sm:mb-8 flex justify-between items-center">
           <h1
-            className="text-2xl sm:text-4xl lg:text-5xl font-bold font-serif"
+            className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif"
             style={{ color: isDarkMode ? '#FF5E00' : '#1f2937' }}
           >
             Expenses
