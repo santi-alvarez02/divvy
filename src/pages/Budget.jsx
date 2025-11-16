@@ -10,6 +10,7 @@ import {
   updateExchangeRates,
   shouldUpdateRates
 } from '../utils/exchangeRates';
+import useOverscrollEffect from '../hooks/useOverscrollEffect';
 
 const Budget = ({ isDarkMode, setIsDarkMode }) => {
   const navigate = useNavigate();
@@ -28,6 +29,7 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
   const [exchangeRates, setExchangeRates] = useState({});
   const [settlementHistory, setSettlementHistory] = useState([]);
   const monthScrollRef = React.useRef(null);
+  const { showTopGradient, showBottomGradient } = useOverscrollEffect();
 
   const currentUserId = user?.id;
 
@@ -659,6 +661,28 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
           : '#f5f5f5'
       }}
     >
+      {/* Overscroll Gradient Overlays */}
+      <div
+        className="fixed top-0 left-20 lg:left-64 right-0 h-32 pointer-events-none transition-opacity duration-300"
+        style={{
+          background: isDarkMode
+            ? 'linear-gradient(to bottom, rgba(26, 26, 26, 0.95) 0%, rgba(26, 26, 26, 0.7) 30%, transparent 100%)'
+            : 'linear-gradient(to bottom, rgba(245, 245, 245, 0.95) 0%, rgba(245, 245, 245, 0.7) 30%, transparent 100%)',
+          opacity: showTopGradient ? 1 : 0,
+          zIndex: 50
+        }}
+      />
+      <div
+        className="fixed bottom-0 left-20 lg:left-64 right-0 h-32 pointer-events-none transition-opacity duration-300"
+        style={{
+          background: isDarkMode
+            ? 'linear-gradient(to top, rgba(26, 26, 26, 0.95) 0%, rgba(26, 26, 26, 0.7) 30%, transparent 100%)'
+            : 'linear-gradient(to top, rgba(245, 245, 245, 0.95) 0%, rgba(245, 245, 245, 0.7) 30%, transparent 100%)',
+          opacity: showBottomGradient ? 1 : 0,
+          zIndex: 50
+        }}
+      />
+
       {/* Orange Gradient Bubble Backgrounds */}
       {!isDarkMode ? (
         <>
