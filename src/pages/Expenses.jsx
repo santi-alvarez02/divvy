@@ -229,9 +229,9 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       // Filter out personal expenses that don't belong to current user
       // Personal expenses should only be visible to the user who created them
       const filteredExpenses = expensesData.filter(expense => {
-        // If it's not a personal expense, show it to everyone
-        if (!expense.is_personal) return true;
-        // If it's a personal expense, only show it to the person who paid for it
+        // If it's not a personal expense (false or null/undefined), show it to everyone
+        if (expense.is_personal !== true) return true;
+        // If it's a personal expense (explicitly true), only show it to the person who paid for it
         return expense.paid_by === user.id;
       });
 
