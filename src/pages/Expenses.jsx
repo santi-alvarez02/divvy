@@ -212,6 +212,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
           icon,
           created_at,
           is_recurring,
+          is_personal,
           expense_splits (
             user_id,
             share_amount
@@ -225,8 +226,17 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         return;
       }
 
+      // Filter out personal expenses that don't belong to current user
+      // Personal expenses should only be visible to the user who created them
+      const filteredExpenses = expensesData.filter(expense => {
+        // If it's not a personal expense, show it to everyone
+        if (!expense.is_personal) return true;
+        // If it's a personal expense, only show it to the person who paid for it
+        return expense.paid_by === user.id;
+      });
+
       // Transform expenses data to match expected format
-      const transformedExpenses = expensesData.map(expense => {
+      const transformedExpenses = filteredExpenses.map(expense => {
         const originalAmount = parseFloat(expense.amount);
         const expenseCurrency = expense.currency || 'USD';
 
@@ -248,6 +258,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
           icon: expense.icon,
           createdAt: expense.created_at,
           isRecurring: expense.is_recurring || false,
+          isPersonal: expense.is_personal || false,
           splitBetween: expense.expense_splits.map(split => split.user_id)
         };
       });
