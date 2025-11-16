@@ -202,17 +202,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       const { data: expensesData, error: expensesError } = await supabase
         .from('expenses')
         .select(`
-          id,
-          amount,
-          currency,
-          category,
-          description,
-          date,
-          paid_by,
-          icon,
-          created_at,
-          is_recurring,
-          is_personal,
+          *,
           expense_splits (
             user_id,
             share_amount
