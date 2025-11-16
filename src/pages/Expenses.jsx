@@ -305,9 +305,19 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     const splitBetween = expense.splitBetween || [];
     const numPeople = splitBetween.length;
 
+    // Check if it's a personal expense
+    if (expense.isPersonal === true) {
+      return 'Personal Expense';
+    }
+
     // Handle edge case: no split data
     if (numPeople === 0) {
       return 'Not split';
+    }
+
+    // If only 1 person in split, it's a personal expense
+    if (numPeople === 1) {
+      return 'Personal Expense';
     }
 
     // Check against roommates length (with null check)
