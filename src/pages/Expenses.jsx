@@ -13,6 +13,15 @@ import {
   shouldUpdateRates
 } from '../utils/exchangeRates';
 import { processRecurringExpenses } from '../utils/recurringExpenses';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from 'recharts';
 
 const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const { user } = useAuth();
@@ -1379,14 +1388,17 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               <h3 className={`text-lg sm:text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                 Spending Over Time
               </h3>
-              <div
-                className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl text-xs sm:text-sm font-semibold"
-                style={{
-                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)',
-                  color: isDarkMode ? 'white' : '#1f2937'
-                }}
-              >
-                {selectedDateRange === 'This Month' ? new Date().toLocaleDateString('en-US', { month: 'long' }) : selectedDateRange}
+              <div className="flex items-center gap-4">
+                {/* Legend */}
+                <div className="flex items-center gap-2">
+                  <div
+                    className="w-3 h-3 rotate-45"
+                    style={{ backgroundColor: '#FF5E00' }}
+                  />
+                  <span className={`text-xs font-medium uppercase ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Spending
+                  </span>
+                </div>
               </div>
             </div>
             <div className="relative">
@@ -1396,115 +1408,127 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                     No spending data for this period
                   </p>
                 </div>
-              ) : spendingOverTimeData.length < 5 ? (
+              ) : spendingOverTimeData.length < 2 ? (
                 <div className="flex items-center justify-center h-64">
                   <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     Chart will appear after more expenses are added
                   </p>
                 </div>
               ) : (
-                <>
-                  <div className="h-64 flex">
-                    {/* Y-axis labels */}
-                    <div className="flex flex-col justify-between pr-2" style={{ width: '60px' }}>
-                      {[...Array(5)].map((_, i) => {
-                        const value = maxSpendingAmount * (1 - i / 4);
-                        return (
-                          <span
-                            key={i}
-                            className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
-                            style={{ lineHeight: '1' }}
-                          >
-                            {getCurrencySymbol(userCurrency)}{Math.round(value)}
-                          </span>
-                        );
-                      })}
-                    </div>
-
-                    {/* Chart */}
-                    <div className="flex-1">
-                      <svg width="100%" height="100%" viewBox="0 0 800 256" preserveAspectRatio="none">
-                        <defs>
-                          <linearGradient id="areaGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                            <stop offset="0%" stopColor="#FF5E00" stopOpacity="0.3" />
-                            <stop offset="100%" stopColor="#FF5E00" stopOpacity="0.05" />
-                          </linearGradient>
-                        </defs>
-
-                        {/* Create path for line and area */}
-                        {(() => {
-                          const padding = 20;
-                          const chartWidth = 800 - (padding * 2);
-                          const chartHeight = 256 - (padding * 2);
-                          const stepX = chartWidth / (spendingOverTimeData.length - 1 || 1);
-
-                        // Create points for the line
-                        const points = spendingOverTimeData.map((data, index) => {
-                          const x = padding + (index * stepX);
-                          const y = padding + chartHeight - ((data.amount / maxSpendingAmount) * chartHeight);
-                          return { x, y, amount: data.amount };
-                        });
-
-                        // Create path string for line
-                        const linePath = points.map((point, index) =>
-                          `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`
-                        ).join(' ');
-
-                        // Create path string for filled area
-                        const areaPath = `${linePath} L ${points[points.length - 1].x} ${padding + chartHeight} L ${padding} ${padding + chartHeight} Z`;
-
-                        return (
-                          <>
-                            {/* Filled area under the line */}
-                            <path
-                              d={areaPath}
-                              fill="url(#areaGradient)"
-                            />
-
-                            {/* Line */}
-                            <path
-                              d={linePath}
-                              fill="none"
-                              stroke="#FF5E00"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-
-                            {/* Points */}
-                            {points.map((point, index) => (
-                              <circle
-                                key={index}
-                                cx={point.x}
-                                cy={point.y}
-                                r="5"
-                                fill="#FF5E00"
-                                stroke="white"
-                                strokeWidth="2"
-                              />
-                            ))}
-                          </>
-                        );
-                      })()}
-                      </svg>
-                    </div>
-                  </div>
-
-                  {/* X-axis labels inside card */}
-                  <div className="flex justify-between pb-2" style={{ marginLeft: '60px' }}>
-                    {spendingOverTimeData.map((data, index) => (
-                      <span
-                        key={index}
-                        className={`text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}
-                      >
-                        {new Date(data.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </span>
-                    ))}
-                  </div>
-                </>
+                <div
+                  className="rounded-lg p-3"
+                  style={{
+                    background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'
+                  }}
+                >
+                  <ResponsiveContainer width="100%" height={256}>
+                    <AreaChart
+                      data={spendingOverTimeData}
+                      margin={{
+                        left: -12,
+                        right: 12,
+                        top: 12,
+                        bottom: 12
+                      }}
+                    >
+                      <defs>
+                        <linearGradient id="fillSpending" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#FF5E00" stopOpacity={0.8} />
+                          <stop offset="95%" stopColor="#FF5E00" stopOpacity={0.1} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        horizontal={false}
+                        strokeDasharray="8 8"
+                        strokeWidth={2}
+                        stroke={isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
+                        opacity={0.3}
+                      />
+                      <XAxis
+                        dataKey="date"
+                        tickLine={false}
+                        tickMargin={12}
+                        strokeWidth={1.5}
+                        stroke={isDarkMode ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)'}
+                        tick={{
+                          fill: isDarkMode ? '#9CA3AF' : '#6B7280',
+                          fontSize: 12
+                        }}
+                        tickFormatter={(value) => {
+                          const date = new Date(value);
+                          return date.toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric'
+                          }).toUpperCase();
+                        }}
+                      />
+                      <YAxis
+                        tickLine={false}
+                        axisLine={false}
+                        tickMargin={0}
+                        tickCount={6}
+                        tick={{
+                          fill: isDarkMode ? '#9CA3AF' : '#6B7280',
+                          fontSize: 12
+                        }}
+                        tickFormatter={(value) => {
+                          if (value === 0) return '';
+                          if (value >= 1000000) {
+                            return `${getCurrencySymbol(userCurrency)}${(value / 1000000).toFixed(0)}M`;
+                          } else if (value >= 1000) {
+                            return `${getCurrencySymbol(userCurrency)}${(value / 1000).toFixed(0)}K`;
+                          }
+                          return `${getCurrencySymbol(userCurrency)}${value}`;
+                        }}
+                        domain={[0, 'dataMax']}
+                      />
+                      <Tooltip
+                        cursor={false}
+                        contentStyle={{
+                          backgroundColor: isDarkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.95)',
+                          border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.1)',
+                          borderRadius: '12px',
+                          padding: '12px 16px',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)'
+                        }}
+                        labelStyle={{
+                          color: isDarkMode ? '#fff' : '#1f2937',
+                          fontWeight: 'bold',
+                          marginBottom: '4px'
+                        }}
+                        itemStyle={{
+                          color: '#FF5E00',
+                          fontWeight: '600'
+                        }}
+                        formatter={(value) => [`${getCurrencySymbol(userCurrency)}${value.toFixed(2)}`, 'Spending']}
+                        labelFormatter={(label) => {
+                          const date = new Date(label);
+                          return date.toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric'
+                          });
+                        }}
+                      />
+                      <Area
+                        dataKey="amount"
+                        type="linear"
+                        fill="url(#fillSpending)"
+                        fillOpacity={0.4}
+                        stroke="#FF5E00"
+                        strokeWidth={2}
+                        dot={false}
+                        activeDot={{
+                          r: 6,
+                          fill: '#FF5E00',
+                          stroke: isDarkMode ? '#1a1a1a' : '#fff',
+                          strokeWidth: 2
+                        }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               )}
             </div>
           </div>
