@@ -195,6 +195,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
           date: new Date().toISOString().split('T')[0], // Today's date
           paid_by: user.id,
           is_recurring: isRecurring, // Save recurring flag
+          is_personal: isPersonal, // Save personal expense flag
           last_recurring_date: isRecurring ? new Date().toISOString().split('T')[0] : null // Set initial date if recurring
         })
         .select()
