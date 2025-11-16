@@ -852,9 +852,9 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
 
         {/* Header with Add Expense Button */}
-        <div className="mb-6 sm:mb-8 flex justify-between items-center">
+        <div className="mb-4 sm:mb-8 flex justify-between items-center">
           <h1
-            className="text-3xl sm:text-4xl lg:text-5xl font-bold font-serif"
+            className="text-2xl sm:text-4xl lg:text-5xl font-bold font-serif"
             style={{ color: isDarkMode ? '#FF5E00' : '#1f2937' }}
           >
             Expenses
@@ -870,10 +870,10 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-3 lg:grid-cols-3 gap-3 lg:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-6 mb-4 sm:mb-8">
           {/* Total Spent */}
           <div
-            className="rounded-3xl shadow-xl p-3 lg:p-6"
+            className="rounded-2xl sm:rounded-3xl shadow-xl p-2 sm:p-3 lg:p-6"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -882,17 +882,17 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-[10px] sm:text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Current Spent
             </p>
-            <p className={`text-xl lg:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <p className={`text-base sm:text-xl lg:text-3xl font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {getCurrencySymbol(userCurrency)}{Number.isInteger(totalSpent) ? totalSpent : totalSpent.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
           {/* You Owe */}
           <div
-            className="rounded-3xl shadow-xl p-3 lg:p-6"
+            className="rounded-2xl sm:rounded-3xl shadow-xl p-2 sm:p-3 lg:p-6"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -901,17 +901,17 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-[10px] sm:text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               You Owe
             </p>
-            <p className="text-xl lg:text-3xl font-bold" style={{ color: '#FF5E00' }}>
+            <p className="text-base sm:text-xl lg:text-3xl font-bold truncate" style={{ color: '#FF5E00' }}>
               {getCurrencySymbol(userCurrency)}{Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
           {/* Number of Expenses */}
           <div
-            className="rounded-3xl shadow-xl p-3 lg:p-6"
+            className="rounded-2xl sm:rounded-3xl shadow-xl p-2 sm:p-3 lg:p-6"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -920,10 +920,10 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-[10px] sm:text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Final Total
             </p>
-            <p className={`text-xl lg:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <p className={`text-base sm:text-xl lg:text-3xl font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {getCurrencySymbol(userCurrency)}{(() => {
                 const finalTotal = totalSpent + youOwe;
                 return Number.isInteger(finalTotal) ? finalTotal : finalTotal.toFixed(2).replace(/\.00$/, '');
@@ -964,13 +964,13 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             </div>
 
             {/* Filter Buttons */}
-            <div className="flex gap-3 w-full sm:w-auto">
+            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
               {/* Category Filter */}
               <div className="relative flex-1 sm:flex-initial" style={{ minWidth: '0', maxWidth: '100%' }}>
                 <button
                   type="button"
                   onClick={() => setShowCategoryPicker(!showCategoryPicker)}
-                  className="px-4 rounded-xl font-semibold transition-all outline-none w-full"
+                  className="px-3 sm:px-4 rounded-xl font-semibold transition-all outline-none w-full text-xs sm:text-sm truncate"
                   style={{
                     background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                     border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
@@ -1056,7 +1056,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                 <button
                   type="button"
                   onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="px-4 rounded-xl font-semibold transition-all outline-none w-full"
+                  className="px-3 sm:px-4 rounded-xl font-semibold transition-all outline-none w-full text-xs sm:text-sm whitespace-nowrap"
                   style={{
                     background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
                     border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
