@@ -26,12 +26,15 @@ function App() {
     registerServiceWorker();
   }, []);
 
-  // Update theme-color meta tag when dark mode changes
+  // Update theme-color meta tag and background when dark mode changes
   useEffect(() => {
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');
     if (metaThemeColor) {
       metaThemeColor.setAttribute('content', isDarkMode ? '#1a1a1a' : '#f5f5f5');
     }
+    // Update html and body background for overscroll
+    document.documentElement.style.backgroundColor = isDarkMode ? '#1a1a1a' : '#f5f5f5';
+    document.body.style.backgroundColor = isDarkMode ? '#1a1a1a' : '#f5f5f5';
   }, [isDarkMode]);
 
   return (
