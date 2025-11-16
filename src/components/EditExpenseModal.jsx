@@ -26,6 +26,7 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
     'Dining Out',
     'Shopping',
     'Healthcare',
+    'Travel',
     'Other'
   ];
 

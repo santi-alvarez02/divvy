@@ -27,6 +27,7 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
     'Dining Out',
     'Shopping',
     'Healthcare',
+    'Travel',
     'Other'
   ];
 
