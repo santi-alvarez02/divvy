@@ -428,7 +428,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
         )}
 
         <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
-        <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
+        <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 pt-12 sm:pt-6 lg:pt-8 pb-4 sm:pb-6 lg:pb-8 relative z-10">
           <div className="flex items-center justify-center min-h-screen">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
           </div>
@@ -524,7 +524,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
       )}
 
       {/* Main Content */}
-      <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10"
+      <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 pt-12 sm:pt-6 lg:pt-8 pb-4 sm:pb-6 lg:pb-8 relative z-10"
       >
         {/* Header */}
         <div className="mb-8">

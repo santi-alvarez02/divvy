@@ -625,7 +625,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
         )}
 
         <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
-        <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10">
+        <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 pt-12 sm:pt-6 lg:pt-8 pb-4 sm:pb-6 lg:pb-8 relative z-10">
           <div className="flex items-center justify-center min-h-screen">
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
           </div>
@@ -708,7 +708,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
       <Sidebar isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
 
       {/* Main Content */}
-      <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-10"
+      <main className="ml-20 lg:ml-64 px-4 sm:px-6 lg:px-8 pt-12 sm:pt-6 lg:pt-8 pb-4 sm:pb-6 lg:pb-8 relative z-10"
       >
         {/* Header */}
         <div className="mb-6 sm:mb-8">
@@ -721,10 +721,10 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
         </div>
 
         {/* Summary Stats */}
-        <div className="grid grid-cols-3 lg:grid-cols-3 gap-3 lg:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-6 mb-6 sm:mb-8">
           {/* You Owe */}
           <div
-            className="rounded-3xl shadow-xl p-3 lg:p-6"
+            className="rounded-3xl shadow-xl p-2 sm:p-3 lg:p-6"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -733,17 +733,17 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-[10px] sm:text-xs lg:text-sm font-medium mb-1 lg:mb-2 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               You Owe
             </p>
-            <p className="text-xl lg:text-3xl font-bold" style={{ color: '#FF5E00' }}>
+            <p className="text-base sm:text-xl lg:text-3xl font-bold truncate" style={{ color: '#FF5E00' }}>
               {getCurrencySymbol(userCurrency)}{displayBalance(youOwe)}
             </p>
           </div>
 
           {/* You're Owed */}
           <div
-            className="rounded-3xl shadow-xl p-3 lg:p-6"
+            className="rounded-3xl shadow-xl p-2 sm:p-3 lg:p-6"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -752,17 +752,17 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-[10px] sm:text-xs lg:text-sm font-medium mb-1 lg:mb-2 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               You're Owed
             </p>
-            <p className="text-xl lg:text-3xl font-bold" style={{ color: '#10b981' }}>
+            <p className="text-base sm:text-xl lg:text-3xl font-bold truncate" style={{ color: '#10b981' }}>
               {getCurrencySymbol(userCurrency)}{displayBalance(youreOwed)}
             </p>
           </div>
 
           {/* Net Balance */}
           <div
-            className="rounded-3xl shadow-xl p-3 lg:p-6"
+            className="rounded-3xl shadow-xl p-2 sm:p-3 lg:p-6"
             style={{
               background: isDarkMode
                 ? 'rgba(0, 0, 0, 0.3)'
@@ -771,10 +771,10 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)'
             }}
           >
-            <p className={`text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-[10px] sm:text-xs lg:text-sm font-medium mb-1 lg:mb-2 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Net Balance
             </p>
-            <p className={`text-xl lg:text-3xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            <p className={`text-base sm:text-xl lg:text-3xl font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {netBalance >= 0 ? '+' : ''}{getCurrencySymbol(userCurrency)}{displayBalance(Math.abs(netBalance))}
             </p>
           </div>
