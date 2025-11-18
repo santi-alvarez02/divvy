@@ -12,6 +12,8 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
   const [isPersonal, setIsPersonal] = useState(false);
   const [isRecurring, setIsRecurring] = useState(false);
   const [splitWith, setSplitWith] = useState({});
+  const [isLoan, setIsLoan] = useState(false);
+  const [loanPerson, setLoanPerson] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -250,6 +252,8 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
     setIsPersonal(false);
     setIsRecurring(false);
     setSplitWith({});
+    setIsLoan(false);
+    setLoanPerson('');
     setError('');
     setShowCategoryPicker(false);
   };
@@ -486,6 +490,8 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
                       setIsPersonal(e.target.checked);
                       if (e.target.checked) {
                         setSplitWith({});
+                        setIsLoan(false);
+                        setLoanPerson('');
                       }
                       setError('');
                     }}
@@ -563,8 +569,106 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
               </label>
             </div>
 
+            {/* Loan/IOU Checkbox */}
+            <div className="mb-4">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={isLoan}
+                    onChange={(e) => {
+                      setIsLoan(e.target.checked);
+                      if (e.target.checked) {
+                        setIsPersonal(false);
+                        setSplitWith({});
+                      } else {
+                        setLoanPerson('');
+                      }
+                      setError('');
+                    }}
+                    className="w-5 h-5 rounded cursor-pointer appearance-none"
+                    style={{
+                      background: isLoan ? '#FF5E00' : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)'),
+                      border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  {isLoan && (
+                    <svg
+                      className="absolute top-0 left-0 w-5 h-5 pointer-events-none"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M16 6L7.5 14.5L4 11"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Someone owes me
+                  </span>
+                  <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Record money owed to you
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            {/* Loan Person Selection */}
+            {isLoan && (
+              <div
+                className="p-4 rounded-xl mb-4"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)'),
+                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Who owes you this money?
+                </p>
+                <select
+                  value={loanPerson}
+                  onChange={(e) => {
+                    setLoanPerson(e.target.value);
+                    setError('');
+                  }}
+                  className="w-full px-4 py-2 rounded-xl font-medium transition-all outline-none"
+                  style={{
+                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.8)',
+                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                    color: isDarkMode ? 'white' : '#1f2937'
+                  }}
+                >
+                  <option value="" style={{
+                    background: isDarkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                    color: isDarkMode ? '#9ca3af' : '#6b7280'
+                  }}>
+                    Select a person
+                  </option>
+                  {roommates.map(roommate => (
+                    <option
+                      key={roommate.id}
+                      value={roommate.id}
+                      style={{
+                        background: isDarkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+                        color: isDarkMode ? 'white' : '#1f2937'
+                      }}
+                    >
+                      {roommate.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Split Between */}
-            {!isPersonal && (
+            {!isPersonal && !isLoan && (
               <div
                 className="p-4 rounded-xl"
                 style={{
