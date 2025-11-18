@@ -11,6 +11,8 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
   const [category, setCategory] = useState('Select a category');
   const [isPersonal, setIsPersonal] = useState(false);
   const [splitWith, setSplitWith] = useState({});
+  const [isLoan, setIsLoan] = useState(false);
+  const [loanPerson, setLoanPerson] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -36,16 +38,25 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
   useEffect(() => {
     if (expense && isOpen) {
       setDescription(expense.description || '');
-      setAmount(expense.amount?.toString() || '');
+      setAmount(expense.originalAmount?.toString() || expense.amount?.toString() || '');
       setCategory(expense.category || 'Select a category');
       setCurrency(expense.currency || expense.displayCurrency || 'USD');
+
+      // Check if it's a loan
+      const isLoanExpense = expense.isLoan === true;
+      setIsLoan(isLoanExpense);
 
       // Determine if personal or split
       const isPersonalExpense = expense.splitBetween?.length === 1;
       setIsPersonal(isPersonalExpense);
 
-      // Set split with state for non-personal expenses
-      if (!isPersonalExpense && expense.splitBetween) {
+      if (isLoanExpense) {
+        // Find the person who owes (non-zero share)
+        const borrower = expense.splits?.find(s => s.share_amount > 0)?.user_id;
+        setLoanPerson(borrower || '');
+        setSplitWith({});
+      } else if (!isPersonalExpense && expense.splitBetween) {
+        // Set split with state for non-personal expenses
         const splitState = {};
         expense.splitBetween.forEach(userId => {
           if (userId !== user?.id) {
@@ -53,8 +64,10 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
           }
         });
         setSplitWith(splitState);
+        setLoanPerson('');
       } else {
         setSplitWith({});
+        setLoanPerson('');
       }
     }
   }, [expense, isOpen, user?.id]);
@@ -127,7 +140,13 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
       return;
     }
 
-    if (!isPersonal && Object.keys(splitWith).filter(key => splitWith[key]).length === 0) {
+    // Validation: For loan expenses, a person must be selected
+    if (isLoan && !loanPerson) {
+      setError('Please select who owes you this money');
+      return;
+    }
+
+    if (!isPersonal && !isLoan && Object.keys(splitWith).filter(key => splitWith[key]).length === 0) {
       setError('Please complete the form to update the expense');
       return;
     }
@@ -136,12 +155,19 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
 
     try {
       // Determine who is splitting the expense
-      const splitBetweenIds = isPersonal
-        ? [user.id]
-        : [user.id, ...Object.keys(splitWith).filter(key => splitWith[key])];
+      let splitBetweenIds;
+      let isLoanExpense = false;
+
+      if (isPersonal) {
+        splitBetweenIds = [user.id]; // Personal expense - only current user
+      } else if (isLoan) {
+        splitBetweenIds = [user.id, loanPerson]; // Loan - both people in split
+        isLoanExpense = true;
+      } else {
+        splitBetweenIds = [user.id, ...Object.keys(splitWith).filter(key => splitWith[key])]; // Current user + selected roommates
+      }
 
       const expenseAmount = parseFloat(amount);
-      const splitAmount = expenseAmount / splitBetweenIds.length;
 
       // Update the expense
       const { error: expenseError } = await supabase
@@ -194,11 +220,28 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
       }
 
       // Create new splits
-      const splits = splitBetweenIds.map(userId => ({
-        expense_id: expense.id,
-        user_id: userId,
-        share_amount: splitAmount
-      }));
+      // For loans: payer's share = 0, borrower's share = full amount
+      // For normal splits: everyone pays equally
+      const splits = splitBetweenIds.map(userId => {
+        if (isLoanExpense) {
+          // If it's a loan, the person who paid (current user) has 0 share
+          // The person who owes (loanPerson) has the full amount as their share
+          const shareAmount = userId === user.id ? 0 : expenseAmount;
+          return {
+            expense_id: expense.id,
+            user_id: userId,
+            share_amount: shareAmount
+          };
+        } else {
+          // Normal split - everyone pays equally
+          const splitAmount = expenseAmount / splitBetweenIds.length;
+          return {
+            expense_id: expense.id,
+            user_id: userId,
+            share_amount: splitAmount
+          };
+        }
+      });
 
       const { error: splitsError } = await supabase
         .from('expense_splits')
@@ -232,6 +275,8 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
     setCategory('Select a category');
     setIsPersonal(false);
     setSplitWith({});
+    setIsLoan(false);
+    setLoanPerson('');
     setError('');
     setShowCategoryPicker(false);
   };
@@ -464,6 +509,8 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
                       setIsPersonal(e.target.checked);
                       if (e.target.checked) {
                         setSplitWith({});
+                        setIsLoan(false);
+                        setLoanPerson('');
                       }
                       setError('');
                     }}
@@ -496,8 +543,114 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
               </label>
             </div>
 
+            {/* Loan/IOU Checkbox */}
+            <div className="mb-4">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={isLoan}
+                    onChange={(e) => {
+                      setIsLoan(e.target.checked);
+                      if (e.target.checked) {
+                        setIsPersonal(false);
+                        setSplitWith({});
+                      } else {
+                        setLoanPerson('');
+                      }
+                      setError('');
+                    }}
+                    className="w-5 h-5 rounded cursor-pointer appearance-none"
+                    style={{
+                      background: isLoan ? '#FF5E00' : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)'),
+                      border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                    }}
+                  />
+                  {isLoan && (
+                    <svg
+                      className="absolute top-0 left-0 w-5 h-5 pointer-events-none"
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <path
+                        d="M16 6L7.5 14.5L4 11"
+                        stroke="white"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex flex-col">
+                  <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Someone owes me
+                  </span>
+                  <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Record money owed to you
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            {/* Loan Person Selection */}
+            {isLoan && (
+              <div
+                className="p-4 rounded-xl mb-4"
+                style={{
+                  background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                }}
+              >
+                <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  Who owes you this money?
+                </p>
+                <div className="space-y-2">
+                  {roommates.filter(r => r.id !== user?.id).map(roommate => (
+                    <label key={roommate.id} className="flex items-center space-x-3 cursor-pointer">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={loanPerson === roommate.id}
+                          onChange={() => {
+                            setLoanPerson(loanPerson === roommate.id ? '' : roommate.id);
+                            setError('');
+                          }}
+                          className="w-5 h-5 rounded cursor-pointer appearance-none"
+                          style={{
+                            background: loanPerson === roommate.id ? '#FF5E00' : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)'),
+                            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                          }}
+                        />
+                        {loanPerson === roommate.id && (
+                          <svg
+                            className="absolute top-0 left-0 w-5 h-5 pointer-events-none"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M16 6L7.5 14.5L4 11"
+                              stroke="white"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                        {roommate.name}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Split Between */}
-            {!isPersonal && (
+            {!isPersonal && !isLoan && (
               <div
                 className="p-4 rounded-xl"
                 style={{
