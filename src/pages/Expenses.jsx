@@ -579,8 +579,22 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     expenses.forEach(expense => {
       const splitBetween = expense.splitBetween || [];
       const paidBy = expense.paidBy;
-      const splitAmount = expense.amount / splitBetween.length;
       const expenseDate = new Date(expense.date);
+
+      // Use the ORIGINAL amount and currency for balance calculations
+      const originalAmount = expense.originalAmount;
+      const expenseCurrency = expense.currency;
+
+      // Convert the original full amount to user's currency
+      const convertedFullAmount = expenseCurrency === userCurrency
+        ? originalAmount
+        : (Object.keys(exchangeRates).length > 0
+          ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
+          : originalAmount);
+
+      // Check if this is a loan
+      const splits = expense.splits || [];
+      const isLoan = expense.isLoan === true;
 
       // If someone else paid and you're in the split
       if (paidBy !== currentUserId && splitBetween.includes(currentUserId)) {
@@ -590,7 +604,23 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
           if (!balances[paidBy]) {
             balances[paidBy] = { amount: 0 };
           }
-          balances[paidBy].amount += splitAmount;
+
+          // Calculate your share
+          let userShare;
+          if (isLoan) {
+            // For loans, find user's actual share from the splits
+            const userSplit = splits.find(s => s.user_id === currentUserId);
+            const userShareOriginal = userSplit ? userSplit.share_amount : 0;
+            userShare = expenseCurrency === userCurrency
+              ? userShareOriginal
+              : (Object.keys(exchangeRates).length > 0
+                ? convertCurrency(userShareOriginal, expenseCurrency, userCurrency, exchangeRates)
+                : userShareOriginal);
+          } else {
+            userShare = convertedFullAmount / splitBetween.length;
+          }
+
+          balances[paidBy].amount += userShare;
         }
       }
 
@@ -604,7 +634,23 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               if (!balances[personId]) {
                 balances[personId] = { amount: 0 };
               }
-              balances[personId].amount -= splitAmount;
+
+              // Calculate their share
+              let theirShare;
+              if (isLoan) {
+                // For loans, find their actual share from the splits
+                const theirSplit = splits.find(s => s.user_id === personId);
+                const theirShareOriginal = theirSplit ? theirSplit.share_amount : 0;
+                theirShare = expenseCurrency === userCurrency
+                  ? theirShareOriginal
+                  : (Object.keys(exchangeRates).length > 0
+                    ? convertCurrency(theirShareOriginal, expenseCurrency, userCurrency, exchangeRates)
+                    : theirShareOriginal);
+              } else {
+                theirShare = convertedFullAmount / splitBetween.length;
+              }
+
+              balances[personId].amount -= theirShare;
             }
           }
         });

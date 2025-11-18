@@ -816,7 +816,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               Net Balance
             </p>
             <p className={`text-base sm:text-xl lg:text-3xl font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {netBalance >= 0 ? '+' : ''}{getCurrencySymbol(userCurrency)}{displayBalance(Math.abs(netBalance))}
+              {netBalance >= 0 ? '+' : '-'}{getCurrencySymbol(userCurrency)}{displayBalance(Math.abs(netBalance))}
             </p>
           </div>
         </div>
