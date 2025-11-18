@@ -286,6 +286,54 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
     onClose();
   };
 
+  const handleDelete = async () => {
+    if (!window.confirm('Are you sure you want to delete this expense?')) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Delete expense splits first (due to foreign key constraint)
+      const { error: splitsError } = await supabase
+        .from('expense_splits')
+        .delete()
+        .eq('expense_id', expense.id);
+
+      if (splitsError) {
+        console.error('Error deleting expense splits:', splitsError);
+        setError('Failed to delete expense. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Delete the expense
+      const { error: expenseError } = await supabase
+        .from('expenses')
+        .delete()
+        .eq('id', expense.id);
+
+      if (expenseError) {
+        console.error('Error deleting expense:', expenseError);
+        setError('Failed to delete expense. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Success! Notify parent component to refresh
+      if (onExpenseUpdated) {
+        onExpenseUpdated();
+      }
+
+      handleClose();
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      setError('An unexpected error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (!isOpen || !expense) return null;
 
   return (
@@ -718,16 +766,14 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
           <div className="flex space-x-4 pt-4">
             <button
               type="button"
-              onClick={handleClose}
-              className="flex-1 px-6 py-3 rounded-xl font-semibold transition-all"
+              onClick={handleDelete}
+              disabled={loading}
+              className="flex-1 px-6 py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
-                backdropFilter: 'blur(16px)',
-                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                color: isDarkMode ? 'white' : '#1f2937'
+                background: '#dc2626'
               }}
             >
-              Cancel
+              {loading ? 'Deleting...' : 'Delete Expense'}
             </button>
             <button
               type="submit"
