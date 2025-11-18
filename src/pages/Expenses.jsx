@@ -237,28 +237,31 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                        splits.some(s => s.share_amount === 0) &&
                        splits.some(s => s.share_amount === originalAmount);
 
-        // Calculate user's share of the expense
-        let userShare;
-        if (isLoan) {
-          // For loans, always show the full amount (both lender and borrower see the full loan amount)
-          userShare = originalAmount;
+        // Determine what amount to display based on who paid
+        let displayAmount;
+        if (expense.paid_by === user.id) {
+          // If you paid, always show the full amount you paid
+          displayAmount = originalAmount;
+        } else if (isLoan) {
+          // For loans where someone else paid, show the full amount you owe
+          displayAmount = originalAmount;
         } else {
-          // For regular splits, calculate evenly
-          userShare = splitBetweenUsers.includes(user.id)
+          // For regular splits where someone else paid, show your share
+          displayAmount = splitBetweenUsers.includes(user.id)
             ? originalAmount / splitBetweenUsers.length
-            : originalAmount; // If user not in split, show full amount (shouldn't happen)
+            : originalAmount;
         }
 
-        // Convert user's share to user's display currency
+        // Convert the display amount to user's display currency
         const convertedAmount = Object.keys(exchangeRates).length > 0
-          ? convertCurrency(userShare, expenseCurrency, userCurrency, exchangeRates)
-          : userShare;
+          ? convertCurrency(displayAmount, expenseCurrency, userCurrency, exchangeRates)
+          : displayAmount;
 
         return {
           id: expense.id,
-          amount: convertedAmount, // Converted user's share
+          amount: convertedAmount, // Converted display amount (full if you paid, share if you didn't)
           originalAmount: originalAmount, // Store original full amount for reference
-          originalUserShare: userShare, // User's share in original currency
+          originalDisplayAmount: displayAmount, // Display amount in original currency
           currency: expenseCurrency, // Original currency
           displayCurrency: userCurrency, // Currency being displayed
           category: expense.category,
@@ -269,9 +272,9 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
           createdAt: expense.created_at,
           isRecurring: expense.is_recurring || false,
           isPersonal: expense.is_personal || false,
-          isLoan: isLoan, // NEW: Flag to indicate this is a loan
+          isLoan: isLoan, // Flag to indicate this is a loan
           splitBetween: splitBetweenUsers,
-          splits: splits // NEW: Include split details with share amounts
+          splits: splits // Include split details with share amounts
         };
       });
 
