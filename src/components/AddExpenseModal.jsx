@@ -153,8 +153,14 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
       return;
     }
 
+    // Validation: For loan expenses, a person must be selected
+    if (isLoan && !loanPerson) {
+      setError('Please select who owes you this money');
+      return;
+    }
+
     // Validation: For split expenses, at least one roommate must be selected
-    if (!isPersonal && Object.keys(splitWith).filter(key => splitWith[key]).length === 0) {
+    if (!isPersonal && !isLoan && Object.keys(splitWith).filter(key => splitWith[key]).length === 0) {
       setError('Please select at least one person to split with');
       return;
     }
@@ -177,13 +183,19 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
       }
 
       // Determine who is splitting the expense
-      // For split expenses, current user is automatically included
-      const splitBetweenIds = isPersonal
-        ? [user.id] // Personal expense - only current user
-        : [user.id, ...Object.keys(splitWith).filter(key => splitWith[key])]; // Current user + selected roommates
+      let splitBetweenIds;
+      let isLoanExpense = false;
+
+      if (isPersonal) {
+        splitBetweenIds = [user.id]; // Personal expense - only current user
+      } else if (isLoan) {
+        splitBetweenIds = [user.id, loanPerson]; // Loan - both people in split
+        isLoanExpense = true;
+      } else {
+        splitBetweenIds = [user.id, ...Object.keys(splitWith).filter(key => splitWith[key])]; // Current user + selected roommates
+      }
 
       const expenseAmount = parseFloat(amount);
-      const splitAmount = expenseAmount / splitBetweenIds.length;
 
       // Create the expense
       const { data: expenseData, error: expenseError } = await supabase
@@ -211,11 +223,28 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
       }
 
       // Create expense splits
-      const splits = splitBetweenIds.map(userId => ({
-        expense_id: expenseData.id,
-        user_id: userId,
-        share_amount: splitAmount
-      }));
+      // For loans: payer's share = 0, borrower's share = full amount
+      // For normal splits: everyone pays equally
+      const splits = splitBetweenIds.map(userId => {
+        if (isLoanExpense) {
+          // If it's a loan, the person who paid (current user) has 0 share
+          // The person who owes (loanPerson) has the full amount as their share
+          const shareAmount = userId === user.id ? 0 : expenseAmount;
+          return {
+            expense_id: expenseData.id,
+            user_id: userId,
+            share_amount: shareAmount
+          };
+        } else {
+          // Normal split - everyone pays equally
+          const splitAmount = expenseAmount / splitBetweenIds.length;
+          return {
+            expense_id: expenseData.id,
+            user_id: userId,
+            share_amount: splitAmount
+          };
+        }
+      });
 
       const { error: splitsError } = await supabase
         .from('expense_splits')
@@ -632,38 +661,47 @@ const AddExpenseModal = ({ isOpen, onClose, roommates, isDarkMode, onExpenseAdde
                 <p className={`text-sm font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   Who owes you this money?
                 </p>
-                <select
-                  value={loanPerson}
-                  onChange={(e) => {
-                    setLoanPerson(e.target.value);
-                    setError('');
-                  }}
-                  className="w-full px-4 py-2 rounded-xl font-medium transition-all outline-none"
-                  style={{
-                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.8)',
-                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
-                    color: isDarkMode ? 'white' : '#1f2937'
-                  }}
-                >
-                  <option value="" style={{
-                    background: isDarkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                    color: isDarkMode ? '#9ca3af' : '#6b7280'
-                  }}>
-                    Select a person
-                  </option>
-                  {roommates.map(roommate => (
-                    <option
-                      key={roommate.id}
-                      value={roommate.id}
-                      style={{
-                        background: isDarkMode ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-                        color: isDarkMode ? 'white' : '#1f2937'
-                      }}
-                    >
-                      {roommate.name}
-                    </option>
+                <div className="space-y-2">
+                  {roommates.filter(r => r.id !== user?.id).map(roommate => (
+                    <label key={roommate.id} className="flex items-center space-x-3 cursor-pointer">
+                      <div className="relative">
+                        <input
+                          type="checkbox"
+                          checked={loanPerson === roommate.id}
+                          onChange={() => {
+                            // Toggle selection - if already selected, deselect; otherwise select this person
+                            setLoanPerson(loanPerson === roommate.id ? '' : roommate.id);
+                            setError('');
+                          }}
+                          className="w-5 h-5 rounded cursor-pointer appearance-none"
+                          style={{
+                            background: loanPerson === roommate.id ? '#FF5E00' : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)'),
+                            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                          }}
+                        />
+                        {loanPerson === roommate.id && (
+                          <svg
+                            className="absolute top-0 left-0 w-5 h-5 pointer-events-none"
+                            viewBox="0 0 20 20"
+                            fill="none"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M16 6L7.5 14.5L4 11"
+                              stroke="white"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        )}
+                      </div>
+                      <span className={`font-medium ${isDarkMode ? 'text-gray-200' : 'text-gray-700'}`}>
+                        {roommate.name}
+                      </span>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
             )}
 
