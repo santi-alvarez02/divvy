@@ -281,8 +281,29 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
           ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
           : originalAmount);
 
-      const splitAmount = convertedAmount / splitBetween.length;
+      // Check if this is a loan (2 people, one with 0 share, one with full amount)
+      const splits = expense.expense_splits || [];
+      const isLoan = splits.length === 2 &&
+                     splits.some(s => s.share_amount === 0) &&
+                     splits.some(s => s.share_amount === originalAmount);
+
       const expenseDate = new Date(expense.date);
+
+      // Calculate share amount - for loans use actual share, otherwise divide equally
+      let userShareAmount;
+      if (isLoan) {
+        // For loans, find the user's actual share from the splits
+        const userSplit = splits.find(s => s.user_id === currentUserId);
+        userShareAmount = userSplit ? convertCurrency(
+          userSplit.share_amount,
+          expenseCurrency,
+          userCurrency,
+          Object.keys(exchangeRates).length > 0 ? exchangeRates : {}
+        ) : 0;
+      } else {
+        // For regular splits, divide equally
+        userShareAmount = convertedAmount / splitBetween.length;
+      }
 
       console.log('Processing expense:', {
         description: expense.description,
@@ -292,7 +313,8 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
         convertedAmount: convertedAmount,
         paidBy,
         splitBetween,
-        splitAmount,
+        isLoan,
+        userShareAmount,
         date: expense.date
       });
 
@@ -312,10 +334,14 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
               avatar_url: payer?.avatar_url
             };
           }
-          balances[paidBy].amount += splitAmount;
+
+          // For loans where user has 0 share, they don't owe anything
+          // For loans where user has full share, they owe the full converted amount
+          const shareToAdd = isLoan ? userShareAmount : userShareAmount;
+          balances[paidBy].amount += shareToAdd;
           balances[paidBy].expenses.push({
             ...expense,
-            yourShare: splitAmount,
+            yourShare: isLoan ? convertedAmount : userShareAmount,
             convertedAmount,
             displayCurrency: userCurrency
           });
@@ -340,10 +366,25 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                   avatar_url: person?.avatar_url
                 };
               }
-              balances[personId].amount -= splitAmount;
+
+              // For loans, calculate the other person's share
+              let theirShareAmount;
+              if (isLoan) {
+                const theirSplit = splits.find(s => s.user_id === personId);
+                theirShareAmount = theirSplit ? convertCurrency(
+                  theirSplit.share_amount,
+                  expenseCurrency,
+                  userCurrency,
+                  Object.keys(exchangeRates).length > 0 ? exchangeRates : {}
+                ) : 0;
+              } else {
+                theirShareAmount = userShareAmount;
+              }
+
+              balances[personId].amount -= theirShareAmount;
               balances[personId].expenses.push({
                 ...expense,
-                theirShare: splitAmount,
+                theirShare: isLoan ? convertedAmount : theirShareAmount,
                 convertedAmount,
                 displayCurrency: userCurrency
               });
@@ -1234,7 +1275,12 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                         ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
                         : originalAmount);
 
-                    const splitAmount = convertedAmount / splitBetween.length;
+                    // Check if this is a loan
+                    const splits = expense.expense_splits || [];
+                    const isLoan = splits.length === 2 &&
+                                   splits.some(s => s.share_amount === 0) &&
+                                   splits.some(s => s.share_amount === originalAmount);
+
                     const expenseDate = new Date(expense.date);
 
                     // Only include if expense is in the range for this settlement
@@ -1245,9 +1291,23 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
 
                     // If other person paid and we're in the split
                     if (paidBy === otherUserId && splitBetween.includes(currentUserId)) {
+                      // For loans, find user's actual share
+                      let userShare;
+                      if (isLoan) {
+                        const userSplit = splits.find(s => s.user_id === currentUserId);
+                        userShare = userSplit ? convertCurrency(
+                          userSplit.share_amount,
+                          expenseCurrency,
+                          userCurrency,
+                          Object.keys(exchangeRates).length > 0 ? exchangeRates : {}
+                        ) : 0;
+                      } else {
+                        userShare = convertedAmount / splitBetween.length;
+                      }
+
                       settlementBalance.expenses.push({
                         ...expense,
-                        yourShare: splitAmount,
+                        yourShare: isLoan ? convertedAmount : userShare,
                         convertedAmount,
                         displayCurrency: userCurrency
                       });
@@ -1255,9 +1315,23 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
 
                     // If we paid and other person is in split
                     if (paidBy === currentUserId && splitBetween.includes(otherUserId)) {
+                      // For loans, find other person's actual share
+                      let theirShare;
+                      if (isLoan) {
+                        const theirSplit = splits.find(s => s.user_id === otherUserId);
+                        theirShare = theirSplit ? convertCurrency(
+                          theirSplit.share_amount,
+                          expenseCurrency,
+                          userCurrency,
+                          Object.keys(exchangeRates).length > 0 ? exchangeRates : {}
+                        ) : 0;
+                      } else {
+                        theirShare = convertedAmount / splitBetween.length;
+                      }
+
                       settlementBalance.expenses.push({
                         ...expense,
-                        theirShare: splitAmount,
+                        theirShare: isLoan ? convertedAmount : theirShare,
                         convertedAmount,
                         displayCurrency: userCurrency
                       });
