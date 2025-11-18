@@ -873,11 +873,11 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                       <img
                         src={selectedBalance.avatar_url}
                         alt={selectedBalance.name}
-                        className="w-12 h-12 rounded-3xl object-cover shadow-lg"
+                        className="w-14 h-14 rounded-full object-cover shadow-lg"
                       />
                     ) : (
                       <div
-                        className="w-12 h-12 rounded-3xl flex items-center justify-center font-bold text-xl shadow-lg"
+                        className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl shadow-lg"
                         style={{
                           background: getAvatarColor(selectedBalance.id),
                           color: 'white'
@@ -972,11 +972,11 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                           <img
                             src={balance.avatar_url}
                             alt={balance.name}
-                            className="w-12 h-12 rounded-3xl object-cover shadow-lg"
+                            className="w-14 h-14 rounded-full object-cover shadow-lg"
                           />
                         ) : (
                           <div
-                            className="w-12 h-12 rounded-3xl flex items-center justify-center font-bold text-xl shadow-lg"
+                            className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl shadow-lg"
                             style={{
                               background: getAvatarColor(balance.id),
                               color: 'white'
