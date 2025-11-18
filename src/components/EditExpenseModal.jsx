@@ -287,10 +287,6 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Are you sure you want to delete this expense?')) {
-      return;
-    }
-
     setLoading(true);
 
     try {

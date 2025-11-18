@@ -238,9 +238,16 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                        splits.some(s => s.share_amount === originalAmount);
 
         // Calculate user's share of the expense
-        const userShare = splitBetweenUsers.includes(user.id)
-          ? originalAmount / splitBetweenUsers.length
-          : originalAmount; // If user not in split, show full amount (shouldn't happen)
+        let userShare;
+        if (isLoan) {
+          // For loans, always show the full amount (both lender and borrower see the full loan amount)
+          userShare = originalAmount;
+        } else {
+          // For regular splits, calculate evenly
+          userShare = splitBetweenUsers.includes(user.id)
+            ? originalAmount / splitBetweenUsers.length
+            : originalAmount; // If user not in split, show full amount (shouldn't happen)
+        }
 
         // Convert user's share to user's display currency
         const convertedAmount = Object.keys(exchangeRates).length > 0
