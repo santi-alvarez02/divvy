@@ -230,6 +230,12 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         const originalAmount = parseFloat(expense.amount);
         const expenseCurrency = expense.currency || 'USD';
         const splitBetweenUsers = expense.expense_splits.map(split => split.user_id);
+        const splits = expense.expense_splits; // Keep the full split data with share amounts
+
+        // Check if this is a loan (one person has 0 share, another has full amount)
+        const isLoan = splits.length === 2 &&
+                       splits.some(s => s.share_amount === 0) &&
+                       splits.some(s => s.share_amount === originalAmount);
 
         // Calculate user's share of the expense
         const userShare = splitBetweenUsers.includes(user.id)
@@ -256,7 +262,9 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
           createdAt: expense.created_at,
           isRecurring: expense.is_recurring || false,
           isPersonal: expense.is_personal || false,
-          splitBetween: splitBetweenUsers
+          isLoan: isLoan, // NEW: Flag to indicate this is a loan
+          splitBetween: splitBetweenUsers,
+          splits: splits // NEW: Include split details with share amounts
         };
       });
 
@@ -315,6 +323,20 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     // Check if it's a personal expense
     if (expense.isPersonal === true) {
       return 'Personal Expense';
+    }
+
+    // Check if it's a loan
+    if (expense.isLoan === true) {
+      // Find who owes (person with non-zero share)
+      const borrower = expense.splits?.find(s => s.share_amount > 0)?.user_id;
+      if (borrower === user.id) {
+        // Current user is the borrower
+        const lender = expense.paidBy;
+        return `You owe ${getRoommateName(lender)}`;
+      } else {
+        // Current user is the lender
+        return `${getRoommateName(borrower)} owes you`;
+      }
     }
 
     // Handle edge case: no split data
