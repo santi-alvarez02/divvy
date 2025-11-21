@@ -50,6 +50,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const [hoveredExpenseId, setHoveredExpenseId] = useState(null);
   const categoryScrollRef = React.useRef(null);
   const dateScrollRef = React.useRef(null);
+  const typeScrollRef = React.useRef(null);
 
 
   // Fetch user's group and members
@@ -491,6 +492,49 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       scrollContainer.removeEventListener('scroll', handleScroll);
     };
   }, [showDatePicker, selectedDateRange, dateRanges, isDarkMode]);
+
+  // Type picker scroll effect
+  React.useEffect(() => {
+    if (!showTypePicker || !typeScrollRef.current) {
+      return; // Early return still allows cleanup
+    }
+
+    const types = ['All', 'Shared', 'Personal'];
+    const selectedIndex = types.indexOf(expenseTypeFilter);
+    const itemHeight = 40;
+    const scrollTop = selectedIndex * itemHeight;
+    const scrollContainer = typeScrollRef.current;
+
+    scrollContainer.scrollTop = scrollTop;
+
+    const handleScroll = () => {
+      const currentScrollTop = scrollContainer.scrollTop;
+      const highlightedIndex = Math.round(currentScrollTop / itemHeight);
+
+      const buttons = scrollContainer.querySelectorAll('.type-filter-item');
+      buttons.forEach((button, btnIndex) => {
+        if (btnIndex === highlightedIndex) {
+          button.style.color = isDarkMode ? 'white' : '#000000';
+          button.style.fontSize = '17px';
+          button.style.fontWeight = '700';
+        } else {
+          button.style.color = isDarkMode ? '#d1d5db' : '#6b7280';
+          button.style.fontSize = '15px';
+          button.style.fontWeight = '400';
+        }
+      });
+    };
+
+    scrollContainer.addEventListener('scroll', handleScroll, { passive: true });
+
+    requestAnimationFrame(() => {
+      handleScroll();
+    });
+
+    return () => {
+      scrollContainer.removeEventListener('scroll', handleScroll);
+    };
+  }, [showTypePicker, expenseTypeFilter, isDarkMode]);
 
   // Date filter helper
   const filterByDateRange = (expense) => {
@@ -1133,6 +1177,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
 
                         {/* Types list */}
                         <div
+                          ref={typeScrollRef}
                           className="h-full overflow-y-auto scrollbar-hide"
                           style={{
                             paddingTop: '0px',
@@ -1147,7 +1192,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                                 setExpenseTypeFilter(type);
                                 setShowTypePicker(false);
                               }}
-                              className="w-full flex items-center justify-center"
+                              className="w-full flex items-center justify-center type-filter-item"
                               style={{
                                 height: '40px',
                                 background: 'transparent',
