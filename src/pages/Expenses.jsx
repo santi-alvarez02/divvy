@@ -1078,8 +1078,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               />
             </div>
 
-            {/* Filter Buttons - Horizontal Scroll on Mobile */}
-            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 scrollbar-hide mask-linear-fade">
+            {/* Filter Buttons - Wrap on mobile to prevent dropdown clipping */}
+            <div className="flex flex-wrap gap-2 sm:gap-3 w-full sm:w-auto">
               {/* Type Filter */}
               <div className="relative flex-1 sm:flex-initial" style={{ minWidth: '0', maxWidth: '100%' }}>
                 <button
