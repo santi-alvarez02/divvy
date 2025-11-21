@@ -1,80 +1,45 @@
-# Divvy - Shared Expense Tracker
+# Divvy
 
-A modern, clean web app for roommates and couples to track and split shared expenses.
+A modern web application for tracking and splitting shared expenses between roommates, couples, or groups.
+
+## Overview
+
+Divvy simplifies shared expense management by providing real-time balance tracking, automatic currency conversion, and flexible splitting options. Built with React and Supabase, it offers a seamless experience across all devices.
 
 ## Features
 
-### Current Dashboard Includes:
-- **Monthly Budget Overview** - Visual progress bar showing spending vs budget limit
-- **Recent Expenses List** - Last 8 expenses with details (amount, category, who paid, split status)
-- **Who Owes What Summary** - Clear breakdown of balances between roommates
-- **Quick Add Expense Button** - Prominent CTA (mobile floating button + desktop header button)
+- **Expense Management**: Add, edit, and track personal and shared expenses with support for multiple currencies
+- **Smart Splitting**: Split expenses evenly or create custom splits with loan/IOU tracking
+- **Live Balance Tracking**: Real-time calculation of who owes what with automatic currency conversion
+- **Budget Management**: Set and monitor budgets across different categories with visual progress tracking
+- **Settlement System**: Track payments and maintain settlement history between group members
+- **Groups**: Create and manage multiple expense-sharing groups
+- **Multi-Currency Support**: Automatic currency conversion using live exchange rates
+- **Responsive Design**: Fully optimized interface for mobile and desktop devices
 
 ## Tech Stack
-- React 19 with Vite
-- Tailwind CSS for styling
-- Fully responsive design (mobile-friendly)
 
-## Getting Started
-
-### Install dependencies
-```bash
-npm install
-```
-
-### Run development server
-```bash
-npm run dev
-```
-
-The app will be available at `http://localhost:5173/`
-
-### Build for production
-```bash
-npm run build
-```
-
-## Current Status
-
-This is the initial build focusing on UI/UX with mock data.
-
-**What's Working:**
-- Beautiful, modern dashboard layout
-- Responsive design (mobile and desktop)
-- Mock data with 3 roommates and sample expenses
-- Visual budget tracking
-- Color-coded balance indicators
-
-**What's NOT Implemented Yet:**
-- Authentication/login
-- Database/persistence
-- Actual expense splitting calculations
-- Add expense functionality
-- The AI prompt feature
+- **Frontend**: React 19 with Vite
+- **Styling**: Tailwind CSS
+- **Backend**: Supabase (PostgreSQL, Authentication, Real-time subscriptions)
+- **Data Visualization**: Recharts
+- **Currency API**: Live exchange rate integration
 
 ## Project Structure
 
 ```
 src/
-├── components/
-│   ├── Dashboard.jsx         # Main dashboard layout
-│   ├── BudgetOverview.jsx    # Monthly budget widget
-│   ├── RecentExpenses.jsx    # Expense list component
-│   └── BalanceSummary.jsx    # Who owes what widget
-├── data/
-│   └── mockData.js           # Sample data for testing
-├── App.jsx                   # Root component
-├── main.jsx                  # Entry point
-└── index.css                 # Tailwind imports + global styles
+├── components/          # Reusable UI components
+├── contexts/           # React Context providers (Auth, etc.)
+├── pages/              # Main application pages (Dashboard, Expenses, Balances, etc.)
+├── utils/              # Helper functions (currency conversion, date formatting)
+└── lib/                # Third-party library configurations
 ```
 
-## Next Steps
+## How It Works
 
-Future iterations could include:
-- Backend API integration
-- User authentication
-- Real expense splitting logic
-- Payment tracking
-- Receipt uploads
-- Expense categories customization
-- Monthly/yearly analytics
+1. Users create an account and set up a group with roommates or friends
+2. Group members add expenses and choose how to split them
+3. The app automatically calculates balances and converts currencies
+4. Users can view who owes what and settle up through the built-in payment tracking
+5. Budget tracking provides insights into spending patterns across categories

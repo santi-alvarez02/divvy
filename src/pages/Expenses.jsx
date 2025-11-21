@@ -662,8 +662,15 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
 
   const balances = calculateBalances();
 
+  // Debug logging
+  console.log('=== EXPENSES PAGE BALANCE CALCULATION ===');
+  console.log('Total expenses:', expenses.length);
+  console.log('Balances:', balances);
+  console.log('User currency:', userCurrency);
+
   // You Owe = Sum of positive balances (debts)
   const youOwe = balances.filter(b => b.amount > 0).reduce((sum, b) => sum + b.amount, 0);
+  console.log('You Owe:', youOwe);
 
   // Calculate top categories from date-filtered expenses
   const categoryTotals = dateFilteredExpenses.reduce((acc, expense) => {
