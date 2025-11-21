@@ -499,7 +499,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       return; // Early return still allows cleanup
     }
 
-    const types = ['All', 'Shared', 'Personal'];
+    const types = ['All', 'Shared', 'Personal', 'Loans'];
     const selectedIndex = types.indexOf(expenseTypeFilter);
     const itemHeight = 40;
     const scrollTop = selectedIndex * itemHeight;
@@ -800,6 +800,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         matchesType = expense.isPersonal === true;
       } else if (expenseTypeFilter === 'Shared') {
         matchesType = expense.isPersonal !== true;
+      } else if (expenseTypeFilter === 'Loans') {
+        matchesType = expense.isLoan === true;
       } else {
         // 'All' - but we still want to hide OTHER people's personal expenses from the main feed
         // unless they are somehow involved in a split with you (which shouldn't happen for personal, but if it does, we show it)
@@ -1184,7 +1186,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                             paddingBottom: '80px'
                           }}
                         >
-                          {['All', 'Shared', 'Personal'].map((type) => (
+                          {['All', 'Shared', 'Personal', 'Loans'].map((type) => (
                             <button
                               key={type}
                               type="button"
@@ -1412,10 +1414,23 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                   {(() => {
                     const total = filteredExpenses.reduce((sum, exp) => {
                       // If Shared view and you paid, use your share. Otherwise use the display amount.
-                      const amountToUse = (expenseTypeFilter === 'Shared' && exp.paidBy === user?.id)
-                        ? exp.userShare
-                        : exp.amount;
-                      return sum + amountToUse;
+                      if (expenseTypeFilter === 'Shared' && exp.paidBy === user?.id) {
+                        return sum + exp.userShare;
+                      }
+
+                      // For Loans view: Net calculation (Loaned - Borrowed)
+                      if (expenseTypeFilter === 'Loans') {
+                        if (exp.paidBy === user?.id) {
+                          // You loaned money (positive)
+                          return sum + exp.amount;
+                        } else {
+                          // You borrowed money (negative)
+                          // For loans, exp.amount is the full amount you owe
+                          return sum - exp.amount;
+                        }
+                      }
+
+                      return sum + exp.amount;
                     }, 0);
                     return Number.isInteger(total) ? total : total.toFixed(2).replace(/\.00$/, '');
                   })()}
@@ -1555,7 +1570,9 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
 
                     {/* Amount and Date - Mobile right side */}
                     <div className="text-right shrink-0">
-                      <p className="text-base font-bold" style={{ color: '#FF5E00' }}>
+                      <p className="text-base font-bold" style={{
+                        color: (expense.isLoan && expense.paidBy === user?.id) ? '#10B981' : '#FF5E00'
+                      }}>
                         {(() => {
                           // If Shared view and you paid, show your share. Otherwise show full display amount.
                           const amountToShow = (expenseTypeFilter === 'Shared' && expense.paidBy === user?.id)
