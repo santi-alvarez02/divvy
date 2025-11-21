@@ -797,9 +797,11 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       // Type filter
       let matchesType = true;
       if (expenseTypeFilter === 'Personal') {
-        matchesType = expense.isPersonal === true;
+        // Only show YOUR personal expenses
+        matchesType = expense.isPersonal === true && expense.paidBy === user.id;
       } else if (expenseTypeFilter === 'Shared') {
-        matchesType = expense.isPersonal !== true;
+        // Shared expenses are neither personal nor loans
+        matchesType = expense.isPersonal !== true && expense.isLoan !== true;
       } else if (expenseTypeFilter === 'Loans') {
         matchesType = expense.isLoan === true;
       } else {
