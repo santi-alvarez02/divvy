@@ -1106,11 +1106,12 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                       onClick={() => setShowTypePicker(false)}
                     />
                     <div
-                      className="absolute rounded-xl overflow-hidden"
+                      className="absolute rounded-xl overflow-hidden scrollbar-hide"
                       style={{
                         top: '45px',
                         left: '0',
                         right: '0',
+                        height: '120px',
                         background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
                         backdropFilter: 'blur(16px)',
                         zIndex: 1001,
@@ -1118,28 +1119,48 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
                       }}
                     >
-                      <div className="p-1">
-                        {['All', 'Shared', 'Personal'].map((type) => (
-                          <button
-                            key={type}
-                            type="button"
-                            onClick={() => {
-                              setExpenseTypeFilter(type);
-                              setShowTypePicker(false);
-                            }}
-                            className="w-full flex items-center justify-center py-2 rounded-lg transition-colors"
-                            style={{
-                              background: expenseTypeFilter === type
-                                ? (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)')
-                                : 'transparent',
-                              color: isDarkMode ? 'white' : '#1f2937',
-                              fontSize: '15px',
-                              fontWeight: expenseTypeFilter === type ? '700' : '400'
-                            }}
-                          >
-                            {type}
-                          </button>
-                        ))}
+                      <div className="relative h-full overflow-hidden">
+                        {/* Selection highlight bar */}
+                        <div
+                          className="absolute left-0 right-0 pointer-events-none rounded-xl"
+                          style={{
+                            top: '0px',
+                            height: '40px',
+                            background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.3)',
+                            border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                          }}
+                        />
+
+                        {/* Types list */}
+                        <div
+                          className="h-full overflow-y-auto scrollbar-hide"
+                          style={{
+                            paddingTop: '0px',
+                            paddingBottom: '80px'
+                          }}
+                        >
+                          {['All', 'Shared', 'Personal'].map((type) => (
+                            <button
+                              key={type}
+                              type="button"
+                              onClick={() => {
+                                setExpenseTypeFilter(type);
+                                setShowTypePicker(false);
+                              }}
+                              className="w-full flex items-center justify-center"
+                              style={{
+                                height: '40px',
+                                background: 'transparent',
+                                color: '#6b7280',
+                                fontSize: '15px',
+                                fontWeight: '400',
+                                transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
+                              }}
+                            >
+                              {type}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </>
