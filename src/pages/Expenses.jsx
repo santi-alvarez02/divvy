@@ -93,10 +93,12 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             .select(`
               user_id,
               role,
+              users (
                 id,
                 full_name,
                 email,
                 avatar_url
+              )
             `)
             .eq('group_id', groupMemberships.groups.id);
 
