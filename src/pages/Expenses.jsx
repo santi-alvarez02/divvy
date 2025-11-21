@@ -93,11 +93,10 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             .select(`
               user_id,
               role,
-              users (
                 id,
                 full_name,
-                email
-              )
+                email,
+                avatar_url
             `)
             .eq('group_id', groupMemberships.groups.id);
 
@@ -109,7 +108,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               id: member.users.id,
               name: member.users.id === user.id ? 'You' : member.users.full_name,
               full_name: member.users.full_name, // Store actual full name for all users
-              email: member.users.email
+              email: member.users.email,
+              avatarUrl: member.users.avatar_url
             }));
             setRoommates(transformedMembers);
 
@@ -1526,38 +1526,56 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                                 }}
                               >
                                 <div className="flex items-center gap-2">
-                                  {expense.splitBetween.map((userId) => {
-                                    const roommate = roommates.find(r => r.id === userId);
-                                    let initials = '';
+                                  {(() => {
+                                    // Determine which users to show in the tooltip
+                                    let usersToShow = expense.splitBetween;
 
-                                    // Use full_name for everyone (including current user)
-                                    const fullName = roommate?.full_name || '';
-
-                                    if (fullName) {
-                                      const nameParts = fullName.split(' ');
-                                      if (nameParts.length >= 2) {
-                                        initials = nameParts[0].charAt(0).toUpperCase() + nameParts[nameParts.length - 1].charAt(0).toUpperCase();
-                                      } else {
-                                        // If single name, take first 2 characters
-                                        initials = fullName.substring(0, Math.min(2, fullName.length)).toUpperCase();
-                                      }
-                                    } else {
-                                      // Fallback
-                                      initials = '??';
+                                    // For Loans and Personal expenses, only show the payer
+                                    if (expense.isLoan || expense.isPersonal) {
+                                      usersToShow = [expense.paidBy];
                                     }
 
-                                    return (
-                                      <div
-                                        key={userId}
-                                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
-                                        style={{
-                                          background: getAvatarColor(userId)
-                                        }}
-                                      >
-                                        {initials}
-                                      </div>
-                                    );
-                                  })}
+                                    return usersToShow.map((userId) => {
+                                      const roommate = roommates.find(r => r.id === userId);
+                                      let initials = '';
+
+                                      // Use full_name for everyone (including current user)
+                                      const fullName = roommate?.full_name || '';
+
+                                      if (fullName) {
+                                        const nameParts = fullName.split(' ');
+                                        if (nameParts.length >= 2) {
+                                          initials = nameParts[0].charAt(0).toUpperCase() + nameParts[nameParts.length - 1].charAt(0).toUpperCase();
+                                        } else {
+                                          // If single name, take first 2 characters
+                                          initials = fullName.substring(0, Math.min(2, fullName.length)).toUpperCase();
+                                        }
+                                      } else {
+                                        // Fallback
+                                        initials = '??';
+                                      }
+
+                                      return (
+                                        <div
+                                          key={userId}
+                                          className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md overflow-hidden"
+                                          style={{
+                                            background: roommate?.avatarUrl ? 'transparent' : getAvatarColor(userId)
+                                          }}
+                                        >
+                                          {roommate?.avatarUrl ? (
+                                            <img
+                                              src={roommate.avatarUrl}
+                                              alt={fullName}
+                                              className="w-full h-full object-cover"
+                                            />
+                                          ) : (
+                                            initials
+                                          )}
+                                        </div>
+                                      );
+                                    });
+                                  })()}
                                 </div>
                               </div>
                             )}
