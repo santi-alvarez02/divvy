@@ -43,8 +43,10 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedDateRange, setSelectedDateRange] = useState('This Month');
+  const [expenseTypeFilter, setExpenseTypeFilter] = useState('All');
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTypePicker, setShowTypePicker] = useState(false);
   const [hoveredExpenseId, setHoveredExpenseId] = useState(null);
   const categoryScrollRef = React.useRef(null);
   const dateScrollRef = React.useRef(null);
@@ -219,17 +221,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         return;
       }
 
-      // Filter out personal expenses that don't belong to current user
-      // Personal expenses should only be visible to the user who created them
-      const filteredExpenses = expensesData.filter(expense => {
-        // If it's not a personal expense (false or null/undefined), show it to everyone
-        if (expense.is_personal !== true) return true;
-        // If it's a personal expense (explicitly true), only show it to the person who paid for it
-        return expense.paid_by === user.id;
-      });
-
       // Transform expenses data to match expected format
-      const transformedExpenses = filteredExpenses.map(expense => {
+      const transformedExpenses = expensesData.map(expense => {
         const originalAmount = parseFloat(expense.amount);
         const expenseCurrency = expense.currency || 'USD';
         const splitBetweenUsers = expense.expense_splits.map(split => split.user_id);
@@ -237,8 +230,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
 
         // Check if this is a loan (one person has 0 share, another has full amount)
         const isLoan = splits.length === 2 &&
-                       splits.some(s => s.share_amount === 0) &&
-                       splits.some(s => s.share_amount === originalAmount);
+          splits.some(s => s.share_amount === 0) &&
+          splits.some(s => s.share_amount === originalAmount);
 
         // Determine what amount to display based on who paid
         let displayAmount;
@@ -255,6 +248,15 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             : originalAmount;
         }
 
+        // Calculate user's share amount (converted)
+        // This is needed for the "Shared" view where we show your share even if you paid
+        const userSplit = splits.find(s => s.user_id === user.id);
+        const userShareRaw = userSplit ? userSplit.share_amount : (originalAmount / (splitBetweenUsers.length || 1));
+
+        const userShare = Object.keys(exchangeRates).length > 0
+          ? convertCurrency(userShareRaw, expenseCurrency, userCurrency, exchangeRates)
+          : userShareRaw;
+
         // Convert the display amount to user's display currency
         const convertedAmount = Object.keys(exchangeRates).length > 0
           ? convertCurrency(displayAmount, expenseCurrency, userCurrency, exchangeRates)
@@ -263,6 +265,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         return {
           id: expense.id,
           amount: convertedAmount, // Converted display amount (full if you paid, share if you didn't)
+          userShare: userShare, // Your specific share (converted)
           originalAmount: originalAmount, // Store original full amount for reference
           originalDisplayAmount: displayAmount, // Display amount in original currency
           currency: expenseCurrency, // Original currency
@@ -558,8 +561,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   // Helper function to get last settled timestamp for a user pair
   const getLastSettledTimestamp = (userId1, userId2) => {
     const relevantSettlements = settlementHistory.filter(s =>
-      ((s.from_user_id === userId1 && s.to_user_id === userId2) ||
-       (s.from_user_id === userId2 && s.to_user_id === userId1))
+    ((s.from_user_id === userId1 && s.to_user_id === userId2) ||
+      (s.from_user_id === userId2 && s.to_user_id === userId1))
     );
 
     if (relevantSettlements.length === 0) return null;
@@ -747,7 +750,22 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       // Date filter
       const matchesDate = filterByDateRange(expense);
 
-      return matchesSearch && matchesCategory && matchesDate;
+      // Type filter
+      let matchesType = true;
+      if (expenseTypeFilter === 'Personal') {
+        matchesType = expense.isPersonal === true;
+      } else if (expenseTypeFilter === 'Shared') {
+        matchesType = expense.isPersonal !== true;
+      } else {
+        // 'All' - but we still want to hide OTHER people's personal expenses from the main feed
+        // unless they are somehow involved in a split with you (which shouldn't happen for personal, but if it does, we show it)
+        if (expense.isPersonal === true && expense.paidBy !== user.id) {
+          // Only show if you are in the split (fixing the balance discrepancy visibility)
+          matchesType = expense.splitBetween.includes(user.id);
+        }
+      }
+
+      return matchesSearch && matchesCategory && matchesDate && matchesType;
     })
     .sort((a, b) => {
       // Sort by date first (most recent first)
@@ -1060,8 +1078,74 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               />
             </div>
 
-            {/* Filter Buttons */}
-            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
+            {/* Filter Buttons - Horizontal Scroll on Mobile */}
+            <div className="flex gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 scrollbar-hide mask-linear-fade">
+              {/* Type Filter */}
+              <div className="relative flex-1 sm:flex-initial" style={{ minWidth: '0', maxWidth: '100%' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowTypePicker(!showTypePicker)}
+                  className="px-3 sm:px-4 rounded-xl font-semibold transition-all outline-none w-full text-xs sm:text-sm truncate"
+                  style={{
+                    background: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)',
+                    border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)',
+                    color: isDarkMode ? 'white' : '#1f2937',
+                    height: '40px',
+                    backdropFilter: 'blur(16px)'
+                  }}
+                >
+                  {expenseTypeFilter}
+                </button>
+
+                {/* Type Picker Overlay */}
+                {showTypePicker && (
+                  <>
+                    <div
+                      className="fixed inset-0"
+                      style={{ zIndex: 1000 }}
+                      onClick={() => setShowTypePicker(false)}
+                    />
+                    <div
+                      className="absolute rounded-xl overflow-hidden"
+                      style={{
+                        top: '45px',
+                        left: '0',
+                        right: '0',
+                        background: isDarkMode ? 'rgba(0, 0, 0, 0.4)' : 'rgba(255, 255, 255, 0.5)',
+                        backdropFilter: 'blur(16px)',
+                        zIndex: 1001,
+                        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(255, 255, 255, 0.2)',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+                      }}
+                    >
+                      <div className="p-1">
+                        {['All', 'Shared', 'Personal'].map((type) => (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => {
+                              setExpenseTypeFilter(type);
+                              setShowTypePicker(false);
+                            }}
+                            className="w-full flex items-center justify-center py-2 rounded-lg transition-colors"
+                            style={{
+                              background: expenseTypeFilter === type
+                                ? (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)')
+                                : 'transparent',
+                              color: isDarkMode ? 'white' : '#1f2937',
+                              fontSize: '15px',
+                              fontWeight: expenseTypeFilter === type ? '700' : '400'
+                            }}
+                          >
+                            {type}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
               {/* Category Filter */}
               <div className="relative flex-1 sm:flex-initial" style={{ minWidth: '0', maxWidth: '100%' }}>
                 <button
@@ -1252,16 +1336,23 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             <h3 className={`text-lg sm:text-xl font-bold font-serif ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               {getDisplayTitle()}
             </h3>
-            {(selectedCategory !== 'All' || selectedDateRange !== 'This Month') && filteredExpenses.length > 0 && (
+            {(selectedCategory !== 'All' || selectedDateRange !== 'This Month' || expenseTypeFilter !== 'All') && filteredExpenses.length > 0 && (
               <div className="text-right">
                 <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                   Total:{' '}
                 </span>
                 <span className="text-lg font-bold" style={{ color: '#FF5E00' }}>
                   {getCurrencySymbol(userCurrency)}
-                  {Number.isInteger(filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0))
-                    ? filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0)
-                    : filteredExpenses.reduce((sum, exp) => sum + exp.amount, 0).toFixed(2).replace(/\.00$/, '')}
+                  {(() => {
+                    const total = filteredExpenses.reduce((sum, exp) => {
+                      // If Shared view and you paid, use your share. Otherwise use the display amount.
+                      const amountToUse = (expenseTypeFilter === 'Shared' && exp.paidBy === user?.id)
+                        ? exp.userShare
+                        : exp.amount;
+                      return sum + amountToUse;
+                    }, 0);
+                    return Number.isInteger(total) ? total : total.toFixed(2).replace(/\.00$/, '');
+                  })()}
                 </span>
               </div>
             )}
@@ -1275,139 +1366,149 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
               </div>
             ) : (
               filteredExpenses.map((expense) => (
-              <div
-                key={expense.id}
-                onClick={() => {
-                  // Only allow editing if current user paid for the expense
-                  if (expense.paidBy === user?.id) {
-                    handleEditExpense(expense);
-                  }
-                }}
-                className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-2xl transition-all ${
-                  expense.paidBy === user?.id ? 'cursor-pointer' : ''
-                }`}
-                style={{
-                  backgroundColor: 'transparent'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.03)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }}
-              >
-                {/* Top section - Details and Amount */}
-                <div className="flex items-start justify-between mb-2 sm:mb-0 flex-1">
-                  <div className="flex-1 min-w-0 mr-3">
-                    <div className="flex items-center space-x-2 flex-wrap">
-                      <p className={`text-sm font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        {expense.description}
-                      </p>
-                      <span
-                        className="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold whitespace-nowrap"
-                        style={{
-                          backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
-                          color: isDarkMode ? '#e5e7eb' : '#6b7280'
-                        }}
-                      >
-                        {expense.category}
-                      </span>
-                      {expense.isRecurring && (
+                <div
+                  key={expense.id}
+                  onClick={() => {
+                    // Only allow editing if current user paid for the expense
+                    if (expense.paidBy === user?.id) {
+                      handleEditExpense(expense);
+                    }
+                  }}
+                  className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-2xl transition-all ${expense.paidBy === user?.id ? 'cursor-pointer' : ''
+                    }`}
+                  style={{
+                    backgroundColor: 'transparent'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.03)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  {/* Top section - Details and Amount */}
+                  <div className="flex items-start justify-between mb-2 sm:mb-0 flex-1">
+                    <div className="flex-1 min-w-0 mr-3">
+                      <div className="flex items-center space-x-2 flex-wrap">
+                        <p className={`text-sm font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                          {expense.description}
+                        </p>
                         <span
                           className="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold whitespace-nowrap"
                           style={{
-                            backgroundColor: 'rgba(255, 94, 0, 0.15)',
-                            color: '#FF5E00'
+                            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
+                            color: isDarkMode ? '#e5e7eb' : '#6b7280'
                           }}
                         >
-                          Recurring
+                          {expense.category}
                         </span>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                        {getRoommateName(expense.paidBy)} paid
-                      </p>
-                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>•</span>
-                      {expense.splitBetween.length > 2 || expense.splitBetween.length === roommates.length ? (
-                        <div
-                          className="relative"
-                          style={{ display: 'inline-block', lineHeight: '1' }}
-                          onMouseEnter={() => setHoveredExpenseId(expense.id)}
-                          onMouseLeave={() => setHoveredExpenseId(null)}
-                        >
-                          <p
-                            className={`text-xs font-medium cursor-pointer transition-opacity hover:opacity-70 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+                        {expense.isRecurring && (
+                          <span
+                            className="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                            style={{
+                              backgroundColor: 'rgba(255, 94, 0, 0.15)',
+                              color: '#FF5E00'
+                            }}
                           >
+                            Recurring
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                          {getRoommateName(expense.paidBy)} paid
+                        </p>
+                        <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>•</span>
+                        {expense.splitBetween.length > 2 || expense.splitBetween.length === roommates.length ? (
+                          <div
+                            className="relative"
+                            style={{ display: 'inline-block', lineHeight: '1' }}
+                            onMouseEnter={() => setHoveredExpenseId(expense.id)}
+                            onMouseLeave={() => setHoveredExpenseId(null)}
+                          >
+                            <p
+                              className={`text-xs font-medium cursor-pointer transition-opacity hover:opacity-70 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}
+                            >
+                              {getSplitInfo(expense)}
+                            </p>
+
+                            {/* Hover Tooltip */}
+                            {hoveredExpenseId === expense.id && (
+                              <div
+                                className="absolute left-0 bottom-full mb-1 z-50 rounded-xl shadow-lg p-2 min-w-max pointer-events-none"
+                                style={{
+                                  background: isDarkMode ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
+                                  backdropFilter: 'blur(12px)',
+                                  border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.1)'
+                                }}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {expense.splitBetween.map((userId) => {
+                                    const roommate = roommates.find(r => r.id === userId);
+                                    let initials = '';
+
+                                    // Use full_name for everyone (including current user)
+                                    const fullName = roommate?.full_name || '';
+
+                                    if (fullName) {
+                                      const nameParts = fullName.split(' ');
+                                      if (nameParts.length >= 2) {
+                                        initials = nameParts[0].charAt(0).toUpperCase() + nameParts[nameParts.length - 1].charAt(0).toUpperCase();
+                                      } else {
+                                        // If single name, take first 2 characters
+                                        initials = fullName.substring(0, Math.min(2, fullName.length)).toUpperCase();
+                                      }
+                                    } else {
+                                      // Fallback
+                                      initials = '??';
+                                    }
+
+                                    return (
+                                      <div
+                                        key={userId}
+                                        className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+                                        style={{
+                                          background: getAvatarColor(userId)
+                                        }}
+                                      >
+                                        {initials}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                             {getSplitInfo(expense)}
                           </p>
+                        )}
+                      </div>
+                    </div>
 
-                          {/* Hover Tooltip */}
-                          {hoveredExpenseId === expense.id && (
-                            <div
-                              className="absolute left-0 bottom-full mb-1 z-50 rounded-xl shadow-lg p-2 min-w-max pointer-events-none"
-                              style={{
-                                background: isDarkMode ? 'rgba(0, 0, 0, 0.95)' : 'rgba(255, 255, 255, 0.98)',
-                                backdropFilter: 'blur(12px)',
-                                border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.1)'
-                              }}
-                            >
-                              <div className="flex items-center gap-2">
-                                {expense.splitBetween.map((userId) => {
-                                  const roommate = roommates.find(r => r.id === userId);
-                                  let initials = '';
-
-                                  // Use full_name for everyone (including current user)
-                                  const fullName = roommate?.full_name || '';
-
-                                  if (fullName) {
-                                    const nameParts = fullName.split(' ');
-                                    if (nameParts.length >= 2) {
-                                      initials = nameParts[0].charAt(0).toUpperCase() + nameParts[nameParts.length - 1].charAt(0).toUpperCase();
-                                    } else {
-                                      // If single name, take first 2 characters
-                                      initials = fullName.substring(0, Math.min(2, fullName.length)).toUpperCase();
-                                    }
-                                  } else {
-                                    // Fallback
-                                    initials = '??';
-                                  }
-
-                                  return (
-                                    <div
-                                      key={userId}
-                                      className="w-10 h-10 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
-                                      style={{
-                                        background: getAvatarColor(userId)
-                                      }}
-                                    >
-                                      {initials}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                          {getSplitInfo(expense)}
-                        </p>
-                      )}
+                    {/* Amount and Date - Mobile right side */}
+                    <div className="text-right shrink-0">
+                      <p className="text-base font-bold" style={{ color: '#FF5E00' }}>
+                        {(() => {
+                          // If Shared view and you paid, show your share. Otherwise show full display amount.
+                          const amountToShow = (expenseTypeFilter === 'Shared' && expense.paidBy === user?.id)
+                            ? expense.userShare
+                            : expense.amount;
+                          return (
+                            <>
+                              {getCurrencySymbol(userCurrency)}
+                              {Number.isInteger(amountToShow) ? amountToShow : amountToShow.toFixed(2).replace(/\.00$/, '')}
+                            </>
+                          );
+                        })()}
+                      </p>
+                      <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        {formatDate(expense.date)}
+                      </p>
                     </div>
                   </div>
-
-                  {/* Amount and Date - Mobile right side */}
-                  <div className="text-right shrink-0">
-                    <p className="text-base font-bold" style={{ color: '#FF5E00' }}>
-                      {getCurrencySymbol(userCurrency)}{Number.isInteger(expense.amount) ? expense.amount : expense.amount.toFixed(2).replace(/\.00$/, '')}
-                    </p>
-                    <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                      {formatDate(expense.date)}
-                    </p>
-                  </div>
                 </div>
-              </div>
               ))
             )}
           </div>
