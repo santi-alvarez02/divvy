@@ -192,11 +192,14 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     }
 
     try {
-      // Auto-process recurring expenses for this month (runs silently in background)
-      processRecurringExpenses(currentGroup.id).catch(error => {
+      // Auto-process recurring expenses for this month
+      // Wait for this to complete so we fetch the newly created expenses
+      try {
+        await processRecurringExpenses(currentGroup.id);
+      } catch (error) {
         console.error('Error auto-processing recurring expenses:', error);
         // Don't block fetching expenses if this fails
-      });
+      }
 
       // Fetch expenses with their splits
       const { data: expensesData, error: expensesError } = await supabase
@@ -565,7 +568,9 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     const mostRecent = relevantSettlements.sort((a, b) => {
       const dateA = new Date(a.settled_up_to_timestamp || a.completed_at);
       const dateB = new Date(b.settled_up_to_timestamp || b.completed_at);
-      return dateB - dateA;
+      const dateDiff = dateB - dateA;
+      // If timestamps are equal, use ID for consistent ordering
+      return dateDiff !== 0 ? dateDiff : b.id.localeCompare(a.id);
     })[0];
 
     return mostRecent.settled_up_to_timestamp || mostRecent.completed_at;
