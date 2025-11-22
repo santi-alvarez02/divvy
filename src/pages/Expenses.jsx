@@ -339,8 +339,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     const splitBetween = expense.splitBetween || [];
     const numPeople = splitBetween.length;
 
-    // Check if it's a personal expense
-    if (expense.isPersonal === true) {
+    // Check if it's a personal expense (and actually only involves one person)
+    if (expense.isPersonal === true && numPeople <= 1) {
       return 'Personal Expense';
     }
 
@@ -580,29 +580,48 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const currentUserId = user?.id;
 
   // Calculate summary stats from date-filtered expenses
-  // Total Spent (Personal) = Your share of expenses YOU paid for
-  // (Full amount minus what others owe you)
-  // Calculate your share of expenses you paid for
-  const yourShareOfPaidExpenses = dateFilteredExpenses
+  // Cash Out = FULL amount of all expenses YOU paid for (shared + personal + loans)
+  // This represents the actual money that has left your pocket this month
+  const cashOut = dateFilteredExpenses
     .filter(expense => expense.paidBy === currentUserId)
     .reduce((sum, expense) => {
-      const yourShare = expense.amount / expense.splitBetween.length;
-      return sum + yourShare;
+      // Use the full original amount (not the converted display amount)
+      return sum + expense.amount;
     }, 0);
 
-  // Calculate settlements you've paid (money you sent to others)
-  const settlementsYouPaid = settlementHistory
-    .filter(settlement => settlement.from_user_id === currentUserId)
-    .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+  // My Share = The value of goods/services YOU consumed this month
+  // This resets every month and is NOT affected by debt
+  const myShare = dateFilteredExpenses.reduce((sum, expense) => {
+    // 1. Personal Expense (Yours) -> Full amount
+    if (expense.isPersonal && expense.paidBy === currentUserId) {
+      return sum + expense.amount;
+    }
+    // 2. Personal Expense (Others) -> 0
+    if (expense.isPersonal && expense.paidBy !== currentUserId) {
+      return sum;
+    }
 
-  // Calculate settlements you've received (money others sent to you)
-  const settlementsYouReceived = settlementHistory
-    .filter(settlement => settlement.to_user_id === currentUserId)
-    .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+    // 3. Loans
+    if (expense.isLoan) {
+      // If you borrowed money, it counts as "consumption" (money entered your pocket/life)
+      // If you lent money, it's an asset transfer, not consumption (so 0)
+      const borrower = expense.splits?.find(s => s.share_amount > 0)?.user_id;
+      if (borrower === currentUserId) {
+        return sum + expense.amount;
+      }
+      return sum;
+    }
 
-  // Current Spent = Your share of expenses + Settlements you've paid - Settlements you've received
-  // This represents the actual money that has left your pocket (minus money that came back)
-  const totalSpent = yourShareOfPaidExpenses + settlementsYouPaid - settlementsYouReceived;
+    // 4. Shared Expenses
+    // If you are in the split, add your share
+    if (expense.splitBetween.includes(currentUserId)) {
+      // Simple even split for now (since we don't have complex split data fully wired for non-loans yet)
+      // If we did, we'd look up your specific share amount
+      return sum + (expense.amount / expense.splitBetween.length);
+    }
+
+    return sum;
+  }, 0);
 
   // Helper function to get last settled timestamp for a user pair
   const getLastSettledTimestamp = (userId1, userId2) => {
@@ -716,15 +735,14 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
 
   const balances = calculateBalances();
 
-  // Debug logging
-  console.log('=== EXPENSES PAGE BALANCE CALCULATION ===');
-  console.log('Total expenses:', expenses.length);
-  console.log('Balances:', balances);
-  console.log('User currency:', userCurrency);
-
   // You Owe = Sum of positive balances (debts)
   const youOwe = balances.filter(b => b.amount > 0).reduce((sum, b) => sum + b.amount, 0);
-  console.log('You Owe:', youOwe);
+
+  // You're Owed = Sum of negative balances (credits)
+  const youreOwed = Math.abs(balances.filter(b => b.amount < 0).reduce((sum, b) => sum + b.amount, 0));
+
+  // Net Balance = You're Owed - You Owe
+  const netBalance = youreOwed - youOwe;
 
   // Calculate top categories from date-filtered expenses
   const categoryTotals = dateFilteredExpenses.reduce((acc, expense) => {
@@ -1036,7 +1054,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
 
         {/* Summary Stats */}
         <div className="grid grid-cols-3 lg:grid-cols-3 gap-2 sm:gap-3 lg:gap-6 mb-4 sm:mb-8">
-          {/* Total Spent */}
+          {/* Cash Out */}
           <div
             className="rounded-2xl sm:rounded-3xl shadow-xl p-2 sm:p-3 lg:p-6"
             style={{
@@ -1048,14 +1066,14 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             }}
           >
             <p className={`text-[10px] sm:text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Current Spent
+              Cash Out
             </p>
             <p className={`text-base sm:text-xl lg:text-3xl font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {getCurrencySymbol(userCurrency)}{Number.isInteger(totalSpent) ? totalSpent : totalSpent.toFixed(2).replace(/\.00$/, '')}
+              {getCurrencySymbol(userCurrency)}{Number.isInteger(cashOut) ? cashOut : cashOut.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
 
-          {/* You Owe */}
+          {/* Net Balance */}
           <div
             className="rounded-2xl sm:rounded-3xl shadow-xl p-2 sm:p-3 lg:p-6"
             style={{
@@ -1067,14 +1085,14 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             }}
           >
             <p className={`text-[10px] sm:text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              You Owe
+              Net Balance
             </p>
-            <p className="text-base sm:text-xl lg:text-3xl font-bold truncate" style={{ color: '#FF5E00' }}>
-              {getCurrencySymbol(userCurrency)}{Number.isInteger(youOwe) ? youOwe : youOwe.toFixed(2).replace(/\.00$/, '')}
+            <p className="text-base sm:text-xl lg:text-3xl font-bold truncate" style={{ color: netBalance >= 0 ? '#10B981' : '#FF5E00' }}>
+              {netBalance >= 0 ? '+' : '-'}{getCurrencySymbol(userCurrency)}{Math.abs(Number.isInteger(netBalance) ? netBalance : Number(netBalance.toFixed(2)))}
             </p>
           </div>
 
-          {/* Number of Expenses */}
+          {/* My Share */}
           <div
             className="rounded-2xl sm:rounded-3xl shadow-xl p-2 sm:p-3 lg:p-6"
             style={{
@@ -1086,13 +1104,10 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
             }}
           >
             <p className={`text-[10px] sm:text-xs lg:text-sm font-medium mb-1 lg:mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-              Final Total
+              My Share
             </p>
             <p className={`text-base sm:text-xl lg:text-3xl font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              {getCurrencySymbol(userCurrency)}{(() => {
-                const finalTotal = totalSpent + youOwe;
-                return Number.isInteger(finalTotal) ? finalTotal : finalTotal.toFixed(2).replace(/\.00$/, '');
-              })()}
+              {getCurrencySymbol(userCurrency)}{Number.isInteger(myShare) ? myShare : myShare.toFixed(2).replace(/\.00$/, '')}
             </p>
           </div>
         </div>
