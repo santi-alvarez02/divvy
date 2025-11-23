@@ -845,7 +845,11 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       );
 
       // Category filter
-      const matchesCategory = selectedCategory === 'All' || expense.category === selectedCategory;
+      // If a specific category is selected, EXCLUDE loans (even if they have that category set)
+      // Loans should only appear in 'All' or 'Type: Loans'
+      const matchesCategory = selectedCategory === 'All'
+        ? true
+        : (expense.category === selectedCategory && !expense.isLoan);
 
       // Date filter
       const matchesDate = filterByDateRange(expense);
