@@ -745,7 +745,14 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const netBalance = youreOwed - youOwe;
 
   // Calculate top categories from date-filtered expenses
+  // Logic: Shared Expenses + YOUR Personal Expenses (Excludes Loans)
   const categoryTotals = dateFilteredExpenses.reduce((acc, expense) => {
+    // Exclude Loans
+    if (expense.isLoan) return acc;
+
+    // Exclude other people's personal expenses
+    if (expense.isPersonal && expense.paidBy !== currentUserId) return acc;
+
     acc[expense.category] = (acc[expense.category] || 0) + expense.amount;
     return acc;
   }, {});
@@ -758,7 +765,14 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const maxCategoryAmount = topCategories.length > 0 ? Math.max(...topCategories.map(c => c.amount)) : 0;
 
   // Calculate who paid what from date-filtered expenses
+  // Logic: Shared Expenses ONLY (Excludes Personal Expenses & Loans)
   const paidByTotals = dateFilteredExpenses.reduce((acc, expense) => {
+    // Exclude Loans
+    if (expense.isLoan) return acc;
+
+    // Exclude ALL Personal Expenses
+    if (expense.isPersonal) return acc;
+
     const name = getRoommateName(expense.paidBy);
     acc[name] = (acc[name] || 0) + expense.amount;
     return acc;
@@ -770,7 +784,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   // Calculate spending over time from date-filtered expenses
   const spendingByDate = dateFilteredExpenses.reduce((acc, expense) => {
     const date = expense.date;
-    acc[date] = (acc[date] || 0) + expense.amount;
+    // Use userShare to show YOUR spending/consumption, not the full amount if you paid
+    acc[date] = (acc[date] || 0) + expense.userShare;
     return acc;
   }, {});
 
@@ -1803,9 +1818,9 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                         tickFormatter={(value) => {
                           if (value === 0) return '';
                           if (value >= 1000000) {
-                            return `${getCurrencySymbol(userCurrency)}${(value / 1000000).toFixed(0)}M`;
+                            return `${getCurrencySymbol(userCurrency)}${(value / 1000000).toFixed(1)}M`;
                           } else if (value >= 1000) {
-                            return `${getCurrencySymbol(userCurrency)}${(value / 1000).toFixed(0)}K`;
+                            return `${getCurrencySymbol(userCurrency)}${(value / 1000).toFixed(1)}K`;
                           }
                           return `${getCurrencySymbol(userCurrency)}${value}`;
                         }}
