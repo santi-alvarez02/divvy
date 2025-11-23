@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import Sidebar from '../components/Sidebar';
@@ -49,8 +49,19 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const [showTypePicker, setShowTypePicker] = useState(false);
   const [hoveredExpenseId, setHoveredExpenseId] = useState(null);
   const categoryScrollRef = React.useRef(null);
-  const dateScrollRef = React.useRef(null);
-  const typeScrollRef = React.useRef(null);
+  const [isLargeScreen, setIsLargeScreen] = useState(window.innerWidth >= 1024);
+  const dateScrollRef = useRef(null);
+  const typeScrollRef = useRef(null);
+
+  // Track screen size for responsive chart height
+  useEffect(() => {
+    const handleResize = () => {
+      setIsLargeScreen(window.innerWidth >= 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
 
   // Fetch user's group and members
@@ -537,6 +548,16 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       scrollContainer.removeEventListener('scroll', handleScroll);
     };
   }, [showTypePicker, expenseTypeFilter, isDarkMode]);
+
+  // Handle screen resize for chart responsiveness
+  useEffect(() => {
+    const handleResize = () => {
+      setIsLargeScreen(window.innerWidth >= 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Date filter helper
   const filterByDateRange = (expense) => {
@@ -1760,12 +1781,12 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                 </div>
               ) : (
                 <div
-                  className="rounded-lg p-3"
+                  className="rounded-lg p-3 outline-none focus:outline-none"
                   style={{
                     background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)'
                   }}
                 >
-                  <ResponsiveContainer width="100%" height={256}>
+                  <ResponsiveContainer width="100%" height={isLargeScreen ? 350 : 256}>
                     <AreaChart
                       data={spendingOverTimeData}
                       margin={{
