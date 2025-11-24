@@ -306,14 +306,48 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         .from('settlements')
         .select('*')
         .eq('group_id', currentGroup.id)
-        .eq('status', 'completed')
-        .order('completed_at', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (settlementsError) {
         console.error('Error fetching settlements:', settlementsError);
-      } else {
-        setSettlementHistory(settlementsData || []);
       }
+
+      // Transform settlements to match expense format
+      const transformedSettlements = (settlementsData || []).map(settlement => {
+        const receiver = roommates.find(u => u.id === settlement.receiver_id); // Use roommates for receiver name
+        const receiverName = receiver?.full_name || 'Unknown';
+
+        return {
+          id: `settlement-${settlement.id}`, // Unique ID prefix
+          amount: parseFloat(settlement.amount),
+          currency: settlement.currency || 'USD',
+          description: `Payment to ${receiverName}`,
+          date: settlement.created_at,
+          paidBy: settlement.payer_id,
+          category: 'Settlement',
+          isSettlement: true,
+          splitBetween: [settlement.receiver_id], // Technically split with receiver
+          splits: [], // No complex splits needed
+          isRecurring: false,
+          isPersonal: false,
+          isLoan: false,
+          // Add other fields to match expense structure for consistency
+          userShare: 0, // Settlements don't have a "share" in the same way as expenses
+          originalAmount: parseFloat(settlement.amount),
+          originalDisplayAmount: parseFloat(settlement.amount),
+          displayCurrency: userCurrency,
+          icon: '💸', // A default icon for settlements
+          createdAt: settlement.created_at,
+        };
+      });
+
+      // Merge and sort by date
+      const allItems = [...transformedExpenses, ...transformedSettlements].sort((a, b) =>
+        new Date(b.date) - new Date(a.date)
+      );
+
+      setExpenses(allItems);
+      setSettlementHistory(settlementsData || []); // Keep this for the settlement history view if needed elsewhere
     } catch (error) {
       console.error('Error in fetchExpenses:', error);
     }
@@ -608,6 +642,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     .filter(expense => expense.paidBy === currentUserId)
     .reduce((sum, expense) => {
       // Use the full original amount (not the converted display amount)
+      // This now includes Settlements paid by you!
       return sum + expense.amount;
     }, 0);
 
@@ -1509,12 +1544,12 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                 <div
                   key={expense.id}
                   onClick={() => {
-                    // Only allow editing if current user paid for the expense
-                    if (expense.paidBy === user?.id) {
+                    // Only allow editing if current user paid for the expense AND it's not a settlement
+                    if (expense.paidBy === user?.id && !expense.isSettlement) {
                       handleEditExpense(expense);
                     }
                   }}
-                  className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-2xl transition-all ${expense.paidBy === user?.id ? 'cursor-pointer' : ''
+                  className={`flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-2xl transition-all ${expense.paidBy === user?.id && !expense.isSettlement ? 'cursor-pointer' : ''
                     }`}
                   style={{
                     backgroundColor: 'transparent'
@@ -1533,15 +1568,17 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                         <p className={`text-sm font-bold truncate ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                           {expense.description}
                         </p>
-                        <span
-                          className="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold whitespace-nowrap"
-                          style={{
-                            backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
-                            color: isDarkMode ? '#e5e7eb' : '#6b7280'
-                          }}
-                        >
-                          {expense.category}
-                        </span>
+                        {!expense.isSettlement && (
+                          <span
+                            className="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                            style={{
+                              backgroundColor: isDarkMode ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.08)',
+                              color: isDarkMode ? '#e5e7eb' : '#6b7280'
+                            }}
+                          >
+                            {expense.category}
+                          </span>
+                        )}
                         {expense.isRecurring && (
                           <span
                             className="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold whitespace-nowrap"
@@ -1551,6 +1588,17 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                             }}
                           >
                             Recurring
+                          </span>
+                        )}
+                        {expense.isSettlement && (
+                          <span
+                            className="inline-flex items-center px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-xs font-semibold whitespace-nowrap"
+                            style={{
+                              backgroundColor: 'rgba(255, 165, 0, 0.15)', // Orange background
+                              color: '#FFA500' // Orange text
+                            }}
+                          >
+                            Settlement
                           </span>
                         )}
                       </div>
