@@ -636,9 +636,8 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
     // 4. Shared Expenses
     // If you are in the split, add your share
     if (expense.splitBetween.includes(currentUserId)) {
-      // Simple even split for now (since we don't have complex split data fully wired for non-loans yet)
-      // If we did, we'd look up your specific share amount
-      return sum + (expense.amount / expense.splitBetween.length);
+      // Use the pre-calculated userShare which is accurate regardless of who paid
+      return sum + expense.userShare;
     }
 
     return sum;
