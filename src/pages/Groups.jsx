@@ -608,7 +608,7 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
                         />
                       ) : (
                         <div
-                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg bg-gradient-to-br ${getAvatarColor(member.user_id)}`}
+                          className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg bg-gradient-to-br ${getAvatarColorClasses(member.user_id)}`}
                         >
                           {initials}
                         </div>
