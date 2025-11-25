@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { getAvatarColorClasses } from '../utils/avatarColors';
 
 const Groups = ({ isDarkMode, setIsDarkMode }) => {
   const { user } = useAuth();
@@ -113,28 +114,6 @@ const Groups = ({ isDarkMode, setIsDarkMode }) => {
     } catch (err) {
       console.error('Error fetching members:', err);
     }
-  };
-
-  // Generate a consistent color based on user ID
-  const getAvatarColor = (userId) => {
-    const colors = [
-      'from-purple-400 to-pink-400',
-      'from-blue-400 to-cyan-400',
-      'from-green-400 to-emerald-400',
-      'from-yellow-400 to-orange-400',
-      'from-red-400 to-rose-400',
-      'from-indigo-400 to-purple-400',
-      'from-teal-400 to-green-400',
-      'from-orange-400 to-red-400',
-    ];
-
-    // Use user ID to generate a consistent index
-    let hash = 0;
-    for (let i = 0; i < userId.length; i++) {
-      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const index = Math.abs(hash) % colors.length;
-    return colors[index];
   };
 
   const handleShowInviteCode = () => {

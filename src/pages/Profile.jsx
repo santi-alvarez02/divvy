@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import Sidebar from '../components/Sidebar';
+import { getAvatarColorClasses } from '../utils/avatarColors';
 
 const Profile = ({ isDarkMode, setIsDarkMode }) => {
   const { user } = useAuth();
@@ -92,29 +93,6 @@ const Profile = ({ isDarkMode, setIsDarkMode }) => {
     return name[0].toUpperCase();
   };
 
-  // Generate a consistent color based on user ID (same as Sidebar)
-  const getAvatarColor = (userId) => {
-    if (!userId) return 'from-purple-400 to-pink-400';
-
-    const colors = [
-      'from-purple-400 to-pink-400',
-      'from-blue-400 to-cyan-400',
-      'from-green-400 to-emerald-400',
-      'from-yellow-400 to-orange-400',
-      'from-red-400 to-rose-400',
-      'from-indigo-400 to-purple-400',
-      'from-teal-400 to-green-400',
-      'from-orange-400 to-red-400',
-    ];
-
-    // Use user ID to generate a consistent index
-    let hash = 0;
-    for (let i = 0; i < userId.length; i++) {
-      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const index = Math.abs(hash) % colors.length;
-    return colors[index];
-  };
 
   // Format date
   const formatDate = (dateString) => {
@@ -496,7 +474,7 @@ const Profile = ({ isDarkMode, setIsDarkMode }) => {
                   />
                 ) : (
                   <div
-                    className={`w-32 h-32 rounded-full flex items-center justify-center text-4xl font-bold text-white bg-gradient-to-br ${getAvatarColor(user?.id)}`}
+                    className={`w-32 h-32 rounded-full flex items-center justify-center text-4xl font-bold text-white bg-gradient-to-br ${getAvatarColorClasses(user?.id)}`}
                   >
                     {getInitials(userData?.full_name)}
                   </div>

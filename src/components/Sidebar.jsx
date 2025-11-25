@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { getAvatarColorClasses } from '../utils/avatarColors';
 
 // Cache user data globally to persist across component re-mounts
 let cachedUserData = null;
@@ -115,30 +116,6 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
       return parts[0].charAt(0).toUpperCase();
     }
     return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
-  };
-
-  // Generate a consistent color based on user ID
-  const getAvatarColor = (userId) => {
-    if (!userId) return 'from-purple-400 to-pink-400';
-
-    const colors = [
-      'from-purple-400 to-pink-400',
-      'from-blue-400 to-cyan-400',
-      'from-green-400 to-emerald-400',
-      'from-yellow-400 to-orange-400',
-      'from-red-400 to-rose-400',
-      'from-indigo-400 to-purple-400',
-      'from-teal-400 to-green-400',
-      'from-orange-400 to-red-400',
-    ];
-
-    // Use user ID to generate a consistent index
-    let hash = 0;
-    for (let i = 0; i < userId.length; i++) {
-      hash = userId.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const index = Math.abs(hash) % colors.length;
-    return colors[index];
   };
 
   const menuItems = [
@@ -427,7 +404,7 @@ const Sidebar = ({ isDarkMode, setIsDarkMode }) => {
               loading="eager"
             />
           ) : (
-            <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center font-bold text-base lg:text-lg bg-gradient-to-br ${getAvatarColor(user?.id)} shadow-lg`} style={{ color: 'white' }}>
+            <div className={`w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center font-bold text-base lg:text-lg bg-gradient-to-br ${getAvatarColorClasses(user?.id)} shadow-lg`} style={{ color: 'white' }}>
               {getInitials(userData?.full_name || user?.user_metadata?.full_name || 'User')}
             </div>
           )}
