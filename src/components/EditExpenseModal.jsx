@@ -135,7 +135,7 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
       return;
     }
 
-    if (!category || category === 'Select a category') {
+    if (!isLoan && (!category || category === 'Select a category')) {
       setError('Please complete the form to update the expense');
       return;
     }
@@ -442,99 +442,101 @@ const EditExpenseModal = ({ isOpen, onClose, expense, roommates, isDarkMode, onE
           </div>
 
           {/* Category */}
-          <div className="relative">
-            <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Category
-            </label>
+          {!isLoan && (
+            <div className="relative">
+              <label className={`block text-sm font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Category
+              </label>
 
-            <div
-              className="w-full rounded-xl overflow-hidden"
-              style={{
-                background: showCategoryPicker
-                  ? 'transparent'
-                  : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)'),
-                backdropFilter: showCategoryPicker ? 'none' : 'blur(16px)',
-                border: showCategoryPicker
-                  ? 'none'
-                  : (isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'),
-                height: showCategoryPicker ? '120px' : '40px',
-                transition: 'height 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease, border 0.2s ease'
-              }}
-            >
-              {!showCategoryPicker ? (
-                <button
-                  type="button"
-                  onClick={() => setShowCategoryPicker(true)}
-                  className="w-full h-full px-4 font-medium outline-none text-left flex justify-between items-center"
-                  style={{
-                    color: (category && category !== 'Select a category') ? (isDarkMode ? 'white' : '#1f2937') : (isDarkMode ? '#9ca3af' : '#6b7280')
-                  }}
-                >
-                  <span>{category || 'Select a category'}</span>
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
+              <div
+                className="w-full rounded-xl overflow-hidden"
+                style={{
+                  background: showCategoryPicker
+                    ? 'transparent'
+                    : (isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(255, 255, 255, 0.6)'),
+                  backdropFilter: showCategoryPicker ? 'none' : 'blur(16px)',
+                  border: showCategoryPicker
+                    ? 'none'
+                    : (isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'),
+                  height: showCategoryPicker ? '120px' : '40px',
+                  transition: 'height 0.25s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease, border 0.2s ease'
+                }}
+              >
+                {!showCategoryPicker ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryPicker(true)}
+                    className="w-full h-full px-4 font-medium outline-none text-left flex justify-between items-center"
+                    style={{
+                      color: (category && category !== 'Select a category') ? (isDarkMode ? 'white' : '#1f2937') : (isDarkMode ? '#9ca3af' : '#6b7280')
+                    }}
                   >
-                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                  </svg>
-                </button>
-              ) : (
-                <>
-                  <div
-                    className="fixed inset-0"
-                    style={{ zIndex: -1 }}
-                    onClick={() => setShowCategoryPicker(false)}
-                  />
-
-                  <div className="relative h-full overflow-hidden">
+                    <span>{category || 'Select a category'}</span>
+                    <svg
+                      width="20"
+                      height="20"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                    >
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                ) : (
+                  <>
                     <div
-                      className="absolute left-0 right-0 pointer-events-none rounded-xl"
-                      style={{
-                        top: '0px',
-                        height: '40px',
-                        background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.3)',
-                        border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
-                      }}
+                      className="fixed inset-0"
+                      style={{ zIndex: -1 }}
+                      onClick={() => setShowCategoryPicker(false)}
                     />
 
-                    <div
-                      ref={categoryScrollRef}
-                      className="h-full overflow-y-auto scrollbar-hide"
-                      style={{
-                        paddingTop: '0px',
-                        paddingBottom: '80px'
-                      }}
-                    >
-                      {categories.map((cat) => (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => {
-                            setCategory(cat);
-                            setError('');
-                            setShowCategoryPicker(false);
-                          }}
-                          className="w-full flex items-center justify-center category-item"
-                          style={{
-                            height: '40px',
-                            background: 'transparent',
-                            color: '#6b7280',
-                            fontSize: '15px',
-                            fontWeight: '400',
-                            transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
-                          }}
-                        >
-                          {cat}
-                        </button>
-                      ))}
+                    <div className="relative h-full overflow-hidden">
+                      <div
+                        className="absolute left-0 right-0 pointer-events-none rounded-xl"
+                        style={{
+                          top: '0px',
+                          height: '40px',
+                          background: isDarkMode ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.3)',
+                          border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(0, 0, 0, 0.1)'
+                        }}
+                      />
+
+                      <div
+                        ref={categoryScrollRef}
+                        className="h-full overflow-y-auto scrollbar-hide"
+                        style={{
+                          paddingTop: '0px',
+                          paddingBottom: '80px'
+                        }}
+                      >
+                        {categories.map((cat) => (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => {
+                              setCategory(cat);
+                              setError('');
+                              setShowCategoryPicker(false);
+                            }}
+                            className="w-full flex items-center justify-center category-item"
+                            style={{
+                              height: '40px',
+                              background: 'transparent',
+                              color: '#6b7280',
+                              fontSize: '15px',
+                              fontWeight: '400',
+                              transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
+                            }}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Personal Expense or Split Between */}
           <div>
