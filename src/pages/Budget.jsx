@@ -370,101 +370,42 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
     };
   }).filter(expense => expense !== null); // Remove invalid expenses
 
-  // Calculate total spent the SAME way as Expenses page
-  // Your share of expenses YOU paid for
-  const yourShareOfPaidExpenses = convertedExpenses
-    .filter(expense => expense.paidBy === currentUserId)
-    .reduce((sum, expense) => {
-      const yourShare = expense.amount / expense.splitBetween.length;
-      return sum + yourShare;
-    }, 0);
+  // My Share = The value of goods/services YOU consumed this month
+  // This matches the Expenses page "My Share" calculation exactly
+  const totalSpent = convertedExpenses.reduce((sum, expense) => {
+    // 1. Personal Expense (Yours) -> Full amount
+    if (expense.splitBetween.length === 1 && expense.paidBy === currentUserId) {
+      return sum + expense.amount;
+    }
+    // 2. Personal Expense (Others) -> 0
+    if (expense.splitBetween.length === 1 && expense.paidBy !== currentUserId) {
+      return sum;
+    }
 
-  // Calculate settlements you've paid (ALL settlements, not filtered by month)
-  const settlementsYouPaid = settlementHistory
-    .filter(settlement => settlement.from_user_id === currentUserId)
-    .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+    // 3. Loans (check if isLoan exists or if it's a loan by checking splits)
+    // A loan is when one person pays but has 0 share
+    const paidByYou = expense.paidBy === currentUserId;
+    const yourSplit = expense.expense_splits?.find(s => s.user_id === currentUserId);
 
-  // Calculate settlements you've received (ALL settlements, not filtered by month)
-  const settlementsYouReceived = settlementHistory
-    .filter(settlement => settlement.to_user_id === currentUserId)
-    .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+    // If you paid but have 0 share, you lent money (not consumption)
+    if (paidByYou && yourSplit && yourSplit.share_amount === 0) {
+      return sum;
+    }
 
-  // Calculate "You Owe" from all expenses (not filtered by month)
-  const calculateYouOwe = () => {
-    const balances = {};
+    // If someone else paid and you have the full amount as share, you borrowed (consumption)
+    if (!paidByYou && yourSplit && yourSplit.share_amount === expense.amount) {
+      return sum + expense.amount;
+    }
 
-    // Helper to get last settled timestamp
-    const getLastSettledTimestamp = (userId1, userId2) => {
-      const relevantSettlements = settlementHistory.filter(s =>
-        ((s.from_user_id === userId1 && s.to_user_id === userId2) ||
-         (s.from_user_id === userId2 && s.to_user_id === userId1))
-      );
+    // 4. Shared Expenses
+    // If you are in the split, add your share
+    if (expense.splitBetween.includes(currentUserId)) {
+      const userShare = expense.amount / expense.splitBetween.length;
+      return sum + userShare;
+    }
 
-      if (relevantSettlements.length === 0) return null;
-
-      const mostRecent = relevantSettlements.sort((a, b) => {
-        const dateA = new Date(a.settled_up_to_timestamp || a.completed_at);
-        const dateB = new Date(b.settled_up_to_timestamp || b.completed_at);
-        return dateB - dateA;
-      })[0];
-
-      return mostRecent.settled_up_to_timestamp || mostRecent.completed_at;
-    };
-
-    // Calculate balances from ALL expenses (not just filtered)
-    expenses.forEach(expense => {
-      const splitBetween = expense.splitBetween || [];
-      const paidBy = expense.paidBy;
-
-      // Convert to user currency
-      const originalAmount = parseFloat(expense.originalAmount ?? expense.amount) || 0;
-      const expenseCurrency = expense.expenseCurrency || expense.currency || 'USD';
-      const convertedAmount = Object.keys(exchangeRates).length > 0
-        ? convertCurrency(originalAmount, expenseCurrency, userCurrency, exchangeRates)
-        : originalAmount;
-
-      const splitAmount = convertedAmount / splitBetween.length;
-      const expenseDate = new Date(expense.date);
-
-      // If someone else paid and you're in the split - you owe them
-      if (paidBy !== currentUserId && splitBetween.includes(currentUserId)) {
-        const lastSettled = getLastSettledTimestamp(currentUserId, paidBy);
-
-        if (!lastSettled || expenseDate > new Date(lastSettled)) {
-          if (!balances[paidBy]) {
-            balances[paidBy] = { amount: 0 };
-          }
-          balances[paidBy].amount += splitAmount;
-        }
-      }
-
-      // If you paid and others are in the split - they owe you
-      if (paidBy === currentUserId) {
-        splitBetween.forEach(personId => {
-          if (personId !== currentUserId) {
-            const lastSettled = getLastSettledTimestamp(currentUserId, personId);
-
-            if (!lastSettled || expenseDate > new Date(lastSettled)) {
-              if (!balances[personId]) {
-                balances[personId] = { amount: 0 };
-              }
-              balances[personId].amount -= splitAmount;
-            }
-          }
-        });
-      }
-    });
-
-    // Sum up "you_owe" balances
-    return Object.values(balances)
-      .filter(b => b.amount > 0)
-      .reduce((sum, b) => sum + b.amount, 0);
-  };
-
-  const youOwe = calculateYouOwe();
-
-  // Total Spent = Your share of paid expenses + Settlements paid - Settlements received + You Owe
-  const totalSpent = yourShareOfPaidExpenses + settlementsYouPaid - settlementsYouReceived + youOwe;
+    return sum;
+  }, 0);
 
   const remaining = budgetLimit - totalSpent;
   const percentageUsed = Math.min((totalSpent / budgetLimit) * 100, 100);
@@ -956,10 +897,10 @@ const Budget = ({ isDarkMode, setIsDarkMode }) => {
                   {/* Center Text */}
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <p className="text-4xl font-bold" style={{ color: '#FF5E00' }}>
-                      {getCurrencySymbol(userCurrency)}{Math.abs(remaining).toFixed(0)}
+                      {remaining < 0 ? '-' : ''}{getCurrencySymbol(userCurrency)}{Math.abs(remaining).toFixed(0)}
                     </p>
                     <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                      Remaining
+                      {remaining >= 0 ? 'Remaining' : 'Over Budget'}
                     </p>
                   </div>
                 </div>
