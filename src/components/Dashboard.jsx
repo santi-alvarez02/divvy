@@ -213,43 +213,60 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
               };
             }) || [];
 
-            // Filter to current month for display in Recent Expenses
+            // Filter to current month AND only expenses involving current user
             const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
             const currentMonthExpenses = transformedExpenses.filter(expense => {
               const expenseDate = new Date(expense.date);
-              return expenseDate >= firstDayOfMonth;
+              const isCurrentMonth = expenseDate >= firstDayOfMonth;
+              const isUserInvolved = expense.splitBetween.includes(currentUserId);
+              return isCurrentMonth && isUserInvolved;
             });
 
             setExpenses(currentMonthExpenses);
 
             console.log('Dashboard: All expenses fetched:', transformedExpenses);
-            console.log('Dashboard: Current month expenses:', currentMonthExpenses);
+            console.log('Dashboard: Current month expenses (user involved):', currentMonthExpenses);
             console.log('Dashboard: Current user ID:', currentUserId);
 
-            // Calculate Total Spent the SAME way as Expenses page
-            // Your share of expenses YOU paid for (current month)
-            const yourShareOfPaidExpenses = currentMonthExpenses
-              .filter(expense => expense.paidBy === currentUserId)
-              .reduce((sum, expense) => {
+            // Calculate "My Share" the SAME way as Expenses page
+            const myShare = currentMonthExpenses.reduce((sum, expense) => {
+              // 1. Personal Expense (Yours) -> Full amount
+              if (expense.splitBetween.length === 1 && expense.paidBy === currentUserId) {
+                return sum + expense.amount;
+              }
+              // 2. Personal Expense (Others) -> 0
+              if (expense.splitBetween.length === 1 && expense.paidBy !== currentUserId) {
+                return sum;
+              }
+
+              // 3. Loans
+              const paidByYou = expense.paidBy === currentUserId;
+              const yourSplit = expense.splits?.find(s => s.user_id === currentUserId);
+
+              // If you paid but have 0 share, you lent money (not consumption)
+              if (paidByYou && yourSplit && yourSplit.share_amount === 0) {
+                return sum;
+              }
+
+              // If someone else paid and you have the full amount as share, you borrowed (consumption)
+              if (!paidByYou && yourSplit && yourSplit.share_amount === expense.amount) {
+                return sum + expense.amount;
+              }
+
+              // 4. Shared Expenses - If you are in the split, add your share
+              if (expense.splitBetween.includes(currentUserId)) {
                 const userShare = expense.amount / expense.splitBetween.length;
                 return sum + userShare;
-              }, 0);
+              }
 
-            // Calculate settlements you've paid (ALL time)
-            const settlementsYouPaid = settlementHistory
-              .filter(settlement => settlement.from_user_id === currentUserId)
-              .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
+              return sum;
+            }, 0);
 
-            // Calculate settlements you've received (ALL time)
-            const settlementsYouReceived = settlementHistory
-              .filter(settlement => settlement.to_user_id === currentUserId)
-              .reduce((sum, settlement) => sum + (settlement.amount || 0), 0);
-
-            // Set budget data (will add youOwe later)
+            // Set budget data with correct "My Share" calculation
             const monthName = now.toLocaleDateString('en-US', { month: 'long' });
             setBudget({
               limit: userData?.monthly_budget || 0,
-              spent: yourShareOfPaidExpenses + settlementsYouPaid - settlementsYouReceived,
+              spent: myShare,
               month: monthName,
               year: now.getFullYear()
             });
@@ -329,17 +346,6 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
 
             console.log('Dashboard: Final balance array:', balanceArray);
             setBalances(balanceArray);
-
-            // Calculate "You Owe" and add to budget spent
-            const youOwe = balanceArray
-              .filter(b => b.type === 'you_owe')
-              .reduce((sum, b) => sum + b.amount, 0);
-
-            // Update budget: Total Spent = Your share + Settlements + You Owe
-            setBudget(prev => ({
-              ...prev,
-              spent: prev.spent + youOwe
-            }));
           }
         }
       } catch (error) {
