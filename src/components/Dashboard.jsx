@@ -578,7 +578,7 @@ const Dashboard = ({ isDarkMode, setIsDarkMode }) => {
 
           {/* Recent Expenses - Full width below */}
           <div className="md:col-span-5">
-            <RecentExpenses expenses={expenses} roommates={roommates} currency={userCurrency} isDarkMode={isDarkMode} onClick={() => navigate('/expenses')} onAddExpense={handleAddExpense} />
+            <RecentExpenses expenses={expenses} roommates={roommates} currency={userCurrency} isDarkMode={isDarkMode} onClick={() => navigate('/expenses')} onAddExpense={handleAddExpense} currentUserId={currentUserId} />
           </div>
         </div>
       </main>

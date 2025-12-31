@@ -1,11 +1,44 @@
 import React from 'react';
 import { getCurrencySymbol } from '../utils/currency';
 
-const RecentExpenses = ({ expenses, roommates, currency = 'USD', isDarkMode, onClick, onAddExpense }) => {
+const RecentExpenses = ({ expenses, roommates, currency = 'USD', isDarkMode, onClick, onAddExpense, currentUserId }) => {
   // Get roommate name by ID
   const getRoommateName = (id) => {
     const roommate = roommates.find(r => r.id === id);
     return roommate ? roommate.name : 'Unknown';
+  };
+
+  // Calculate user's share of an expense
+  const getUserShare = (expense) => {
+    // Personal expense by current user -> full amount
+    if (expense.splitBetween.length === 1 && expense.paidBy === currentUserId) {
+      return expense.amount;
+    }
+    // Personal expense by someone else -> 0 (shouldn't be displayed)
+    if (expense.splitBetween.length === 1 && expense.paidBy !== currentUserId) {
+      return 0;
+    }
+
+    // Loans
+    const paidByYou = expense.paidBy === currentUserId;
+    const yourSplit = expense.splits?.find(s => s.user_id === currentUserId);
+
+    // If you paid but have 0 share, you lent money -> 0
+    if (paidByYou && yourSplit && yourSplit.share_amount === 0) {
+      return 0;
+    }
+
+    // If someone else paid and you have the full amount as share, you borrowed -> full amount
+    if (!paidByYou && yourSplit && yourSplit.share_amount === expense.amount) {
+      return expense.amount;
+    }
+
+    // Shared expenses - return user's share
+    if (expense.splitBetween.includes(currentUserId)) {
+      return expense.amount / expense.splitBetween.length;
+    }
+
+    return 0;
   };
 
   // Format date
@@ -118,7 +151,7 @@ const RecentExpenses = ({ expenses, roommates, currency = 'USD', isDarkMode, onC
             {/* Right side - Amount and date */}
             <div className="text-right ml-4">
               <p className="text-base font-bold" style={{ color: '#FF5E00' }}>
-                {getCurrencySymbol(currency)}{expense.amount.toFixed(2)}
+                {getCurrencySymbol(currency)}{getUserShare(expense).toFixed(2)}
               </p>
               <p className={`text-xs font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                 {formatDate(expense.date)}
