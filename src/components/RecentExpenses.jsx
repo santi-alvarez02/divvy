@@ -8,7 +8,7 @@ const RecentExpenses = ({ expenses, roommates, currency = 'USD', isDarkMode, onC
     return roommate ? roommate.name : 'Unknown';
   };
 
-  // Calculate user's share of an expense
+  // Calculate display amount for an expense (matches Expenses page logic)
   const getUserShare = (expense) => {
     // Personal expense by current user -> full amount
     if (expense.splitBetween.length === 1 && expense.paidBy === currentUserId) {
@@ -23,9 +23,9 @@ const RecentExpenses = ({ expenses, roommates, currency = 'USD', isDarkMode, onC
     const paidByYou = expense.paidBy === currentUserId;
     const yourSplit = expense.splits?.find(s => s.user_id === currentUserId);
 
-    // If you paid but have 0 share, you lent money -> 0
+    // If you paid but have 0 share, you lent money -> full amount (money that left your pocket)
     if (paidByYou && yourSplit && yourSplit.share_amount === 0) {
-      return 0;
+      return expense.amount;
     }
 
     // If someone else paid and you have the full amount as share, you borrowed -> full amount
@@ -33,8 +33,13 @@ const RecentExpenses = ({ expenses, roommates, currency = 'USD', isDarkMode, onC
       return expense.amount;
     }
 
-    // Shared expenses - return user's share
+    // Shared expenses
     if (expense.splitBetween.includes(currentUserId)) {
+      // If YOU paid -> show FULL amount (money that left your pocket)
+      if (expense.paidBy === currentUserId) {
+        return expense.amount;
+      }
+      // If someone else paid -> show YOUR share (what you owe)
       return expense.amount / expense.splitBetween.length;
     }
 
