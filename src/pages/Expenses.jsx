@@ -244,9 +244,10 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
         const splits = expense.expense_splits; // Keep the full split data with share amounts
 
         // Check if this is a loan (one person has 0 share, another has full amount)
+        // parseFloat because Supabase returns numeric columns as strings
         const isLoan = splits.length === 2 &&
-          splits.some(s => s.share_amount === 0) &&
-          splits.some(s => s.share_amount === originalAmount);
+          splits.some(s => parseFloat(s.share_amount) === 0) &&
+          splits.some(s => Math.abs(parseFloat(s.share_amount) - originalAmount) < 0.01);
 
         // Determine what amount to display based on who paid
         let displayAmount;

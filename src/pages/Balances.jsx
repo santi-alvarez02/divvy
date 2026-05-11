@@ -282,10 +282,11 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
           : originalAmount);
 
       // Check if this is a loan (2 people, one with 0 share, one with full amount)
+      // parseFloat because Supabase returns numeric columns as strings
       const splits = expense.expense_splits || [];
       const isLoan = splits.length === 2 &&
-                     splits.some(s => s.share_amount === 0) &&
-                     splits.some(s => s.share_amount === originalAmount);
+                     splits.some(s => parseFloat(s.share_amount) === 0) &&
+                     splits.some(s => Math.abs(parseFloat(s.share_amount) - originalAmount) < 0.01);
 
       const expenseDate = new Date(expense.date);
 
@@ -1276,10 +1277,11 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                         : originalAmount);
 
                     // Check if this is a loan
+                    // parseFloat because Supabase returns numeric columns as strings
                     const splits = expense.expense_splits || [];
                     const isLoan = splits.length === 2 &&
-                                   splits.some(s => s.share_amount === 0) &&
-                                   splits.some(s => s.share_amount === originalAmount);
+                                   splits.some(s => parseFloat(s.share_amount) === 0) &&
+                                   splits.some(s => Math.abs(parseFloat(s.share_amount) - originalAmount) < 0.01);
 
                     const expenseDate = new Date(expense.date);
 
