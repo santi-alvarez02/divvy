@@ -903,8 +903,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                 {/* Expense list */}
                 <div className="space-y-2">
                   {selectedBalance.expenses && selectedBalance.expenses.map((expense, idx) => {
-                    const isDebt = selectedBalance.amount > 0;
-                    const yourShare = isDebt ? expense.yourShare : expense.theirShare;
+                    const yourShare = expense.yourShare ?? expense.theirShare;
 
                     // Determine who paid: if expense has yourShare, they paid; if theirShare, you paid
                     const whoPaid = expense.yourShare ? selectedBalance.name : 'You';
@@ -941,7 +940,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                           </div>
                           <div className="text-right ml-4">
                             <p className="text-base font-bold" style={{ color: amountColor }}>
-                              {getCurrencySymbol(userCurrency)}{(yourShare !== undefined && yourShare !== null) ? yourShare.toFixed(2) : (expense.convertedAmount / (expense.split_between?.length || 1)).toFixed(2)}
+                              {getCurrencySymbol(userCurrency)}{yourShare.toFixed(2)}
                             </p>
                             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                               {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -1356,10 +1355,8 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                     );
                   }
 
-                  const isDebt = settlementBalance.amount > 0;
-
                   return settlementBalance.expenses.map((expense, idx) => {
-                    const yourShare = isDebt ? expense.yourShare : expense.theirShare;
+                    const yourShare = expense.yourShare ?? expense.theirShare;
 
                     // Determine who paid: if expense has yourShare, they paid; if theirShare, you paid
                     const whoPaid = expense.yourShare ? settlementBalance.name : 'You';
@@ -1396,7 +1393,7 @@ const Balances = ({ isDarkMode, setIsDarkMode }) => {
                           </div>
                           <div className="text-right ml-4">
                             <p className="text-base font-bold" style={{ color: amountColor }}>
-                              {getCurrencySymbol(userCurrency)}{(yourShare !== undefined && yourShare !== null) ? yourShare.toFixed(2) : (expense.convertedAmount / expense.split_between.length).toFixed(2)}
+                              {getCurrencySymbol(userCurrency)}{yourShare.toFixed(2)}
                             </p>
                             <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                               {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
