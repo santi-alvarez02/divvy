@@ -431,27 +431,34 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const categories = ['All', ...new Set(expenses.map(e => e.category))];
 
   // Date range options - generate current month and previous months with data
+  // Each entry is { label, type, year?, month? } so filtering uses stored
+  // year/month rather than re-deriving from list position.
   const generateDateRanges = () => {
-    const ranges = ['This Week', 'This Month'];
-    const currentDate = new Date();
+    const ranges = [
+      { label: 'This Week', type: 'week' },
+      { label: 'This Month', type: 'month' },
+    ];
+    const now = new Date();
 
-    // Add previous 11 months only if they have expenses
-    for (let i = 1; i <= 11; i++) {
-      const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
-      const monthName = targetDate.toLocaleDateString('en-US', { month: 'long' });
-      const targetYear = targetDate.getFullYear();
-      const targetMonth = targetDate.getMonth();
+    const monthsSet = new Set();
+    expenses.forEach(expense => {
+      const d = new Date(expense.date);
+      monthsSet.add(`${d.getFullYear()}-${d.getMonth()}`);
+    });
 
-      // Check if this month has any expenses
-      const hasExpenses = expenses.some(expense => {
-        const expenseDate = new Date(expense.date);
-        return expenseDate.getMonth() === targetMonth && expenseDate.getFullYear() === targetYear;
-      });
+    const months = Array.from(monthsSet)
+      .map(key => {
+        const [year, month] = key.split('-').map(Number);
+        return { year, month };
+      })
+      .filter(({ year, month }) => !(year === now.getFullYear() && month === now.getMonth()))
+      .sort((a, b) => (a.year !== b.year ? b.year - a.year : b.month - a.month));
 
-      if (hasExpenses) {
-        ranges.push(monthName);
-      }
-    }
+    months.forEach(({ year, month }) => {
+      const monthName = new Date(year, month).toLocaleDateString('en-US', { month: 'long' });
+      const label = year === now.getFullYear() ? monthName : `${monthName} ${year}`;
+      ranges.push({ label, type: 'specific', year, month });
+    });
 
     return ranges;
   };
@@ -506,7 +513,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
       return; // Early return still allows cleanup
     }
 
-    const selectedIndex = dateRanges.indexOf(selectedDateRange);
+    const selectedIndex = dateRanges.findIndex(r => r.label === selectedDateRange);
     const itemHeight = 40;
     const scrollTop = selectedIndex * itemHeight;
     const scrollContainer = dateScrollRef.current;
@@ -597,37 +604,20 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
 
   // Date filter helper
   const filterByDateRange = (expense) => {
+    const selected = dateRanges.find(r => r.label === selectedDateRange);
+    if (!selected) return false;
+
     const expenseDate = new Date(expense.date);
     const now = new Date();
 
-    if (selectedDateRange === 'This Week') {
+    if (selected.type === 'week') {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       return expenseDate >= weekAgo;
-    } else if (selectedDateRange === 'This Month') {
-      return expenseDate.getMonth() === now.getMonth() && expenseDate.getFullYear() === now.getFullYear();
-    } else {
-      // Handle specific month names (September, August, July, etc.)
-      const expenseMonthName = expenseDate.toLocaleDateString('en-US', { month: 'long' });
-
-      // Check if the expense month matches the selected month
-      // Consider both current year and previous year
-      if (expenseMonthName === selectedDateRange) {
-        const currentYear = now.getFullYear();
-        const expenseYear = expenseDate.getFullYear();
-
-        // Get the month index of the selected month
-        const selectedMonthIndex = dateRanges.indexOf(selectedDateRange);
-        const monthsBack = selectedMonthIndex - 1; // -1 because first two items are "This Week" and "This Month", and we want 1-indexed months back
-
-        // Calculate the expected year for this month
-        const expectedDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
-        const expectedYear = expectedDate.getFullYear();
-
-        return expenseYear === expectedYear;
-      }
-
-      return false;
     }
+    if (selected.type === 'month') {
+      return expenseDate.getMonth() === now.getMonth() && expenseDate.getFullYear() === now.getFullYear();
+    }
+    return expenseDate.getMonth() === selected.month && expenseDate.getFullYear() === selected.year;
   };
 
   // Filter expenses by date only for charts
@@ -856,16 +846,15 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
   const getDisplayTitle = () => {
     if (selectedDateRange === 'This Week') {
       return 'This Week';
-    } else if (selectedDateRange === 'This Month') {
-      return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    } else {
-      // For specific months like September, August, etc.
-      const now = new Date();
-      const selectedMonthIndex = dateRanges.indexOf(selectedDateRange);
-      const monthsBack = selectedMonthIndex - 1; // -1 because first two items are "This Week" and "This Month", and we want 1-indexed months back
-      const targetDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
-      return targetDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     }
+    if (selectedDateRange === 'This Month') {
+      return new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+    const selected = dateRanges.find(r => r.label === selectedDateRange);
+    if (selected && selected.type === 'specific') {
+      return new Date(selected.year, selected.month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    }
+    return selectedDateRange;
   };
 
   // Filter expenses based on search term, category, and date
@@ -1455,10 +1444,10 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                         >
                           {dateRanges.map((range) => (
                             <button
-                              key={range}
+                              key={range.label}
                               type="button"
                               onClick={() => {
-                                setSelectedDateRange(range);
+                                setSelectedDateRange(range.label);
                                 setShowDatePicker(false);
                               }}
                               className="w-full flex items-center justify-center date-filter-item"
@@ -1471,7 +1460,7 @@ const Expenses = ({ isDarkMode, setIsDarkMode }) => {
                                 transition: 'color 0.15s ease, font-size 0.15s ease, font-weight 0.15s ease'
                               }}
                             >
-                              {range}
+                              {range.label}
                             </button>
                           ))}
                         </div>
